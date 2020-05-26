@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <ItemsProjectGuid>{4b57e4bc-5558-4de6-b4da-4490f8c1e34a}</ItemsProjectGuid>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(MSBuildThisFileDirectory)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectCapability Include="SourceItemsFromImports" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)ajson.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)fixed_function.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_base.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_chrono.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_data.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_queue.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_epoll.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_epoll.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_itempool.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_math.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_queue.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_scopeguard.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_signal.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_threadpool.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="$(MSBuildThisFileDirectory)xx.natvis" />
+  </ItemGroup>
+</Project>
