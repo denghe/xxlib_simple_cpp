@@ -139,6 +139,7 @@ namespace xx::Epoll {
 		ItemTimeout* timeoutPrev = nullptr;
 		ItemTimeout* timeoutNext = nullptr;
 		int SetTimeout(int const& interval);
+		int SetTimeoutSeconds(double const& seconds);
 		virtual void OnTimeout() = 0;
 		~ItemTimeout();
 	};
@@ -318,6 +319,7 @@ namespace xx::Epoll {
 	// 处理键盘输入指令的专用类( 单例 ). 直接映射到 STDIN_FILENO ( fd == 0 )
 	struct CommandHandler : Item {
 		inline static CommandHandler* self = nullptr;
+		std::vector<std::string> args;
 
 		CommandHandler();
 		static void ReadLineCallback(char* line);
@@ -338,6 +340,9 @@ namespace xx::Epoll {
 	/***********************************************************************************************************/
 
 	struct Context {
+		/********************************************************/
+		// 下面这几个是内部成员, 别碰
+
 		// 所有类实例唯一容器。外界用 Ref 来存引用. 自带自增版本号管理
 		ItemPool<Item_u> items;
 
@@ -351,7 +356,6 @@ namespace xx::Epoll {
 		int efd = -1;
 
 
-
 		// 时间轮. 只存指针引用, 不管理内存
 		std::vector<ItemTimeout*> wheel;
 
@@ -361,7 +365,6 @@ namespace xx::Epoll {
 
 		/********************************************************/
 		// 下面这几个用户可以读
-
 
 		// 对于一些返回值非 int 的函数, 具体错误码将存放于此
 		int lastErrorNumber = 0;
@@ -374,23 +377,19 @@ namespace xx::Epoll {
 
 
 		/********************************************************/
-		// 下面这几个用户可以读写
+		// 下面这几个可读写
+
+		// 映射通过 stdin 进来的指令的处理函数. 去空格 去 tab 后第一个单词作为 key. 剩余部分作为 args
+		std::unordered_map<std::string, std::function<void(std::vector<std::string> const& args)>> cmds;
+
 
 		// 执行标志位。如果要退出，修改它
 		bool running = true;
 
 
 
-		// 公用 args( 已用于 cmds 传参 )
-		std::vector<std::string> args;
 
-		// 映射通过 stdin 进来的指令的处理函数. 去空格 去 tab 后第一个单词作为 key. 剩余部分作为 args
-		std::unordered_map<std::string, std::function<void(std::vector<std::string> const& args)>> cmds;
-
-
-
-
-		// 参数：是否启用键盘指令输入( 限主线程 )，时间轮长度( 要求为 2^n )
+		// 参数：时间轮长度( 要求为 2^n )
 		Context(size_t const& wheelLen = 1 << 12);
 
 		virtual ~Context();
@@ -415,11 +414,11 @@ namespace xx::Epoll {
 		// 每帧调用一次 以驱动 timer
 		inline void UpdateTimeoutWheel();
 
-		// 遍历 kcp 并 Update
-		void UpdateKcps();
-
+		// 添加对象到容器
 		template<typename T>
 		T* AddItem(std::unique_ptr<T>&& item, int const& fd = -1);
+
+
 
 		/********************************************************/
 		// 下面是外部主要使用的函数
@@ -432,22 +431,22 @@ namespace xx::Epoll {
 
 
 		// 帧逻辑可以覆盖这个函数. 返回非 0 将令 Run 退出. 
-		inline virtual int Update() { return 0; }
+		inline virtual int FrameUpdate() { return 0; }
 
 
 		// 开始运行并尽量维持在指定帧率. 临时拖慢将补帧
-		int Run(double const& frameRate = 60.3);
+		int Run(double const& frameRate = 10);
 
 
 		// 创建 TCP 监听器
 		template<typename T = TcpListener, typename ...Args>
 		Ref<T> CreateTcpListener(int const& port, Args&&... args);
 
-		// 创建 连接 peer
+		// 创建 拨号器
 		template<typename T = Dialer, typename ...Args>
 		Ref<T> CreateDialer(Args&&... args);
 
-		// 创建 timer
+		// 创建 定时器
 		template<typename T = Timer, typename ...Args>
 		Ref<T> CreateTimer(int const& interval, std::function<void(Timer_r const& timer)>&& cb, Args&&...args);
 
@@ -465,6 +464,7 @@ namespace xx::Epoll {
 	// ip, port 转为 addr
 	int FillAddress(std::string const& ip, int const& port, sockaddr_in6& addr);
 
+	
 	//int AddressToString
 	//namespace xx {
 	//	// 适配 sockaddr*

@@ -4,8 +4,8 @@
 #include <string.h>
 
 namespace xx {
-	// 最基础的二进制数据容器, bbuffer 的基类
-	// 两种模式: 1. 追加模式    2. 只读引用模式
+
+	// 最基础的二进制数据容器. 两种模式: 1. 追加.  2. 只读引用	( 当 cap == -1 )
 	struct Data {
 		char*				buf = nullptr;
 		size_t				len = 0;
@@ -13,9 +13,7 @@ namespace xx {
 
 		// buf 头部预留空间大小. 至少需要装得下 sizeof(size_t)
 		static const size_t	recvLen = 16;
-
-		// cap 用来表达用法 2 的特殊值
-		static const size_t	special = (size_t)-1;
+		static const size_t	_1 = (size_t)-1;
 
 		Data() = default;
 
@@ -41,7 +39,7 @@ namespace xx {
 			operator=(o);
 		}
 		inline Data& operator=(Data const& o) {
-			if (o.cap == special) {
+			if (o.cap == _1) {
 				buf = o.buf;
 				len = o.len;
 				cap = o.cap;
@@ -74,7 +72,7 @@ namespace xx {
 
 		// 确保空间足够
 		inline void Reserve(size_t const& newCap) {
-			assert(cap != special);
+			assert(cap != _1);
 			if (newCap <= cap) return;
 
 			auto siz = Round2n(recvLen + newCap);
@@ -91,7 +89,7 @@ namespace xx {
 
 		// 返回旧长度
 		inline size_t Resize(size_t const& newLen) {
-			assert(cap != special);
+			assert(cap != _1);
 			if (newLen > len) {
 				Reserve(newLen);
 			}
@@ -113,7 +111,7 @@ namespace xx {
 
 		// 从头部移除指定长度数据( 常见于拆包处理移除掉已经访问过的包数据, 将残留部分移动到头部 )
 		inline void RemoveFront(size_t const& siz) {
-			assert(cap != special);
+			assert(cap != _1);
 			assert(siz <= len);
 			if (!siz) return;
 			len -= siz;
@@ -124,7 +122,7 @@ namespace xx {
 
 		// 追加写入一段 buf
 		inline void WriteBuf(char const* const& ptr, size_t const& siz) {
-			assert(cap != special);
+			assert(cap != _1);
 			Reserve(len + siz);
 			::memcpy(buf + len, ptr, siz);
 			len += siz;
@@ -132,26 +130,26 @@ namespace xx {
 
 		// 设置为只读模式, 并初始化引用计数( 开启只读引用计数模式. 没数据不允许开启 )
 		inline void SetReadonlyMode() {
-			assert(cap != special);
+			assert(cap != _1);
 			assert(len);
-			cap = special;
+			cap = _1;
 			Refs() = 1;
 		}
 
 		// 判断是否为只读模式
 		inline bool Readonly() const {
-			return cap == special;
+			return cap == _1;
 		}
 
 		// 访问引用计数
 		inline size_t& Refs() const {
-			assert(cap == special);
+			assert(cap == _1);
 			return *(size_t*)(buf - recvLen);
 		}
 
 		// 引用模式减持, 追加模式释放 buf
 		~Data() {
-			if (cap == special && --Refs()) return;
+			if (cap == _1 && --Refs()) return;
 			if (cap) {
 				::free(buf - recvLen);
 			}
@@ -159,7 +157,7 @@ namespace xx {
 
 		// len 清 0, 可彻底释放 buf
 		inline void Clear(bool const& freeBuf = false) {
-			assert(cap != special);
+			assert(cap != _1);
 			if (freeBuf && cap) {
 				::free(buf - recvLen);
 				buf = nullptr;

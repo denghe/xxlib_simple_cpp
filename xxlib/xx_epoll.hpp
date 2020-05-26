@@ -119,6 +119,8 @@ namespace xx::Epoll {
 
 	// 返回非 0 表示找不到 管理器 或 参数错误
 	inline int ItemTimeout::SetTimeout(int const& interval) {
+		assert((int)ep->wheel.size() > interval);
+
 		// 试着从 wheel 链表中移除
 		if (timeoutIndex != -1) {
 			if (timeoutNext != nullptr) {
@@ -159,6 +161,10 @@ namespace xx::Epoll {
 		}
 
 		return 0;
+	}
+
+	inline int ItemTimeout::SetTimeoutSeconds(double const& seconds) {
+		return SetTimeout(ep->SecToFrames(seconds));
 	}
 
 	inline ItemTimeout::~ItemTimeout() {
@@ -574,7 +580,6 @@ namespace xx::Epoll {
 
 	inline void CommandHandler::Exec(char const* const& row, size_t const& len) {
 		// 读取 row 内容, call ep->cmds[ args[0] ]( args )
-		auto&& args = ep->args;
 		args.clear();
 		std::string s;
 		bool jumpSpace = true;
@@ -623,46 +628,35 @@ namespace xx::Epoll {
 		free(line);
 	}
 
-	inline char* CommandHandler::CompleteGenerate(const char* text, int state) {
-		// This function is called with state=0 the first time; subsequent calls are
-		  // with a nonzero state. state=0 can be used to perform one-time
-		  // initialization for this completion session.
+	inline char* CommandHandler::CompleteGenerate(const char* t, int state) {
 		static std::vector<std::string> matches;
 		static size_t match_index = 0;
 
+		// 如果是首次回调 则开始填充对照表
 		if (state == 0) {
-			// During initialization, compute the actual matches for 'text' and keep
-			// them in a static vector.
 			matches.clear();
 			match_index = 0;
 
-			// Collect a vector of matches: vocabulary words that begin with text.
-			std::string textstr = std::string(text);
+			std::string s(t);
 			for (auto&& kv : self->ep->cmds) {
 				auto&& word = kv.first;
-				if (word.size() >= textstr.size() &&
-					word.compare(0, textstr.size(), textstr) == 0) {
+				if (word.size() >= s.size() &&
+					word.compare(0, s.size(), s) == 0) {
 					matches.push_back(word);
 				}
 			}
 		}
 
-		if (match_index >= matches.size()) {
-			// We return nullptr to notify the caller no more matches are available.
-			return nullptr;
-		}
-		else {
-			// Return a malloc'd char* for the match. The caller frees it.
-			return strdup(matches[match_index++].c_str());
-		}
+		// 没找到
+		if (match_index >= matches.size()) return nullptr;
+
+		// 找到: 克隆一份返回
+		return strdup(matches[match_index++].c_str());
 	}
 
 	inline char** CommandHandler::CompleteCallback(const char* text, int start, int end) {
-		// Don't do filename completion even if our generator finds no matches.
+		// 不做文件名适配
 		rl_attempted_completion_over = 1;
-
-		// Note: returning nullptr here will make readline use the default filename
-		// completer.
 		return rl_completion_matches(text, (rl_compentry_func_t*)&CompleteGenerate);
 	}
 
@@ -846,11 +840,8 @@ namespace xx::Epoll {
 				// 驱动 timerswfffffff
 				UpdateTimeoutWheel();
 
-				// 驱动 kcps
-				UpdateKcps();
-
 				// 帧逻辑调用一次
-				if (int r = Update()) return r;
+				if (int r = FrameUpdate()) return r;
 			}
 			else {
 				// 计算等待时长
