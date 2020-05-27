@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -253,11 +253,11 @@ namespace xx::Epoll {
 	// TcpConn
 	/***********************************************************************************************************/
 
-	struct Dialer;
-	using Dialer_r = Ref<Dialer>;
+	struct TcpDialer;
+	using TcpDialer_r = Ref<TcpDialer>;
 	struct TcpConn : Item {
 		// 指向拨号器, 方便调用其 OnConnect 函数
-		Dialer_r dialer;
+		TcpDialer_r dialer;
 
 		// 判断是否连接成功
 		virtual void OnEpollEvent(uint32_t const& e) override;
@@ -267,10 +267,10 @@ namespace xx::Epoll {
 
 
 	/***********************************************************************************************************/
-	// Dialer
+	// TcpDialer
 	/***********************************************************************************************************/
 
-	struct Dialer : ItemTimeout {
+	struct TcpDialer : ItemTimeout {
 		// 要连的地址数组. 带协议标记
 		std::vector<sockaddr_in6> addrs;
 
@@ -281,6 +281,7 @@ namespace xx::Epoll {
 		// 保留先连接上的 socket fd, 创建 Peer 并触发 OnConnect 事件. 
 		// 如果超时，也触发 OnConnect，参数为 nullptr
 		int Dial(int const& timeoutFrames);
+		int DialSeconds(double const& timeoutSeconds);
 
 		// 返回是否正在拨号
 		bool Busy();
@@ -289,16 +290,16 @@ namespace xx::Epoll {
 		void Stop();
 
 		// 连接成功或超时后触发
-		virtual void OnConnect(Peer_r const& peer) = 0;
+		virtual void OnConnect(TcpPeer_r const& peer) = 0;
 
 		// 覆盖并提供创建 peer 对象的实现. 返回 nullptr 表示创建失败
-		virtual Peer_u OnCreatePeer();
+		virtual TcpPeer_u OnCreatePeer();
 
 		// Stop()
-		~Dialer();
+		~TcpDialer();
 
 		// 存个空值备用 以方便返回引用
-		Peer_r emptyPeer;
+		TcpPeer_r emptyPeer;
 
 		// 内部连接对象. 拨号完毕后会被清空
 		std::vector<Item_r> conns;
@@ -308,7 +309,6 @@ namespace xx::Epoll {
 	protected:
 		// 按具体协议创建 Conn 对象
 		int NewTcpConn(sockaddr_in6 const& addr);
-		int NewKcpConn(sockaddr_in6 const& addr);
 	};
 
 
@@ -424,7 +424,7 @@ namespace xx::Epoll {
 		// 下面是外部主要使用的函数
 
 		// 将秒转为帧数
-		inline int SecToFrames(double const& sec) { return (int)(frameRate * sec); }
+		inline int SecondsToFrames(double const& sec) { return (int)(frameRate * sec); }
 
 		// 将毫秒转为帧数
 		inline int MsToFrames(int const& ms) { return (int)(frameRate * ms / 1000); }
@@ -443,8 +443,8 @@ namespace xx::Epoll {
 		Ref<T> CreateTcpListener(int const& port, Args&&... args);
 
 		// 创建 拨号器
-		template<typename T = Dialer, typename ...Args>
-		Ref<T> CreateDialer(Args&&... args);
+		template<typename T = TcpDialer, typename ...Args>
+		Ref<T> CreateTcpDialer(Args&&... args);
 
 		// 创建 定时器
 		template<typename T = Timer, typename ...Args>
@@ -464,27 +464,11 @@ namespace xx::Epoll {
 	// ip, port 转为 addr
 	int FillAddress(std::string const& ip, int const& port, sockaddr_in6& addr);
 
-	
-	//int AddressToString
-	//namespace xx {
-	//	// 适配 sockaddr*
-	//	template<typename T>
-	//	struct SFuncs<T, std::enable_if_t<std::is_same_v<sockaddr*, std::decay_t<T>>>> {
-	//		static inline void Append(std::string& s, T const& in) noexcept {
-	//			char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-	//			if (!getnameinfo(in, in->sa_family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN
-	//				, hbuf, sizeof hbuf, sbuf, sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV)) {
-	//				xx::Append(s, (char*)hbuf, ":", (char*)sbuf);
-	//			}
-	//		}
-	//	};
-	//	template<typename T>
-	//	struct SFuncs<T, std::enable_if_t<std::is_same_v<sockaddr_in, std::decay_t<T>> || std::is_same_v<sockaddr_in6, std::decay_t<T>>>> {
-	//		static inline void Append(std::string& s, T const& in) noexcept {
-	//			return SFuncs<sockaddr*, void>::Append(s, (sockaddr*)&in);
-	//		}
-	//	};
-	//}
+
+	std::string AddressToString(sockaddr* const& in);
+	std::string AddressToString(sockaddr_in const& in);
+	std::string AddressToString(sockaddr_in6 const& in);
+
 }
 
 

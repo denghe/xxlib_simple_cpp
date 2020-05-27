@@ -164,7 +164,7 @@ namespace xx::Epoll {
 	}
 
 	inline int ItemTimeout::SetTimeoutSeconds(double const& seconds) {
-		return SetTimeout(ep->SecToFrames(seconds));
+		return SetTimeout(ep->SecondsToFrames(seconds));
 	}
 
 	inline ItemTimeout::~ItemTimeout() {
@@ -468,10 +468,10 @@ namespace xx::Epoll {
 
 
 	/***********************************************************************************************************/
-	// Dialer
+	// TcpDialer
 	/***********************************************************************************************************/
 
-	inline int Dialer::AddAddress(std::string const& ip, int const& port) {
+	inline int TcpDialer::AddAddress(std::string const& ip, int const& port) {
 		auto&& a = addrs.emplace_back();
 		if (int r = FillAddress(ip, port, a)) {
 			addrs.pop_back();
@@ -480,7 +480,7 @@ namespace xx::Epoll {
 		return 0;
 	}
 
-	inline int Dialer::Dial(int const& timeoutFrames) {
+	inline int TcpDialer::Dial(int const& timeoutFrames) {
 		Stop();
 		SetTimeout(timeoutFrames);
 		for (auto&& a : addrs) {
@@ -492,12 +492,16 @@ namespace xx::Epoll {
 		return 0;
 	}
 
-	inline bool Dialer::Busy() {
+	inline int TcpDialer::DialSeconds(double const& timeoutSeconds) {
+		return Dial(ep->SecondsToFrames(timeoutSeconds));
+	}
+
+	inline bool TcpDialer::Busy() {
 		// 用超时检测判断是否正在拨号
 		return timeoutIndex != -1;
 	}
 
-	inline void Dialer::Stop() {
+	inline void TcpDialer::Stop() {
 		// 清理原先的残留
 		for (auto&& conn : conns) {
 			if (auto&& c = conn.Lock()) {
@@ -510,20 +514,20 @@ namespace xx::Epoll {
 		SetTimeout(0);
 	}
 
-	inline void Dialer::OnTimeout() {
+	inline void TcpDialer::OnTimeout() {
 		Stop();
 		OnConnect(emptyPeer);
 	}
 
-	inline Dialer::~Dialer() {
+	inline TcpDialer::~TcpDialer() {
 		Stop();
 	}
 
-	inline Peer_u Dialer::OnCreatePeer() {
+	inline TcpPeer_u TcpDialer::OnCreatePeer() {
 		return xx::TryMakeU<TcpPeer>();
 	}
 
-	inline int Dialer::NewTcpConn(sockaddr_in6 const& addr) {
+	inline int TcpDialer::NewTcpConn(sockaddr_in6 const& addr) {
 		// 创建 tcp 非阻塞 socket fd
 		auto&& fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 		if (fd == -1) return -1;
@@ -902,8 +906,8 @@ namespace xx::Epoll {
 
 
 	template<typename TD, typename ...Args>
-	inline Ref<TD> Context::CreateDialer(Args&&... args) {
-		static_assert(std::is_base_of_v<Dialer, TD>);
+	inline Ref<TD> Context::CreateTcpDialer(Args&&... args) {
+		static_assert(std::is_base_of_v<TcpDialer, TD>);
 
 		// 试创建目标类实例
 		auto o_ = xx::TryMakeU<TD>(std::forward<Args>(args)...);
@@ -985,8 +989,6 @@ namespace xx::Epoll {
 	}
 
 
-
-
 	inline CommandHandler* Context::EnableCommandLine() {
 		// 已存在：直接短路返回
 		if (fdMappings[STDIN_FILENO]) return (CommandHandler*)fdMappings[STDIN_FILENO];
@@ -998,4 +1000,19 @@ namespace xx::Epoll {
 		return AddItem(xx::MakeU<CommandHandler>(), STDIN_FILENO);
 	}
 
+
+	inline std::string AddressToString(sockaddr* const& in) {
+		char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+		if (!getnameinfo(in, in->sa_family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN
+			, hbuf, sizeof hbuf, sbuf, sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV)) {
+			return std::string(hbuf) + ":" + sbuf;
+		}
+		return "";
+	}
+	inline std::string AddressToString(sockaddr_in const& in) {
+		return AddressToString((sockaddr*)&in);
+	}
+	inline std::string AddressToString(sockaddr_in6 const& in) {
+		return AddressToString((sockaddr*)&in);
+	}
 }
