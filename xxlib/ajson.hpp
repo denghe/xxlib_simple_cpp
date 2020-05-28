@@ -2047,7 +2047,7 @@ namespace ajson
     buffer[sz] = 0;
     if (sz >= 3)
     {
-      if (buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF)
+      if (buffer[0] == (char)0xEF && buffer[1] == (char)0xBB && buffer[2] == (char)0xBF)
       {
         buffer += 3;
         sz -= 3;

@@ -1,26 +1,82 @@
-ubuntu 20.04 LTS server/desktop， 安装时勾安 OpenSSH server 默认安全选项
-可选择 mini install 并且去掉 检查更新 之类的勾勾 以提升安装速度。
+ubuntu 20.04 LTS server: 可狂选 [Done] [Continue],  记住拿到的 ip 地址, 空格勾 Install OpenSSH server
+最后显示 Installation complete! 时 要是下载太慢 可取消更新下载 重启后用代理啥的再说
+最后移除光盘 / U盘( 可以用 rufus 3.10+ 通过 iso 做 ) 按 "回车" 重启
+出现一些 [ OK ] 没动静之后 狂按回车出现 login 提示
 
-建议安装 desktop 版本时可选择 中文, 之后按提示操作可搞定输入法问题. 
-安完后先 sudo apt update 一次
+要是忘了 ip, 可以
+sudo apt-get install net-tools
+ifconfig
+
+windows 下可用 Bitvist SSH Client 远程终端控制, 方便缩放 和 传文件
+
+
+如果觉得 "真机" 命令行模式分辨率太低, 执行 
+sudo vim /etc/default/grub
+修改 GRUB_CMDLINE_LINUX="" 在引号部位插入 vga=0x31A 保存退出后 sudo update-grub
+最后 reboot
+shift + page up / down 可翻页看文本. 
+
+vmware 菜单 "编辑", "粘贴" 可弄文本进到命令行. 
+
+
+ubuntu 20.04 LTS desktop
+建议安装 desktop 版本时可选择 中文, 重启之后各种更新补齐可搞定输入法问题. 
+可选择 mini install 并且去掉 检查更新 之类的勾勾 以提升安装速度。
+在 vmware 里安装注意选择 "使用桥接网络". 配置建议 2核 4g, 虚拟磁盘单个 500g
+
 
 如果网络异常, 可通过代理操作:
 sudo apt-get -o Acquire::http::proxy="http://IP:PORT/" update 或 install ..........
+小提示: 半夜 2:30 过后无需代理, 下载速度飞快
+小提示2: 下载没动静, ctrl c 中断再来 或许就快了
 
-server 版安装：
-sudo apt install gcc g++ gdb gdbserver libreadline-dev libboost-all-dev
+
+首先：
+sudo apt update
+sudo apt install gcc g++ gdb gdbserver libreadline-dev cmake
 
 desktop 版继续安装:
-sudo apt install cmake openssh-server net-tools git vim
+sudo apt install openssh-server net-tools git vim
 
 vmware 下面的 desktop 版继续安装( 安完注销下 )：
 sudo apt install open-vm-tools-desktop open-vm-tools
 
-如果无法向 vmware 的 ubuntu 拖拽文件入内，则可通过 WinSCP 等 SFTP 工具传文件, putty 远程终端控制, 或者 Bitvist SSH Client
-用 ifconfig 看 ip
+如果无法向 vmware 的 ubuntu 拖拽文件入内，则可通过 Bitvist SSH Client, WinSCP 等 SFTP 工具传文件
 
-完整依赖列表: gcc g++ gdb gdbserver libreadline-dev libboost-all-dev uuid-dev libsqlite3-dev libmariadb-dev cmake openssh-server net-tools git vim open-vm-tools-desktop open-vm-tools
 
+
+总结列表: 
+gcc g++ gdb gdbserver cmake
+llvm-10 llvm-10-dev clang-10 llvm-10-tools
+libreadline-dev libboost-all-dev libsqlite3-dev libmariadb-dev uuid-dev
+openssh-server net-tools git vim 
+open-vm-tools-desktop open-vm-tools
+
+
+
+
+
+
+clion 下载解压后 控制台进入 bin 目录运行 ./clion.sh
+向导结束位置会生成菜单图标
+
+
+clion 可设置为 vs 热建习惯并追加 ctrl + w 关闭文件:
+File -- Settings -- Keymap 
+选 VS 风格 
+搜索 close , 设为 ctrl + w. 提示冲突 选择 remove other. 
+搜 Extend selection 设为 alt + w
+
+
+clion 可修改字体字号, 令汉字清晰锐利:
+File -- Settings -- Editor -- Font -- Size: 15  Line spacing 1.1   Fallback font: AR PL UMing CN
+
+
+clion 添加 Release 版本生成:
+File -- Settings -- Build,Execution,Deployment -- CMake 点 "+"
+
+
+clion 设置
 
 
 
@@ -33,23 +89,33 @@ git clone https://github.com/denghe/xxlib_simple_cpp.git
 
 
 
-clion 下载解压后 控制台进入 bin 目录运行 ./clion.sh
-向导结束位置会生成菜单图标
-
-clion 可设置为 vs 热建习惯并追加 ctrl + w 关闭文件:
-File -- Settings -- Keymap 选 VS 风格 搜索 close , 设为 ctrl + w 会提示 冲突， 修改冲突的为 alt + w 再设.
-
-
-clion 添加 Release 版本生成:
-File -- Settings -- Build,Execution,Deployment -- CMake 点 "+"
-
-
-
 代码找不到配置文件的解决方案: 
 1. 复制文件到编译出来的执行文件目录
 2. 建立软连接到执行文件目录
 3. clion 右上角项目选择下拉里选 edit configurations... 修改 Working directory: 为文件所在目录
 	例如 $ProjectFileDir$/server1/
+
+
+
+
+直接编译的 命令行 参考: 
+
+1. 建目录弄配置出来
+cd ~
+mkdir xxx
+cd xxx
+设置为 gcc 编译 release 版: ( 走默认 或 cmakefiles.txt 指定 编译器 )
+cmake -DCMAKE_BUILD_TYPE=Release ~/xxlib_simple_cpp
+设置为 clang 编译 debug 版:
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=/usr/bin/clang-10 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-10 -G "CodeBlocks - Unix Makefiles" ~/xxlib_simple_cpp
+
+2. 构建
+指定 目标: ( j 2 指并行编译个数为 2. 和 cpu 颗数一致 )
+cmake --build ~/xxx --target client1 -- -j 2
+不指定目标: ( 全部编译 )
+cmake --build ~/xxx -- -j 4
+
+
 
 
 
