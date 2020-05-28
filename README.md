@@ -15,6 +15,13 @@ sudo apt install open-vm-tools-desktop open-vm-tools
 
 
 
+clion 设置为 vs 热建习惯并追加 ctrl + w 关闭文件:
+File -- Settings -- Keymap 选 VS 风格
+File -- Settings -- Keymap 搜索 close , 设为 ctrl + w 会提示 冲突， 修改冲突的为 alt + w 再设.
+
+
+clion 添加 Release 版本生成:
+File -- Settings -- Build,Execution,Deployment -- CMake 点 +
 
 
 clion 编辑器创建启动菜单：
@@ -30,7 +37,7 @@ StartupNotify=true
 Terminal=false
 Exec=sh ~/Desktop/clion-2020.1.1/bin/clion.sh
 
- 
+
 
 
 
