@@ -6,3 +6,6 @@ obj
 .vs
 .DS_Store
 *.user
+.idea
+cmake-build-debug
+cmake-build-release
