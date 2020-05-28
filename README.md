@@ -1,4 +1,21 @@
-项目为 vs2019 linux cpp. 要求有 linux 服务器或 win10 wsl 可供连接并远程编译调试运行
+﻿项目为 vs2019 linux cpp. 要求有 linux 服务器或 win10 wsl 可供连接并远程编译调试运行
+
+
+
+
+ubuntu 20.04 LTS server/desktop
+可选择 mini install 并且去掉 检查更新 之类的勾勾 以提升安装速度。
+server 版安装：
+sudo apt install gcc g++ gdb gdbserver libreadline-dev
+desktop 版继续安装:
+sudo apt install cmake openssh-server net-tools git
+vmware 下面的 desktop 版继续安装：
+sudo apt install open-vm-tools-desktop open-vm-tools
+如果无法向 vmware 的 ubuntu 拖拽文件入内，则可通过 WinSCP 等 SFTP 工具传文件, putty 远程终端控制, 或者 Bitvist SSH Client
+
+编辑器可以使用 clion 似乎比较方便
+
+
 
 
 ubuntu 18.04 LTS server，安装时勾安 OpenSSH server 默认安全选项

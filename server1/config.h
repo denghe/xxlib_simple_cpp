@@ -1,27 +1,27 @@
-#pragma once
+ï»¿#pragma once
 #include <ajson.hpp>
 #include <iostream>
 
 /*
-json ³¤Ïà:
+json é•¿ç›¸:
 {
   "listenPort": 10000
 }
 */
 
 
-// ÓÃÀà½á¹¹Ó³Éäµ½ json ¸ñÊ½
+// ç”¨ç±»ç»“æ„æ˜ å°„åˆ° json æ ¼å¼
 struct Config {
 	int listenPort = 0;
 };
 AJSON(Config, listenPort);
 
 
-// ÊÊÅä std::cout
+// é€‚é… std::cout
 std::ostream& operator<<(std::ostream& o, Config const& c) {
     return o << "listenPort = " << c.listenPort;
 }
 
 
-// È«¾Öµ¥Àı, ±ãÓÚ·ÃÎÊ
+// å…¨å±€å•ä¾‹, ä¾¿äºè®¿é—®
 inline Config config;

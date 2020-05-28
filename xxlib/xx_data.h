@@ -1,23 +1,23 @@
-#pragma once
+ï»¿#pragma once
 #include "xx_base.h"
 #include "xx_math.h"
 #include <string.h>
 
 namespace xx {
 
-	// ×î»ù´¡µÄ¶ş½øÖÆÊı¾İÈİÆ÷. Á½ÖÖÄ£Ê½: 1. ×·¼Ó.  2. Ö»¶ÁÒıÓÃ	( µ± cap == -1 )
+	// æœ€åŸºç¡€çš„äºŒè¿›åˆ¶æ•°æ®å®¹å™¨. ä¸¤ç§æ¨¡å¼: 1. è¿½åŠ .  2. åªè¯»å¼•ç”¨	( å½“ cap == -1 )
 	struct Data {
 		char*				buf = nullptr;
 		size_t				len = 0;
 		size_t				cap = 0;
 
-		// buf Í·²¿Ô¤Áô¿Õ¼ä´óĞ¡. ÖÁÉÙĞèÒª×°µÃÏÂ sizeof(size_t)
+		// buf å¤´éƒ¨é¢„ç•™ç©ºé—´å¤§å°. è‡³å°‘éœ€è¦è£…å¾—ä¸‹ sizeof(size_t)
 		static const size_t	recvLen = 16;
 		static const size_t	_1 = (size_t)-1;
 
 		Data() = default;
 
-		// Ô¤·ÖÅä¿Õ¼ä ¹¹Ôì
+		// é¢„åˆ†é…ç©ºé—´ æ„é€ 
 		explicit Data(size_t const& newCap) {
 			if (newCap) {
 				auto siz = Round2n(recvLen + cap);
@@ -26,15 +26,15 @@ namespace xx {
 			}
 		}
 
-		// Í¨¹ı ¸´ÖÆÒ»¶ÎÊı¾İ À´¹¹Ôì
+		// é€šè¿‡ å¤åˆ¶ä¸€æ®µæ•°æ® æ¥æ„é€ 
 		Data(char const* const& ptr, size_t const& siz) {
 			WriteBuf(ptr, siz);
 		}
 
-		// Í¨¹ı ³õÊ¼»¯ÁĞ±í À´¹¹Ôì
+		// é€šè¿‡ åˆå§‹åŒ–åˆ—è¡¨ æ¥æ„é€ 
 		Data(std::initializer_list<char> bytes)	: Data( bytes.begin(), bytes.size() ){}
 
-		// ¸´ÖÆ¹¹Ôì
+		// å¤åˆ¶æ„é€ 
 		Data(Data const& o) {
 			operator=(o);
 		}
@@ -52,7 +52,7 @@ namespace xx {
 			return *this;
 		}
 
-		// ÒÆ¶¯¹¹Ôì
+		// ç§»åŠ¨æ„é€ 
 		Data(Data&& o) {
 			operator=(std::move(o));
 		}
@@ -63,14 +63,14 @@ namespace xx {
 			return *this;
 		}
 
-		// ÅĞ¶ÏÊı¾İÊÇ·ñÒ»ÖÂ
+		// åˆ¤æ–­æ•°æ®æ˜¯å¦ä¸€è‡´
 		inline bool operator==(Data const& o) {
 			if (&o == this) return true;
 			if (len != o.len) return false;
 			return 0 == ::memcmp(buf, o.buf, len);
 		}
 
-		// È·±£¿Õ¼ä×ã¹»
+		// ç¡®ä¿ç©ºé—´è¶³å¤Ÿ
 		inline void Reserve(size_t const& newCap) {
 			assert(cap != _1);
 			if (newCap <= cap) return;
@@ -79,7 +79,7 @@ namespace xx {
 			auto newBuf = (char*)::malloc(siz) + recvLen;
 			::memcpy(newBuf, buf, len);
 
-			// ÕâÀïÅĞ¶Ï cap ²»ÅĞ¶Ï buf, ÊÇÒòÎª gcc ÓÅ»¯»áµ¼ÖÂ if Ê§Ğ§, ÎŞÂÛÈçºÎ¶¼»áÖ´ĞĞ free
+			// è¿™é‡Œåˆ¤æ–­ cap ä¸åˆ¤æ–­ buf, æ˜¯å› ä¸º gcc ä¼˜åŒ–ä¼šå¯¼è‡´ if å¤±æ•ˆ, æ— è®ºå¦‚ä½•éƒ½ä¼šæ‰§è¡Œ free
 			if (cap) {
 				::free(buf - recvLen);
 			}
@@ -87,7 +87,7 @@ namespace xx {
 			cap = siz - recvLen;
 		}
 
-		// ·µ»Ø¾É³¤¶È
+		// è¿”å›æ—§é•¿åº¦
 		inline size_t Resize(size_t const& newLen) {
 			assert(cap != _1);
 			if (newLen > len) {
@@ -98,7 +98,7 @@ namespace xx {
 			return rtv;
 		}
 
-		// ÏÂ±ê·ÃÎÊ
+		// ä¸‹æ ‡è®¿é—®
 		inline char& operator[](size_t const& idx) {
 			assert(idx < len);
 			return buf[idx];
@@ -109,7 +109,7 @@ namespace xx {
 		}
 
 
-		// ´ÓÍ·²¿ÒÆ³ıÖ¸¶¨³¤¶ÈÊı¾İ( ³£¼ûÓÚ²ğ°ü´¦ÀíÒÆ³ıµôÒÑ¾­·ÃÎÊ¹ıµÄ°üÊı¾İ, ½«²ĞÁô²¿·ÖÒÆ¶¯µ½Í·²¿ )
+		// ä»å¤´éƒ¨ç§»é™¤æŒ‡å®šé•¿åº¦æ•°æ®( å¸¸è§äºæ‹†åŒ…å¤„ç†ç§»é™¤æ‰å·²ç»è®¿é—®è¿‡çš„åŒ…æ•°æ®, å°†æ®‹ç•™éƒ¨åˆ†ç§»åŠ¨åˆ°å¤´éƒ¨ )
 		inline void RemoveFront(size_t const& siz) {
 			assert(cap != _1);
 			assert(siz <= len);
@@ -120,7 +120,7 @@ namespace xx {
 			}
 		}
 
-		// ×·¼ÓĞ´ÈëÒ»¶Î buf
+		// è¿½åŠ å†™å…¥ä¸€æ®µ buf
 		inline void WriteBuf(char const* const& ptr, size_t const& siz) {
 			assert(cap != _1);
 			Reserve(len + siz);
@@ -128,7 +128,7 @@ namespace xx {
 			len += siz;
 		}
 
-		// ÉèÖÃÎªÖ»¶ÁÄ£Ê½, ²¢³õÊ¼»¯ÒıÓÃ¼ÆÊı( ¿ªÆôÖ»¶ÁÒıÓÃ¼ÆÊıÄ£Ê½. Ã»Êı¾İ²»ÔÊĞí¿ªÆô )
+		// è®¾ç½®ä¸ºåªè¯»æ¨¡å¼, å¹¶åˆå§‹åŒ–å¼•ç”¨è®¡æ•°( å¼€å¯åªè¯»å¼•ç”¨è®¡æ•°æ¨¡å¼. æ²¡æ•°æ®ä¸å…è®¸å¼€å¯ )
 		inline void SetReadonlyMode() {
 			assert(cap != _1);
 			assert(len);
@@ -136,18 +136,18 @@ namespace xx {
 			Refs() = 1;
 		}
 
-		// ÅĞ¶ÏÊÇ·ñÎªÖ»¶ÁÄ£Ê½
+		// åˆ¤æ–­æ˜¯å¦ä¸ºåªè¯»æ¨¡å¼
 		inline bool Readonly() const {
 			return cap == _1;
 		}
 
-		// ·ÃÎÊÒıÓÃ¼ÆÊı
+		// è®¿é—®å¼•ç”¨è®¡æ•°
 		inline size_t& Refs() const {
 			assert(cap == _1);
 			return *(size_t*)(buf - recvLen);
 		}
 
-		// ÒıÓÃÄ£Ê½¼õ³Ö, ×·¼ÓÄ£Ê½ÊÍ·Å buf
+		// å¼•ç”¨æ¨¡å¼å‡æŒ, è¿½åŠ æ¨¡å¼é‡Šæ”¾ buf
 		~Data() {
 			if (cap == _1 && --Refs()) return;
 			if (cap) {
@@ -155,7 +155,7 @@ namespace xx {
 			}
 		}
 
-		// len Çå 0, ¿É³¹µ×ÊÍ·Å buf
+		// len æ¸… 0, å¯å½»åº•é‡Šæ”¾ buf
 		inline void Clear(bool const& freeBuf = false) {
 			assert(cap != _1);
 			if (freeBuf && cap) {

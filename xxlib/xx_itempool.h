@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <stdint.h>
 #include <assert.h>
 #include <functional>
@@ -6,32 +6,32 @@
 
 namespace xx {
 
-	// ÀàËÆÊı×é£¬µ±¶ÔÏó²»¶Ï²åÈëÉ¾³ıÊ±, ÆäÏÂ±ê²¢²»»á·¢Éú¸Ä±ä. ÓĞ±ğÓÚ»ùÓÚÊı×éµÄ½»»»É¾³ı.
-	// ¸ÃÌØĞÔÍ¨³£ÓÃÓÚÊµÏÖÈõÒıÓÃÖ¸Õë. Í¨¹ı ItemPool*, version, index À´ÅĞ¶Ï¶ÔÏóÊÇ·ñÓĞĞ§
+	// ç±»ä¼¼æ•°ç»„ï¼Œå½“å¯¹è±¡ä¸æ–­æ’å…¥åˆ é™¤æ—¶, å…¶ä¸‹æ ‡å¹¶ä¸ä¼šå‘ç”Ÿæ”¹å˜. æœ‰åˆ«äºåŸºäºæ•°ç»„çš„äº¤æ¢åˆ é™¤.
+	// è¯¥ç‰¹æ€§é€šå¸¸ç”¨äºå®ç°å¼±å¼•ç”¨æŒ‡é’ˆ. é€šè¿‡ ItemPool*, version, index æ¥åˆ¤æ–­å¯¹è±¡æ˜¯å¦æœ‰æ•ˆ
 	template<typename Value, typename Size_t = int, typename Version_t = int64_t>
 	struct ItemPool {
 		struct Data {
 			Version_t version;
 			Value value;
-			Size_t next;	// ´æ·ÅÏÂÒ»¸ö free ¿Õ¼äµÄÏÂ±ê
+			Size_t next;	// å­˜æ”¾ä¸‹ä¸€ä¸ª free ç©ºé—´çš„ä¸‹æ ‡
 		};
 
-		// [Ö¸Õë, °æ±¾ºÅ] Êı×é
+		// [æŒ‡é’ˆ, ç‰ˆæœ¬å·] æ•°ç»„
 		Data* buf = nullptr;
-		// buf ³¤
+		// buf é•¿
 		Size_t cap = 0;
-		// Êı¾İÇøÓò³¤( ²¢·ÇÔªËØ¸öÊı )
+		// æ•°æ®åŒºåŸŸé•¿( å¹¶éå…ƒç´ ä¸ªæ•° )
 		Size_t len = 0;
 
-		// ×ÔÓÉ¿Õ¼äÁ´±íÍ·
+		// è‡ªç”±ç©ºé—´é“¾è¡¨å¤´
 		Size_t freeHeader = -1;
-		// ×ÔÓÉ¿Õ¼äÁ´³¤
+		// è‡ªç”±ç©ºé—´é“¾é•¿
 		Size_t freeCount = 0;
 
-		// ×ÔÔöĞòºÅ. Add Ê± ++version Ìî³ä
+		// è‡ªå¢åºå·. Add æ—¶ ++version å¡«å……
 		Version_t version = 0;
 
-		// ¼ÆËã²¢·µ»ØÔªËØ¸öÊı
+		// è®¡ç®—å¹¶è¿”å›å…ƒç´ ä¸ªæ•°
 		Size_t Count() {
 			return len - freeCount;
 		}
@@ -48,7 +48,7 @@ namespace xx {
 			buf = nullptr;
 		}
 
-		// ±éÀúÇå³ıÒÑ´æÔÚµÄ¶ÔÏó¡£¿É´«ÈëÔ¤´¦Àíº¯Êı¡£
+		// éå†æ¸…é™¤å·²å­˜åœ¨çš„å¯¹è±¡ã€‚å¯ä¼ å…¥é¢„å¤„ç†å‡½æ•°ã€‚
 		void Clear(std::function<void(Size_t const& idx, Data & data)>&& cb = nullptr) noexcept {
 			if (!len) return;
 			for (Size_t i = 0; i < len; ++i) {
@@ -66,7 +66,7 @@ namespace xx {
 			len = 0;
 		}
 
-		// Ìí¼Ó²¢·µ»Ø´æ·ÅµãÏÂ±ê£¬¿ÉÓÃÓÚ RemoveAt, At
+		// æ·»åŠ å¹¶è¿”å›å­˜æ”¾ç‚¹ä¸‹æ ‡ï¼Œå¯ç”¨äº RemoveAt, At
 		template<typename ...Args>
 		Size_t Add(Args&&...args) {
 			auto idx = Alloc();
@@ -76,7 +76,7 @@ namespace xx {
 			return idx;
 		}
 
-		// Í¨¹ıÏÂ±êÒÆ³ı
+		// é€šè¿‡ä¸‹æ ‡ç§»é™¤
 		inline void RemoveAt(Size_t const& idx) noexcept {
 			assert(idx < len);
 			assert(buf[idx].next == -1);
@@ -85,26 +85,26 @@ namespace xx {
 			if constexpr (!IsPod_v<Value>) {
 				buf[idx].value.~Value();
 			}
-			buf[idx].next = freeHeader;					// Ö¸Ïò ×ÔÓÉ½ÚµãÁ´±íÍ·
+			buf[idx].next = freeHeader;					// æŒ‡å‘ è‡ªç”±èŠ‚ç‚¹é“¾è¡¨å¤´
 			freeHeader = idx;
 			assert(freeHeader >= 0);
 			assert(buf[freeHeader].version == 0);
 			++freeCount;
 		}
 
-		// ¶¨Î»µ½´æ´¢Çø
+		// å®šä½åˆ°å­˜å‚¨åŒº
 		Data& At(Size_t const& idx) noexcept {
 			assert(idx < len);
 			return buf[idx];
 		}
 
-		// ¶¨Î»µ½ value
+		// å®šä½åˆ° value
 		Value& ValueAt(Size_t const& idx) noexcept {
 			assert(idx < len);
 			return buf[idx].value;
 		}
 
-		// ¶¨Î»µ½ version
+		// å®šä½åˆ° version
 		Version_t& VersionAt(Size_t const& idx) noexcept {
 			assert(idx < len);
 			return buf[idx].version;
@@ -113,7 +113,7 @@ namespace xx {
 	protected:
 		Size_t Alloc() {
 			Size_t idx;
-			// Èç¹û ×ÔÓÉ½ÚµãÁ´±í ²»¿Õ, È¡Ò»¸öÀ´µ±ÈİÆ÷
+			// å¦‚æœ è‡ªç”±èŠ‚ç‚¹é“¾è¡¨ ä¸ç©º, å–ä¸€ä¸ªæ¥å½“å®¹å™¨
 			if (freeCount) {
 				assert(freeHeader >= 0);
 				assert(buf[freeHeader].version == 0);
@@ -122,7 +122,7 @@ namespace xx {
 				--freeCount;
 			}
 			else {
-				// ËùÓĞ¿Õ½Úµã¶¼ÓÃ¹âÁË, À©Èİ
+				// æ‰€æœ‰ç©ºèŠ‚ç‚¹éƒ½ç”¨å…‰äº†, æ‰©å®¹
 				if (len == cap) {
 					if constexpr (IsPod_v<Value>) {
 						buf = (Data*)realloc((void*)buf, sizeof(Data) * cap * 2);
@@ -139,7 +139,7 @@ namespace xx {
 						buf = newBuf;
 					}
 				}
-				// Ö¸Ïò Resize ºóÃæµÄ¿Õ¼äÆğµã
+				// æŒ‡å‘ Resize åé¢çš„ç©ºé—´èµ·ç‚¹
 				idx = len;
 				++len;
 			}

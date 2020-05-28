@@ -1,13 +1,13 @@
-#include "xx_signal.h"
+ï»¿#include "xx_signal.h"
 #include "client.h"
 
 int main() {
-	// ½ûµô SIGPIPE ĞÅºÅ±ÜÃâÒòÎªÁ¬½Ó¹Ø±Õ³ö´í
+	// ç¦æ‰ SIGPIPE ä¿¡å·é¿å…å› ä¸ºè¿æ¥å…³é—­å‡ºé”™
 	xx::IgnoreSignal();
 
-	// ´´½¨ÀàÊµÀı
+	// åˆ›å»ºç±»å®ä¾‹
 	Client c;
 
-	// ¿ªÊ¼ÔËĞĞ
+	// å¼€å§‹è¿è¡Œ
 	return c.Run();
 }

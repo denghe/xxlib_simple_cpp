@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <time.h>
 #include <chrono>
 
@@ -6,63 +6,63 @@ namespace xx {
 	/************************************************************************************/
 	// time_point <--> .net DateTime.Now.ToUniversalTime().Ticks converts
 
-	// ¾­ÀúÊ±¼ä¾«¶È: Ãëºó 7 ¸ö 0( ÕâÊÇ windows ÏÂ×î¸ß¾«¶È. android/ios »áµÍ1¸ö0µÄ¾«¶È )
+	// ç»å†æ—¶é—´ç²¾åº¦: ç§’å 7 ä¸ª 0( è¿™æ˜¯ windows ä¸‹æœ€é«˜ç²¾åº¦. android/ios ä¼šä½1ä¸ª0çš„ç²¾åº¦ )
 	typedef std::chrono::duration<long long, std::ratio<1LL, 10000000LL>> duration_10m;
 
-	// Ê±¼äµã ×ª epoch (¾«¶ÈÎªÃëºó 7 ¸ö 0)
+	// æ—¶é—´ç‚¹ è½¬ epoch (ç²¾åº¦ä¸ºç§’å 7 ä¸ª 0)
 	inline int64_t TimePointToEpoch10m(std::chrono::system_clock::time_point const& val) noexcept {
 		return std::chrono::duration_cast<duration_10m>(val.time_since_epoch()).count();
 	}
 
-	//  epoch (¾«¶ÈÎªÃëºó 7 ¸ö 0) ×ª Ê±¼äµã
+	//  epoch (ç²¾åº¦ä¸ºç§’å 7 ä¸ª 0) è½¬ æ—¶é—´ç‚¹
 	inline std::chrono::system_clock::time_point Epoch10mToTimePoint(int64_t const& val) noexcept {
 		return std::chrono::system_clock::time_point(std::chrono::duration_cast<std::chrono::system_clock::duration>(duration_10m(val)));
 	}
 
 
-	// µÃµ½µ±Ç°Ê±¼äµã
+	// å¾—åˆ°å½“å‰æ—¶é—´ç‚¹
 	inline std::chrono::system_clock::time_point NowTimePoint() noexcept {
 		return std::chrono::system_clock::now();
 	}
 
-	// µÃµ½µ±Ç°Ê±¼äµãµÄ epoch (¾«¶ÈÎªÃëºó 7 ¸ö 0)
+	// å¾—åˆ°å½“å‰æ—¶é—´ç‚¹çš„ epoch (ç²¾åº¦ä¸ºç§’å 7 ä¸ª 0)
 	inline int64_t NowEpoch10m() noexcept {
 		return TimePointToEpoch10m(NowTimePoint());
 	}
 
 
-	// epoch (¾«¶ÈÎªÃëºó 7 ¸ö 0) ×ªÎª .Net DateTime Utc Ticks
+	// epoch (ç²¾åº¦ä¸ºç§’å 7 ä¸ª 0) è½¬ä¸º .Net DateTime Utc Ticks
 	inline int64_t Epoch10mToUtcDateTimeTicks(int64_t const& val) noexcept {
 		return val + 621355968000000000LL;
 	}
 
-	// .Net DateTime Utc Ticks ×ªÎª epoch (¾«¶ÈÎªÃëºó 7 ¸ö 0)
+	// .Net DateTime Utc Ticks è½¬ä¸º epoch (ç²¾åº¦ä¸ºç§’å 7 ä¸ª 0)
 	inline int64_t UtcDateTimeTicksToEpoch10m(int64_t const& val) noexcept {
 		return val - 621355968000000000LL;
 	}
 
 
-	// Ê±¼äµã ×ª epoch (¾«¶ÈÎªÃë)
+	// æ—¶é—´ç‚¹ è½¬ epoch (ç²¾åº¦ä¸ºç§’)
 	inline int32_t TimePointToEpoch(std::chrono::system_clock::time_point const& val) noexcept {
 		return (int32_t)(val.time_since_epoch().count() / 10000000);
 	}
 
-	//  epoch (¾«¶ÈÎªÃë) ×ª Ê±¼äµã
+	//  epoch (ç²¾åº¦ä¸ºç§’) è½¬ æ—¶é—´ç‚¹
 	inline std::chrono::system_clock::time_point EpochToTimePoint(int32_t const& val) noexcept {
 		return std::chrono::system_clock::time_point(std::chrono::system_clock::time_point::duration((int64_t)val * 10000000));
 	}
 
 
-	// µÃµ½µ±Ç° system Ê±¼äµãµÄ epoch (¾«¶ÈÎª ms)
+	// å¾—åˆ°å½“å‰ system æ—¶é—´ç‚¹çš„ epoch (ç²¾åº¦ä¸º ms)
 	inline int64_t NowSystemEpochMS() noexcept {
 		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	}
-	// µÃµ½µ±Ç° steady Ê±¼äµãµÄ epoch (¾«¶ÈÎª ms)
+	// å¾—åˆ°å½“å‰ steady æ—¶é—´ç‚¹çš„ epoch (ç²¾åº¦ä¸º ms)
 	inline int64_t NowSteadyEpochMS() noexcept {
 		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	}
 
-//	// µ±Ç°Ê±¼ä×ªÎª×Ö·û´®²¢Ìî³ä
+//	// å½“å‰æ—¶é—´è½¬ä¸ºå­—ç¬¦ä¸²å¹¶å¡«å……
 //	inline void NowToString(std::string& s) noexcept {
 //		auto&& t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 //		std::tm tm;
@@ -76,7 +76,7 @@ namespace xx {
 //		s += ss.str();
 //	}
 //
-//	// µ±Ç°Ê±¼ä×ªÎª×Ö·û´®²¢·µ»Ø
+//	// å½“å‰æ—¶é—´è½¬ä¸ºå­—ç¬¦ä¸²å¹¶è¿”å›
 //	inline std::string NowToString() noexcept {
 //		std::string s;
 //		NowToString(s);

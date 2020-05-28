@@ -1,10 +1,10 @@
-#pragma once
+ï»¿#pragma once
 #include "xx_epoll.h"
 #include "config.h"
 
 namespace EP = xx::Epoll;
 
-// Ô¤ÉùÃ÷
+// é¢„å£°æ˜
 struct Listener;
 using Listener_r = EP::Ref<Listener>;
 
@@ -12,69 +12,69 @@ struct Peer;
 using Peer_r = EP::Ref<Peer>;
 
 
-// ·şÎñ±¾Ìå
+// æœåŠ¡æœ¬ä½“
 struct Service : EP::Context {
-	// ÔÚ¹¹Ôìº¯ÊıÖĞ¸ù¾İ config ½øÒ»²½³õÊ¼»¯
+	// åœ¨æ„é€ å‡½æ•°ä¸­æ ¹æ® config è¿›ä¸€æ­¥åˆå§‹åŒ–
 	Service(size_t const& wheelLen = 1 << 12);
 
-	// Ö¡Âß¼­·ÅÔÚÕâÀï
+	// å¸§é€»è¾‘æ”¾åœ¨è¿™é‡Œ
 	virtual int FrameUpdate() override;
 
-	// Îö¹¹µ±Ç°ÀàÖĞµÄÒ»Ğ©³ÉÔ±
+	// ææ„å½“å‰ç±»ä¸­çš„ä¸€äº›æˆå‘˜
 	~Service();
 
-	// ¼àÌıÆ÷
+	// ç›‘å¬å™¨
 	Listener_r listener;
 };
 
 
 
 
-// ¼Ì³ĞÄ¬ÈÏ¼àÌıÆ÷¸²¸Ç¹Ø¼üº¯Êı
+// ç»§æ‰¿é»˜è®¤ç›‘å¬å™¨è¦†ç›–å…³é”®å‡½æ•°
 struct Listener : EP::TcpListener {
-	// Í¸´«¹¹Ôìº¯Êı
+	// é€ä¼ æ„é€ å‡½æ•°
 	using EP::TcpListener::TcpListener;
 
-	// Ìá¹©´´½¨Ä¿±êÀàÊµÀıµÄÄÚ´æ²Ù×÷Ö§³Ö
+	// æä¾›åˆ›å»ºç›®æ ‡ç±»å®ä¾‹çš„å†…å­˜æ“ä½œæ”¯æŒ
 	virtual EP::TcpPeer_u OnCreatePeer() override;
 
-	// Á¬½ÓÒÑ½¨Á¢, ¸ãÊÂ
+	// è¿æ¥å·²å»ºç«‹, æäº‹
 	virtual void OnAccept(EP::TcpPeer_r const& peer_) override;
 };
 
 
-// ¼Ì³Ğ Ä¬ÈÏ Á¬½Ó¸²¸ÇÊÕ°üº¯Êı
+// ç»§æ‰¿ é»˜è®¤ è¿æ¥è¦†ç›–æ”¶åŒ…å‡½æ•°
 struct Peer : EP::TcpPeer {
-	// ´¦Àí½ÓÊÕÊÂ¼ş
+	// å¤„ç†æ¥æ”¶äº‹ä»¶
 	void HandleReceive(char* buf, size_t len);
 
-	// ÊµÏÖÊÕÊı¾İÂß¼­
+	// å®ç°æ”¶æ•°æ®é€»è¾‘
 	virtual void OnReceive() override;
 
-	// ¶ÏÏßÊÂ¼ş
+	// æ–­çº¿äº‹ä»¶
 	virtual void OnDisconnect(int const& reason) override;
 
-	// ÔÚÊı¾İÇ°Ãæ¸½´øÉÏ ³¤¶È ²¢·¢ËÍ. ·µ»Ø ·Ç0 ±íÊ¾³ö×´¿ö( µ«²»Ò»¶¨ÊÇ¶ÏÏß )
+	// åœ¨æ•°æ®å‰é¢é™„å¸¦ä¸Š é•¿åº¦ å¹¶å‘é€. è¿”å› é0 è¡¨ç¤ºå‡ºçŠ¶å†µ( ä½†ä¸ä¸€å®šæ˜¯æ–­çº¿ )
 	int SendPackage(char const* const& buf, size_t const& len);
 };
 
 
-// °üÍ·. °ü½á¹¹¼òµ¥µÄ¶¨Îª  header(len) + data
+// åŒ…å¤´. åŒ…ç»“æ„ç®€å•çš„å®šä¸º  header(len) + data
 struct Header {
 	uint16_t len;
 };
 
 
 inline EP::TcpPeer_u Listener::OnCreatePeer() {
-	// ·µ»Ø Peer ÀàÊµÀı
+	// è¿”å› Peer ç±»å®ä¾‹
 	return xx::TryMakeU<Peer>();
 }
 
 inline void Listener::OnAccept(EP::TcpPeer_r const& peer_) {
-	// »¹Ô­Îª±¾À´µÄÀàĞÍ
+	// è¿˜åŸä¸ºæœ¬æ¥çš„ç±»å‹
 	auto&& peer = peer_.As<Peer>();
 
-	// ÉèÖÃ n Ãëºó¶ÏÏß
+	// è®¾ç½® n ç§’åæ–­çº¿
 	peer->SetTimeoutSeconds(30);
 
 	std::cout << "client(" << EP::AddressToString(peer->addr) << ") connected." << std::endl;
@@ -88,71 +88,71 @@ inline void Peer::OnDisconnect(int const& reason) {
 }
 
 inline int Peer::SendPackage(char const* const& buf, size_t const& len) {
-	// ×î´ó³¤¶È¼ì²â
+	// æœ€å¤§é•¿åº¦æ£€æµ‹
 	if (len > std::numeric_limits<decltype(Header::len)>::max()) return -9999;
 
-	// ¹¹Ôì°üÍ·
+	// æ„é€ åŒ…å¤´
 	Header h;
 	h.len = (decltype(Header::len))len;
 
-	// ¹¹Ôì°üÊı¾İÈİÆ÷²¢Æ´½Ó
+	// æ„é€ åŒ…æ•°æ®å®¹å™¨å¹¶æ‹¼æ¥
 	xx::Data d(sizeof(h) + len);
 	d.WriteBuf((char*)&h, sizeof(h));
 	d.WriteBuf(buf, len);
 
-	// ·¢ËÍ
+	// å‘é€
 	return Send(std::move(d));
 }
 
 inline void Peer::OnReceive() {
 
-	// °ü½á¹¹: ³¤¶È°üÍ· + Êı¾İ
+	// åŒ…ç»“æ„: é•¿åº¦åŒ…å¤´ + æ•°æ®
 	struct Header {
 		uint16_t len;
 	} h;
 
-	// ËÀÍöÅĞ¶Ï±äÁ¿
+	// æ­»äº¡åˆ¤æ–­å˜é‡
 	EP::Ref<Item> alive(this);
 
-	// Êı¾İÆ«ÒÆ
+	// æ•°æ®åç§»
 	size_t offset = 0;
 
-	// È·±£°üÍ·³¤¶È³ä×ã
+	// ç¡®ä¿åŒ…å¤´é•¿åº¦å……è¶³
 	while (offset + sizeof(h) <= recv.len) {
 
-		// ¿½±´Êı¾İÍ·³öÀ´
+		// æ‹·è´æ•°æ®å¤´å‡ºæ¥
 		memcpy(&h, recv.buf + offset, sizeof(h));
 
-		// Êı¾İÎ´½ÓÊÕÍê ¾Í Ìø³ö
+		// æ•°æ®æœªæ¥æ”¶å®Œ å°± è·³å‡º
 		if (offset + sizeof(h) + h.len > recv.len) break;
 
-		// Æ«ÒÆÁ¿ Ö¸Ïò Êı¾İÇø
+		// åç§»é‡ æŒ‡å‘ æ•°æ®åŒº
 		offset += sizeof(h);
 
-		// µ÷ÓÃ´¦Àíº¯Êı
+		// è°ƒç”¨å¤„ç†å‡½æ•°
 		HandleReceive(recv.buf + offset, h.len);
 
-		// Èç¹ûµ±Ç°ÀàÊµÀıÒÑ×ÔÉ±ÔòÍË³ö
+		// å¦‚æœå½“å‰ç±»å®ä¾‹å·²è‡ªæ€åˆ™é€€å‡º
 		if (!alive) return;
 
-		// Ìøµ½ÏÂÒ»¸ö°üµÄ¿ªÍ·
+		// è·³åˆ°ä¸‹ä¸€ä¸ªåŒ…çš„å¼€å¤´
 		offset += h.len;
 	}
 
-	// ÒÆ³ıµôÒÑ´¦ÀíµÄÊı¾İ( ½«ºóÃæÊ£ÏÂµÄÊı¾İÒÆ¶¯µ½Í·²¿ )
+	// ç§»é™¤æ‰å·²å¤„ç†çš„æ•°æ®( å°†åé¢å‰©ä¸‹çš„æ•°æ®ç§»åŠ¨åˆ°å¤´éƒ¨ )
 	recv.RemoveFront(offset);
 }
 
 inline void Peer::HandleReceive(char* buf, size_t len) {
-	// ÕâÀïÏÈÊä³öÊÕµ½µÄÄÚÈİ
+	// è¿™é‡Œå…ˆè¾“å‡ºæ”¶åˆ°çš„å†…å®¹
 	std::cout << "recv message from client(" << EP::AddressToString(addr) << "): " << std::string_view(buf, len) << std::endl;
 
-	// todo: ÄÚÈİ´¦Àí
+	// todo: å†…å®¹å¤„ç†
 
-	// ÏÈÊµÏÖ echo
+	// å…ˆå®ç° echo
 	SendPackage(buf, len);
 
-	// Èç¹ûÄÚÈİºÏ·¨, ÔòÖØĞÂÉèÖÃ n Ãëºó¶ÏÏß( keep alive µÄĞ§¹û )
+	// å¦‚æœå†…å®¹åˆæ³•, åˆ™é‡æ–°è®¾ç½® n ç§’åæ–­çº¿( keep alive çš„æ•ˆæœ )
 	SetTimeoutSeconds(30);
 }
 
@@ -160,13 +160,13 @@ inline void Peer::HandleReceive(char* buf, size_t len) {
 
 
 inline Service::Service(size_t const& wheelLen) : EP::Context(wheelLen) {
-	// °´ÅäÖÃµÄ¶Ë¿Ú´´½¨¼àÌıÆ÷
+	// æŒ‰é…ç½®çš„ç«¯å£åˆ›å»ºç›‘å¬å™¨
 	this->listener = CreateTcpListener<Listener>(::config.listenPort);
 	if (!this->listener) {
 		throw - 1;
 	}
 
-	// todo: ×¢²á½»»¥Ö¸Áî?
+	// todo: æ³¨å†Œäº¤äº’æŒ‡ä»¤?
 }
 
 inline int Service::FrameUpdate() {

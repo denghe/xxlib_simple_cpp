@@ -1,9 +1,9 @@
-#pragma once
+ï»¿#pragma once
 #include "xx_epoll.h"
 
 namespace EP = xx::Epoll;
 
-// Ô¤ÉùÃ÷
+// é¢„å£°æ˜
 struct Dialer;
 using Dialer_r = EP::Ref<Dialer>;
 
@@ -11,73 +11,73 @@ struct Peer;
 using Peer_r = EP::Ref<Peer>;
 
 
-// ·şÎñ±¾Ìå
+// æœåŠ¡æœ¬ä½“
 struct Client : EP::Context {
-	// ÔÚ¹¹Ôìº¯ÊıÖĞ¸ù¾İ config ½øÒ»²½³õÊ¼»¯
+	// åœ¨æ„é€ å‡½æ•°ä¸­æ ¹æ® config è¿›ä¸€æ­¥åˆå§‹åŒ–
 	Client(size_t const& wheelLen = 1 << 12);
 
-	// Ö¡Âß¼­·ÅÔÚÕâÀï
+	// å¸§é€»è¾‘æ”¾åœ¨è¿™é‡Œ
 	virtual int FrameUpdate() override;
 
-	// Îö¹¹µ±Ç°ÀàÖĞµÄÒ»Ğ©³ÉÔ±
+	// ææ„å½“å‰ç±»ä¸­çš„ä¸€äº›æˆå‘˜
 	~Client();
 
-	// ²¦ºÅÆ÷
+	// æ‹¨å·å™¨
 	Dialer_r dialer;
 
-	// ²¦ºÅÆ÷Á¬½Ó³É¹¦ºó½« peer ´æÔÚ´ËÒÔ±ãÊ¹ÓÃ
+	// æ‹¨å·å™¨è¿æ¥æˆåŠŸåå°† peer å­˜åœ¨æ­¤ä»¥ä¾¿ä½¿ç”¨
 	Peer_r peer;
 };
 
 
-// ¼Ì³ĞÄ¬ÈÏ¼àÌıÆ÷¸²¸Ç¹Ø¼üº¯Êı
+// ç»§æ‰¿é»˜è®¤ç›‘å¬å™¨è¦†ç›–å…³é”®å‡½æ•°
 struct Dialer : EP::TcpDialer {
-	// Í¸´«¹¹Ôìº¯Êı
+	// é€ä¼ æ„é€ å‡½æ•°
 	using EP::TcpDialer::TcpDialer;
 
-	// Ìá¹©´´½¨Ä¿±êÀàÊµÀıµÄÄÚ´æ²Ù×÷Ö§³Ö
+	// æä¾›åˆ›å»ºç›®æ ‡ç±»å®ä¾‹çš„å†…å­˜æ“ä½œæ”¯æŒ
 	virtual EP::TcpPeer_u OnCreatePeer() override;
 
-	// Á¬½ÓÒÑ½¨Á¢, ¸ãÊÂ
+	// è¿æ¥å·²å»ºç«‹, æäº‹
 	virtual void OnConnect(EP::TcpPeer_r const& peer_) override;
 };
 
 
-// ¼Ì³Ğ Ä¬ÈÏ Á¬½Ó¸²¸ÇÊÕ°üº¯Êı
+// ç»§æ‰¿ é»˜è®¤ è¿æ¥è¦†ç›–æ”¶åŒ…å‡½æ•°
 struct Peer : EP::TcpPeer {
-	// ´¦Àí½ÓÊÕÊÂ¼ş
+	// å¤„ç†æ¥æ”¶äº‹ä»¶
 	void HandleReceive(char* buf, size_t len);
 
-	// ÊÕµ½Êı¾İ
+	// æ”¶åˆ°æ•°æ®
 	virtual void OnReceive() override;
 
-	// ¶ÏÏßÊÂ¼ş
+	// æ–­çº¿äº‹ä»¶
 	virtual void OnDisconnect(int const& reason) override;
 
-	// ÔÚÊı¾İÇ°Ãæ¸½´øÉÏ ³¤¶È ²¢·¢ËÍ. ·µ»Ø ·Ç0 ±íÊ¾³ö×´¿ö( µ«²»Ò»¶¨ÊÇ¶ÏÏß )
+	// åœ¨æ•°æ®å‰é¢é™„å¸¦ä¸Š é•¿åº¦ å¹¶å‘é€. è¿”å› é0 è¡¨ç¤ºå‡ºçŠ¶å†µ( ä½†ä¸ä¸€å®šæ˜¯æ–­çº¿ )
 	int SendPackage(char const* const& buf, size_t const& len);
 };
 
 
-// °üÍ·. °ü½á¹¹¼òµ¥µÄ¶¨Îª  header(len) + data
+// åŒ…å¤´. åŒ…ç»“æ„ç®€å•çš„å®šä¸º  header(len) + data
 struct Header {
 	uint16_t len;
 };
 
 
 inline EP::TcpPeer_u Dialer::OnCreatePeer() {
-	// ·µ»Ø Peer ÀàÊµÀı
+	// è¿”å› Peer ç±»å®ä¾‹
 	return xx::TryMakeU<Peer>();
 }
 
 inline void Dialer::OnConnect(EP::TcpPeer_r const& peer_) {
-	// Ã»Á¬ÉÏ
+	// æ²¡è¿ä¸Š
 	if (!peer_) return;
 
-	// ÄÃµ½ client ÉÏÏÂÎÄ
+	// æ‹¿åˆ° client ä¸Šä¸‹æ–‡
 	auto c = (Client*)ep;
 
-	// ½« peer ´æ·Åµ½ c ±¸ÓÃ
+	// å°† peer å­˜æ”¾åˆ° c å¤‡ç”¨
 	c->peer = peer_.As<Peer>();
 
 	std::cout << "OnConnect" << std::endl;
@@ -88,79 +88,79 @@ inline void Peer::OnDisconnect(int const& reason) {
 }
 
 inline int Peer::SendPackage(char const* const& buf, size_t const& len) {
-	// ×î´ó³¤¶È¼ì²â
+	// æœ€å¤§é•¿åº¦æ£€æµ‹
 	if (len > std::numeric_limits<decltype(Header::len)>::max()) return -9999;
 
-	// ¹¹Ôì°üÍ·
+	// æ„é€ åŒ…å¤´
 	Header h;
 	h.len = (decltype(Header::len))len;
 
-	// ¹¹Ôì°üÊı¾İÈİÆ÷²¢Æ´½Ó
+	// æ„é€ åŒ…æ•°æ®å®¹å™¨å¹¶æ‹¼æ¥
 	xx::Data d(sizeof(h) + len);
 	d.WriteBuf((char*)&h, sizeof(h));
 	d.WriteBuf(buf, len);
 
-	// ·¢ËÍ
+	// å‘é€
 	return Send(std::move(d));
 }
 
 
 inline void Peer::OnReceive() {
-	// ËÀÍöÅĞ¶Ï±äÁ¿
+	// æ­»äº¡åˆ¤æ–­å˜é‡
 	EP::Ref<Item> alive(this);
 
-	// Êı¾İÆ«ÒÆ
+	// æ•°æ®åç§»
 	size_t offset = 0;
 
-	// °üÍ·ÈİÆ÷
+	// åŒ…å¤´å®¹å™¨
 	Header h;
 
-	// È·±£°üÍ·³¤¶È³ä×ã
+	// ç¡®ä¿åŒ…å¤´é•¿åº¦å……è¶³
 	while (offset + sizeof(h) <= recv.len) {
 
-		// ¿½±´Êı¾İÍ·³öÀ´
+		// æ‹·è´æ•°æ®å¤´å‡ºæ¥
 		memcpy(&h, recv.buf + offset, sizeof(h));
 
-		// Êı¾İÎ´½ÓÊÕÍê ¾Í Ìø³ö
+		// æ•°æ®æœªæ¥æ”¶å®Œ å°± è·³å‡º
 		if (offset + sizeof(h) + h.len > recv.len) break;
 
-		// Æ«ÒÆÁ¿ Ö¸Ïò Êı¾İÇø
+		// åç§»é‡ æŒ‡å‘ æ•°æ®åŒº
 		offset += sizeof(h);
 
-		// µ÷ÓÃ´¦Àíº¯Êı
+		// è°ƒç”¨å¤„ç†å‡½æ•°
 		HandleReceive(recv.buf + offset, h.len);
 
-		// Èç¹ûµ±Ç°ÀàÊµÀıÒÑ×ÔÉ±ÔòÍË³ö
+		// å¦‚æœå½“å‰ç±»å®ä¾‹å·²è‡ªæ€åˆ™é€€å‡º
 		if (!alive) return;
 
-		// Ìøµ½ÏÂÒ»¸ö°üµÄ¿ªÍ·
+		// è·³åˆ°ä¸‹ä¸€ä¸ªåŒ…çš„å¼€å¤´
 		offset += h.len;
 	}
 
-	// ÒÆ³ıµôÒÑ´¦ÀíµÄÊı¾İ( ½«ºóÃæÊ£ÏÂµÄÊı¾İÒÆ¶¯µ½Í·²¿ )
+	// ç§»é™¤æ‰å·²å¤„ç†çš„æ•°æ®( å°†åé¢å‰©ä¸‹çš„æ•°æ®ç§»åŠ¨åˆ°å¤´éƒ¨ )
 	recv.RemoveFront(offset);
 }
 
 inline void Peer::HandleReceive(char* buf, size_t len) {
-	// ÕâÀïÏÈÊä³öÊÕµ½µÄÄÚÈİ
+	// è¿™é‡Œå…ˆè¾“å‡ºæ”¶åˆ°çš„å†…å®¹
 	std::cout << "recv message from server: " << std::string_view(buf, len) << std::endl;
 
-	// todo: ÄÚÈİ´¦Àí
+	// todo: å†…å®¹å¤„ç†
 }
 
 
 inline Client::Client(size_t const& wheelLen) : EP::Context(wheelLen) {
 
-	// ³õÊ¼»¯²¦ºÅÆ÷
+	// åˆå§‹åŒ–æ‹¨å·å™¨
 	this->dialer = CreateTcpDialer<Dialer>();
 	if (!this->dialer) {
 		throw - 1;
 	}
 
-	// Ìí¼ÓÄ¬ÈÏ²¦ºÅµØÖ·
+	// æ·»åŠ é»˜è®¤æ‹¨å·åœ°å€
 	dialer->AddAddress("127.0.0.1", 10000);
 
-	// ×¢²á½»»¥Ö¸Áî
+	// æ³¨å†Œäº¤äº’æŒ‡ä»¤
 	this->EnableCommandLine();
 
 	this->cmds["send"] = [this](std::vector<std::string> const& args) {
@@ -187,10 +187,10 @@ inline Client::Client(size_t const& wheelLen) : EP::Context(wheelLen) {
 }
 
 inline int Client::FrameUpdate() {
-	// ×Ô¶¯²¦ºÅ & ÖØÁ¬Âß¼­
-	// Èç¹ûÎ´´´½¨Á¬½Ó²¢ÇÒ²¦ºÅÆ÷Ã»ÓĞÕıÔÚ²¦ºÅ, ¾Í¿ªÊ¼²¦ºÅ
+	// è‡ªåŠ¨æ‹¨å· & é‡è¿é€»è¾‘
+	// å¦‚æœæœªåˆ›å»ºè¿æ¥å¹¶ä¸”æ‹¨å·å™¨æ²¡æœ‰æ­£åœ¨æ‹¨å·, å°±å¼€å§‹æ‹¨å·
 	if (!peer && !dialer->Busy()) {
-		// ³¬Ê±Ê±¼ä 2 Ãë
+		// è¶…æ—¶æ—¶é—´ 2 ç§’
 		dialer->DialSeconds(2);
 	}
 

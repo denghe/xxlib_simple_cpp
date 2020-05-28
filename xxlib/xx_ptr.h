@@ -1,9 +1,9 @@
-#pragma once
+ï»¿#pragma once
 #include <memory>
 
 namespace xx {
 	/************************************************************************************/
-	// shared_ptr ÏµÁÐ
+	// shared_ptr ç³»åˆ—
 
 	template<typename T, typename ...Args>
 	std::shared_ptr<T> Make(Args&& ...args) {
@@ -49,7 +49,7 @@ namespace xx {
 
 
 	/************************************************************************************/
-	// weak_ptr ÏµÁÐ
+	// weak_ptr ç³»åˆ—
 
 	template<typename T, typename U>
 	std::weak_ptr<T> AsWeak(std::shared_ptr<U> const& v) noexcept {
@@ -73,7 +73,7 @@ namespace xx {
 
 
 	/************************************************************************************/
-	// unique_ptr ÏµÁÐ
+	// unique_ptr ç³»åˆ—
 
 	template<typename T, typename ...Args>
 	std::unique_ptr<T> MakeU(Args&& ...args) {
