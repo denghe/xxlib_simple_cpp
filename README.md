@@ -24,6 +24,15 @@ sudo apt install open-vm-tools-desktop open-vm-tools
 
 
 
+
+初次拉代码, 打开控制台, 输入
+cd ~
+git clone https://github.com/denghe/xxlib_simple_cpp.git
+之后便可以在 clion 中 open/import 打开目录
+
+
+
+
 clion 下载解压后 控制台进入 bin 目录运行 ./clion.sh
 向导结束位置会生成菜单图标
 
@@ -33,6 +42,14 @@ File -- Settings -- Keymap 选 VS 风格 搜索 close , 设为 ctrl + w 会提�
 
 clion 添加 Release 版本生成:
 File -- Settings -- Build,Execution,Deployment -- CMake 点 "+"
+
+
+
+代码找不到配置文件的解决方案: 
+1. 复制文件到编译出来的执行文件目录
+2. 建立软连接到执行文件目录
+3. clion 右上角项目选择下拉里选 edit configurations... 修改 Working directory: 为文件所在目录
+	例如 $ProjectFileDir$/server1/
 
 
 
