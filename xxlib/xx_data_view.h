@@ -103,7 +103,7 @@ namespace xx {
 	
 	struct DataReader {
 		// 引用到内存地址
-		char *buf = nullptr;
+		char const *buf = nullptr;
 		
 		// 数据长度
 		size_t len = 0;
@@ -111,7 +111,7 @@ namespace xx {
 		// 读指针偏移量
 		size_t offset = 0;
 
-		DataReader(char* const& buf, size_t const& len, size_t const& offset = 0)
+		DataReader(char const* const& buf, size_t const& len, size_t const& offset = 0)
 			: buf(buf)
 			, len(len)
 			, offset(offset)

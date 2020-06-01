@@ -11,12 +11,17 @@ int main() {
 	std::string s;
 	int r = xx::Read(data, a, b, c, d, e, s);
 	assert(r == 0);
+	assert(a == 1 && b == 2 && c == 3 && d == 4 && e == 5 && s == "asdf");
 
 	xx::DataReader dr(data);
 	r = dr.Read(a, b, c, d, e);
 	assert(r == 0);
+	auto offset = dr.offset;
 	r = dr.ReadLimit<3>(s);
 	assert(r != 0);
-	
+	dr.offset = offset;
+    r = dr.ReadLimit<4>(s);
+    assert(r == 0);
+
 	return 0;
 }

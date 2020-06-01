@@ -48,17 +48,6 @@ sudo apt install open-vm-tools-desktop open-vm-tools
 
 
 
-总结列表: 
-gcc g++ gdb gdbserver cmake
-llvm-10 llvm-10-dev clang-10 llvm-10-tools
-libreadline-dev libboost-all-dev libsqlite3-dev libmariadb-dev uuid-dev
-openssh-server net-tools git vim 
-open-vm-tools-desktop open-vm-tools
-
-
-
-
-
 
 clion 下载解压后 控制台进入 bin 目录运行 ./clion.sh
 向导结束位置会生成菜单图标
@@ -79,7 +68,27 @@ clion 添加 Release 版本生成:
 File -- Settings -- Build,Execution,Deployment -- CMake 点 "+"
 
 
-clion 设置
+clion 设置 valgrind: 先 sudo apt install valgrind
+File -- Settings -- Build,Execution,Deployment -- Dynamic Analysis Tools -- valgrind -- 设置 路径 /usr/bin/valgrind
+
+
+clion 设置使用 clang 替代默认的 gcc: 先 sudo apt install llvm-10 llvm-10-dev clang-10 llvm-10-tools
+File -- Settings -- Build,Execution,Deployment -- Toolchains -- 可点击 + 添加一条设置,  c compiler 填写 /usr/bin/clang-10, c++ compiler 填写 /usr/bin/clang++-10
+
+
+
+
+
+各种需要安装的东西总结如下: ( 可以一波流 )
+
+gcc g++ gdb gdbserver cmake valgrind
+llvm-10 llvm-10-dev clang-10 llvm-10-tools
+libreadline-dev libboost-all-dev libsqlite3-dev libmariadb-dev uuid-dev
+openssh-server net-tools git vim
+
+open-vm-tools-desktop open-vm-tools
+
+
 
 
 
