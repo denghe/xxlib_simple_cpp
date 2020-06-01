@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <functional>
-#include "xx_base.h"
+#include "xx_ispod.h"
 
 namespace xx {
 

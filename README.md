@@ -9,14 +9,17 @@ ifconfig
 
 windows 下可用 Bitvist SSH Client 远程终端控制, 方便缩放 和 传文件
 
+win10 2004+  WSL2 with ubuntu 20.04 LTS 启用 SSH:
+sudo vim /etc/ssh/sshd_config
+Port = 22 # 去掉前面的#号
+ListenAddress 0.0.0.0		#去掉前面的#号
+PasswordAuthentication yes # 将 no 改为 yes 表示使用帐号密码方式登录
+保存退出后:
+sudo dpkg-reconfigure openssh-server
+sudo service ssh restart
 
-如果觉得 "真机" 命令行模式分辨率太低, 执行 
-sudo vim /etc/default/grub
-修改 GRUB_CMDLINE_LINUX="" 在引号部位插入 vga=0x31A 保存退出后 sudo update-grub
-最后 reboot
-shift + page up / down 可翻页看文本. 
 
-vmware 菜单 "编辑", "粘贴" 可弄文本进到命令行. 
+
 
 
 ubuntu 20.04 LTS desktop

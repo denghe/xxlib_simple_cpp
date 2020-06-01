@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <utility>	// std::forward
 #include "fixed_function.hpp"
+
 namespace xx {
 	struct ScopeGuard {
 		template<typename T>
