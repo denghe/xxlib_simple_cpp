@@ -23,5 +23,30 @@ int main() {
     r = dr.ReadLimit<4>(s);
     assert(r == 0);
 
+	std::vector<std::string> ss;
+	ss.emplace_back("asdf");
+	ss.emplace_back("qwer");
+	ss.emplace_back("zxcvb");
+	data.Clear();
+	xx::Write(data, ss);
+	r = xx::Read(data, ss);
+	assert(r == 0);
+
+	dr.Reset(data);
+	r = dr.ReadLimit<3, 5>(ss);
+	assert(r == 0);
+
+	dr.Reset(data);
+	r = dr.ReadLimit<3, 4>(ss);
+	assert(r != 0);
+
+	std::optional<std::vector<std::optional<std::string>>> ss2;
+	ss2.emplace();
+	ss2->emplace_back("asdf");
+	ss2->emplace_back();
+	ss2->emplace_back("qwer");
+	data.Clear();
+	xx::Write(data, ss2);
+
 	return 0;
 }
