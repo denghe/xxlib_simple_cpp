@@ -129,7 +129,7 @@ namespace xx {
 		}
 		
 		// 追加写入一段 pod 结构内存
-		template<typename T, typename ENABLED = std::enable_if_t<std::is_pod_v<T>>>
+		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
 		void WriteFixed(T const& v) {
 			WriteBuf(&v, sizeof(T));
 		}

@@ -141,6 +141,9 @@ namespace xx {
 			this->len = len;
 			this->offset = offset;
 		}
+		inline void Reset(Data const& d) {
+			Reset(d.buf, d.len);
+		}
 
 		// 读指定长度 buf 到 tar. 返回非 0 则读取失败
 		int ReadBuf(char* const& tar, size_t const& siz) {
@@ -151,9 +154,9 @@ namespace xx {
 		}
 
 		// 定长读. 返回非 0 则读取失败
-		template<typename T, typename ENABLED = std::enable_if_t<std::is_pod_v<T>>>
+		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
 		int ReadFixed(T& v) {
-			return ReadBuf(&v, sizeof(T));
+			return ReadBuf((char*)&v, sizeof(T));
 		}
 		
 		// 变长读. 返回非 0 则读取失败
@@ -448,10 +451,10 @@ namespace xx {
 	struct DataFuncs<std::optional<T>, void> {
 		static inline void Write(Data& d, std::optional<T> const& in) {
 			if (in.has_value()) {
-				d.WriteFixed((char)1, in.value());
+				::xx::Write(d, (char)1, in.value());
 			}
 			else {
-				d.WriteFixed((char)0);
+				::xx::Write(d, (char)0);
 			}
 		}
 		static inline int Read(DataReader& d, std::optional<T>& out) {
