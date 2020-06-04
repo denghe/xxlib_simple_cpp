@@ -2,17 +2,17 @@
 #include "server.h"
 #include "speer.h"
 
-inline Server &Dialer::GetServer() {
+Server &Dialer::GetServer() {
     // 拿到服务上下文
     return *(Server *) ep;
 }
 
-inline EP::TcpPeer_u Dialer::OnCreatePeer() {
+EP::TcpPeer_u Dialer::OnCreatePeer() {
     // 返回 Peer 类实例
     return xx::TryMakeU<SPeer>();
 }
 
-inline void Dialer::OnConnect(EP::TcpPeer_r const &peer_) {
+void Dialer::OnConnect(EP::TcpPeer_r const &peer_) {
     // 没连上
     if (!peer_) return;
 

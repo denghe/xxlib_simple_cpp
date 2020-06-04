@@ -20,7 +20,7 @@ AJSON(Config, gatewayId, listenPort, serverInfos);
 
 
 // 适配 std::cout
-std::ostream& operator<<(std::ostream& o, Config const& c) {
+inline std::ostream& operator<<(std::ostream& o, Config const& c) {
     ajson::save_to(o, c);
     return o;
 }

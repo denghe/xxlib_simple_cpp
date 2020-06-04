@@ -16,7 +16,7 @@ using SPeer_r = EP::Ref<SPeer>;
 // 服务本体
 struct Server : EP::Context {
     // 在构造函数中根据 config 进一步初始化各种拨号器
-    explicit Server(size_t const &wheelLen = 1 << 12);
+    Server(size_t const &wheelLen = 1 << 12);
 
     // 析构当前类中的一些成员
     ~Server() override;

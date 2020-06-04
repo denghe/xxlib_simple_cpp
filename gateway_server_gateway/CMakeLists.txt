@@ -7,6 +7,7 @@ include_directories(../xxlib)
 
 add_executable(gateway_server_gateway
         main.cpp
+        server.cpp
         peer.cpp
         dialer.cpp
         cpeer.cpp

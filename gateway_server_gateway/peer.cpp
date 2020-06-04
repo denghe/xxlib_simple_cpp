@@ -2,12 +2,12 @@
 #include "server.h"
 #include "xx_datareader.h"
 
-inline Server &Peer::GetServer() {
+Server &Peer::GetServer() {
     // 拿到服务上下文
     return *(Server *) ep;
 }
 
-inline void Peer::OnReceive() {
+void Peer::OnReceive() {
     // 如果属于延迟踢人拒收数据状态，直接清数据短路退出
     if (!allowReceive) {
         recv.Clear();
@@ -59,20 +59,20 @@ inline void Peer::OnReceive() {
 }
 
 // 开始向 data 写包. 空出 长度 头部
-inline void Peer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {
+void Peer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {
     d.Reserve(4 + reserveLen);
     d.len = 4;
     d.WriteFixed(addr);
 }
 
 // 结束写包。根据数据长度 填写 包头
-inline void Peer::WritePackageEnd(xx::Data &d) {
+void Peer::WritePackageEnd(xx::Data &d) {
     *(uint32_t *) d.buf = (uint32_t) (d.len - 4);
 }
 
 // 构造内部指令包. cmd string + args...
 template<typename...Args>
-inline void Peer::SendCommand(Args const &... cmdAndArgs) {
+void Peer::SendCommand(Args const &... cmdAndArgs) {
     xx::Data d;
     WritePackageBegin(d, 1024, 0xFFFFFFFFu);
     xx::Write(d, cmdAndArgs...);

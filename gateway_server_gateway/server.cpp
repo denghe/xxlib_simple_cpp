@@ -1,8 +1,9 @@
 ﻿#include "server.h"
 #include "dialer.h"
 #include "speer.h"
+#include "config.h"
 
-inline Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
+Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     // 遍历配置并生成相应的 dialer
     for (auto &&si : config.serverInfos) {
         // 创建拨号器
@@ -20,7 +21,7 @@ inline Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     }
 }
 
-inline Server::~Server() {
+Server::~Server() {
     // Dispose 各种弱引用对象
     for (auto &&iter : dps) {
         auto &&dialer = iter.second.first;
@@ -34,7 +35,7 @@ inline Server::~Server() {
     }
 }
 
-inline int Server::FrameUpdate() {
+int Server::FrameUpdate() {
     // 自动拨号 & 重连逻辑
     for (auto &&iter : dps) {
         auto &&dialer = iter.second.first;
@@ -49,10 +50,4 @@ inline int Server::FrameUpdate() {
         }
     }
     return 0;
-}
-
-
-inline Server &Dialer::GetServer() {
-    // 拿到服务上下文
-    return *(Server *) ep;
 }
