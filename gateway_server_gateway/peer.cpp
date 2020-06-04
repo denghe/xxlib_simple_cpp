@@ -1,6 +1,5 @@
 ﻿#include "peer.h"
 #include "server.h"
-#include "xx_datareader.h"
 
 Server &Peer::GetServer() {
     // 拿到服务上下文
@@ -70,12 +69,3 @@ void Peer::WritePackageEnd(xx::Data &d) {
     *(uint32_t *) d.buf = (uint32_t) (d.len - 4);
 }
 
-// 构造内部指令包. cmd string + args...
-template<typename...Args>
-void Peer::SendCommand(Args const &... cmdAndArgs) {
-    xx::Data d;
-    WritePackageBegin(d, 1024, 0xFFFFFFFFu);
-    xx::Write(d, cmdAndArgs...);
-    WritePackageEnd(d);
-    this->Send(std::move(d));
-}

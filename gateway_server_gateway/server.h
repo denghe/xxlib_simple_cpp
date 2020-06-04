@@ -24,9 +24,15 @@ struct Server : EP::Context {
     // 帧逻辑：遍历 dialerPeers 检查 Peer 状态并自动拨号
     int FrameUpdate() override;
 
-    // 等待客户端接入的监听器
+    // 客户端连接id 自增量, 产生 peer 时++填充
+    uint32_t cpeerAutoId = 0;
+
+    // 等待 client 接入的监听器
     Listener_r listener;
 
-    // 需要连接的服务器 拨号器 + 连接 字典. 加载配置后初始化
-    std::unordered_map<int, std::pair<Dialer_r, SPeer_r>> dps;
+    // client peers
+    std::unordered_map<uint32_t, CPeer_r> cps;
+
+    // dialer + peer s
+    std::unordered_map<uint32_t, std::pair<Dialer_r, SPeer_r>> dps;
 };

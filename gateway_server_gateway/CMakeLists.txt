@@ -9,6 +9,7 @@ add_executable(gateway_server_gateway
         main.cpp
         server.cpp
         peer.cpp
+        listener.cpp
         dialer.cpp
         cpeer.cpp
         speer.cpp

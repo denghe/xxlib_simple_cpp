@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "xx_epoll.h"
+#include "xx_datareader.h"
 #include <unordered_set>
 namespace EP = xx::Epoll;
 
@@ -31,8 +32,12 @@ struct Peer : EP::TcpPeer {
 
     // 构造内部指令包. cmd string + args...
     template<typename...Args>
-    void SendCommand(Args const& ... cmdAndArgs);
+    void SendCommand(Args const &... cmdAndArgs) {
+        xx::Data d;
+        WritePackageBegin(d, 1024, 0xFFFFFFFFu);
+        xx::Write(d, cmdAndArgs...);
+        WritePackageEnd(d);
+        this->Send(std::move(d));
+    }
 
-    //    // 断线事件
-    //    virtual void OnDisconnect(int const &reason) override;
 };

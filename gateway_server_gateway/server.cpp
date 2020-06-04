@@ -4,6 +4,9 @@
 #include "config.h"
 
 Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
+    // 初始化拨号器
+    // todo
+
     // 遍历配置并生成相应的 dialer
     for (auto &&si : config.serverInfos) {
         // 创建拨号器
