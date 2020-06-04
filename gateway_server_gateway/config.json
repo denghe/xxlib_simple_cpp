@@ -1,0 +1,8 @@
+﻿{
+  "gatewayId": 1,
+  "listenPort": 20001,
+  "serverInfos": [
+    {"serverId": 0, "ip": "127.0.0.1", "port": 10000},
+    {"serverId": 1, "ip": "127.0.0.1", "port": 10001}
+  ]
+}

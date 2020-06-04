@@ -105,19 +105,16 @@ inline int Peer::SendPackage(char const* const& buf, size_t const& len) {
 }
 
 inline void Peer::OnReceive() {
-
-	// 包结构: 长度包头 + 数据
-	struct Header {
-		uint16_t len;
-	} h;
-
 	// 死亡判断变量
 	EP::Ref<Item> alive(this);
 
-	// 数据偏移
+    // 包头容器
+    Header h;
+
+    // 数据偏移
 	size_t offset = 0;
 
-	// 确保包头长度充足
+    // 确保包头长度充足
 	while (offset + sizeof(h) <= recv.len) {
 
 		// 拷贝数据头出来

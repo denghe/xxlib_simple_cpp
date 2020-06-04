@@ -109,13 +109,13 @@ inline void Peer::OnReceive() {
 	// 死亡判断变量
 	EP::Ref<Item> alive(this);
 
-	// 数据偏移
-	size_t offset = 0;
-
 	// 包头容器
 	Header h;
 
-	// 确保包头长度充足
+    // 数据偏移
+    size_t offset = 0;
+
+    // 确保包头长度充足
 	while (offset + sizeof(h) <= recv.len) {
 
 		// 拷贝数据头出来
