@@ -13,15 +13,15 @@ using Peer_r = EP::Ref<Peer>;
 
 
 // 服务本体
-struct Service : EP::Context {
+struct Server : EP::Context {
 	// 在构造函数中根据 config 进一步初始化
-	Service(size_t const& wheelLen = 1 << 12);
+	Server(size_t const& wheelLen = 1 << 12);
 
 	// 帧逻辑放在这里
 	virtual int FrameUpdate() override;
 
 	// 析构当前类中的一些成员
-	~Service();
+	~Server();
 
 	// 监听器
 	Listener_r listener;
@@ -159,7 +159,7 @@ inline void Peer::HandleReceive(char* buf, size_t len) {
 
 
 
-inline Service::Service(size_t const& wheelLen) : EP::Context(wheelLen) {
+inline Server::Server(size_t const& wheelLen) : EP::Context(wheelLen) {
 	// 按配置的端口创建监听器
 	this->listener = CreateTcpListener<Listener>(::config.listenPort);
 	if (!this->listener) {
@@ -169,13 +169,13 @@ inline Service::Service(size_t const& wheelLen) : EP::Context(wheelLen) {
 	// todo: 注册交互指令?
 }
 
-inline int Service::FrameUpdate() {
+inline int Server::FrameUpdate() {
 	// todo
 	//std::cout << ".";
 	//std::cout.flush();
 	return 0;
 }
 
-inline Service::~Service() {
+inline Server::~Server() {
 	// todo
 }

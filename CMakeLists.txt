@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 project(all)
 
-add_subdirectory(client1)
-add_subdirectory(server1)
+add_subdirectory(simple_echo_client)
+add_subdirectory(simple_echo_server)
+
+add_subdirectory(gateway_server_base)
+add_subdirectory(gateway_server_gateway)
+add_subdirectory(gateway_server_lobby)
+add_subdirectory(gateway_client_cpp)
+add_subdirectory(gateway_client_lua)
 
