@@ -1,5 +1,6 @@
 ﻿{
   "gatewayId": 1,
+  "clientTimeoutSeconds": 30,
   "listenPort": 20001,
   "serverInfos": [
     {"serverId": 0, "ip": "127.0.0.1", "port": 10000},

@@ -12,11 +12,12 @@ struct ServerInfo {
 AJSON(ServerInfo, serverId, ip, port);
 
 struct Config {
-    int gatewayId = 0;						// 网关id
+    int gatewayId = 0;						// 网关id, 各个网关之间不可重复. 可以和 serverId 重复
+    double clientTimeoutSeconds = 0;        // 客户端连接如果超过这个时间没有流量产生则被踢
     int listenPort = 0;						// 监听端口
     std::vector<ServerInfo> serverInfos;	// 要连接到哪些服务
 };
-AJSON(Config, gatewayId, listenPort, serverInfos);
+AJSON(Config, gatewayId, clientTimeoutSeconds, listenPort, serverInfos);
 
 
 // 适配 std::cout
