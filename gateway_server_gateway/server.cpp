@@ -1,6 +1,7 @@
 ﻿#include "server.h"
 #include "dialer.h"
 #include "speer.h"
+#include "cpeer.h"
 #include "config.h"
 #include "listener.h"
 
@@ -19,7 +20,7 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
             throw -2;
         }
         // 放入字典。如果 server id 重复就报错
-        if (dps.insert({si.serverId, std::make_pair(dialer, SPeer_r())}).second) {
+        if (!dps.insert({si.serverId, std::make_pair(dialer, SPeer_r())}).second) {
             throw -3;
         }
         // 填充数据，为开始拨号作准备（会在帧回调逻辑中开始拨号）
@@ -31,6 +32,40 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     if (dps.find(0) == dps.end()) {
         throw -4;
     }
+
+
+    // 注册交互指令
+    EnableCommandLine();
+
+    cmds["cfg"] = [this](auto args) {
+        std::cout << "cfg = " << config << std::endl;
+    };
+    cmds["info"] = [this](auto args) {
+        std::cout << "dps.size() = " << dps.size() << std::endl;
+        std::cout << "serverId		ip:port		busy		peer alive" << std::endl;
+        for (auto &&kv : dps) {
+            auto &&dialer = kv.second.first;
+            auto &&peer = kv.second.second;
+            std::cout << dialer->serverId
+                      << "\t\t" << EP::AddressToString(dialer->addrs[0])
+                      << "\t\t" << (dialer->Busy() ? "true" : "false")
+                      << "\t\t" << (peer ? "true" : "false") << std::endl;
+        }
+    };
+
+    cmds["onlines"] = [this](auto args) {
+        std::cout << "cps.size() = " << cps.size() << std::endl;
+        std::cout << "clientId		ip:port" << std::endl;
+        for (auto &&kv : cps) {
+            std::cout << kv.first
+                      << EP::AddressToString(kv.second->addr) << std::endl;
+        }
+    };
+
+    cmds["quit"] = [this](auto args) {
+        running = false;
+    };
+    cmds["exit"] = this->cmds["quit"];
 }
 
 Server::~Server() {

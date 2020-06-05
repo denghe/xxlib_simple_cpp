@@ -39,5 +39,4 @@ struct Peer : EP::TcpPeer {
         WritePackageEnd(d);
         this->Send(std::move(d));
     }
-
 };
