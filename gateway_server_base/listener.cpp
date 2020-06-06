@@ -15,6 +15,6 @@ void Listener::OnAccept(EP::TcpPeer_r const &peer_) {
     // 转为本来的类型
     auto&& p = peer_.As<Peer>();
 
-    // 设置使用 匿名处理类
+    // 设置使用 匿名处理类并将 peer 放入相应容器
     p->SetAPHandler();
 }

@@ -4,9 +4,6 @@
 
 // for gateway peer
 struct GPHandler : PHandler {
-    // 网关编号. 类构造后填充
-    uint32_t gatewayId = -1;
-
     // 继承构造函数
     using PHandler::PHandler;
 

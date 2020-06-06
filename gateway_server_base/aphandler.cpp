@@ -1,5 +1,6 @@
 ﻿#include "aphandler.h"
 #include "peer.h"
+#include "server.h"
 
 void APHandler::OnReceivePackage(char *const &buf, size_t const &len) {
     // 匿名阶段不应该收到普通包. 收到就直接掐
@@ -18,7 +19,7 @@ void APHandler::OnReceiveCommand(char *const &buf, size_t const &len) {
     }
 
     // 引用到 server 备用
-    auto&& s = GetServer();
+    auto &&s = GetServer();
 
     // 公用 id 容器
     uint32_t id = 0;
@@ -48,5 +49,6 @@ void APHandler::OnReceiveCommand(char *const &buf, size_t const &len) {
 }
 
 void APHandler::OnDisconnect(int const &reason) {
-    // 匿名阶段断开不必理会
+    // 从容器移除
+    GetServer().aps.erase(id);
 }

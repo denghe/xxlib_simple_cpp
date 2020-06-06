@@ -671,7 +671,7 @@ namespace xx::Epoll {
 
     inline void Peer::OnReceive() {
         if (Send(recv.buf, recv.len)) {
-            OnDisconnect(-3);
+            OnDisconnect(__LINE__);
             Dispose();
         }
         else {
@@ -681,7 +681,7 @@ namespace xx::Epoll {
 
     inline void Peer::OnTimeout() {
         Ref<Peer> alive(this);
-        OnDisconnect(-4);
+        OnDisconnect(__LINE__);
         if (alive) {
             Dispose();
         }
@@ -696,7 +696,7 @@ namespace xx::Epoll {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
             Ref<TcpPeer> alive(this);
-            OnDisconnect(-1);
+            OnDisconnect(__LINE__);
             if (alive) {
                 Dispose();
             }
@@ -712,7 +712,7 @@ namespace xx::Epoll {
             // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
             if (recv.len == recv.cap) {
                 Ref<TcpPeer> alive(this);
-                OnDisconnect(-2);
+                OnDisconnect(__LINE__);
                 if (alive) {
                     Dispose();
                 }
@@ -723,7 +723,7 @@ namespace xx::Epoll {
             auto&& len = read(fd, recv.buf + recv.len, recv.cap - recv.len);
             if (len <= 0) {
                 Ref<TcpPeer> alive(this);
-                OnDisconnect(-3);
+                OnDisconnect(__LINE__);
                 if (alive) {
                     Dispose();
                 }
@@ -745,7 +745,7 @@ namespace xx::Epoll {
             if (int r = Write()) {
                 ep->lastErrorNumber = r;
                 Ref<TcpPeer> alive(this);
-                OnDisconnect(-4);
+                OnDisconnect(__LINE__);
                 if (alive) {
                     Dispose();
                 }

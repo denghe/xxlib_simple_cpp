@@ -6,18 +6,42 @@
 #include "sphandler.h"
 
 void Peer::SetAPHandler() {
-    phandler = xx::MakeU<APHandler>(*this);
+    assert(!phandler);
+    // 创建处理类
+    auto &&h = xx::MakeU<APHandler>(*this);
+    // 填充id
+    h->id = ++GetServer().autoIncId;
+    // 放入容器
+    GetServer().aps[h->id] = this;
+    // 关联
+    phandler = std::move(h);
 }
 
 void Peer::SetGPHandler(uint32_t const &gatewayId) {
+    assert(phandler);
+    // 从匿名 peer 移除
+    GetServer().aps.erase(phandler->id);
+    // 创建处理类
     auto &&h = xx::MakeU<GPHandler>(*this);
-    h->gatewayId = gatewayId;
+    // 填充id
+    h->id = gatewayId;
+    // 放入容器
+    GetServer().gps[h->id] = this;
+    // 关联( 会导致之前的 peer handler 析构 )
     phandler = std::move(h);
 }
 
 void Peer::SetSPHandler(uint32_t const &serverId) {
+    assert(phandler);
+    // 从匿名 peer 移除
+    GetServer().aps.erase(phandler->id);
+    // 创建处理类
     auto &&h = xx::MakeU<SPHandler>(*this);
-    h->serverId = serverId;
+    // 填充id
+    h->id = serverId;
+    // 放入容器
+    GetServer().sps[h->id] = this;
+    // 关联( 会导致之前的 peer handler 析构 )
     phandler = std::move(h);
 }
 

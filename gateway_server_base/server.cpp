@@ -17,9 +17,16 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
         std::cout << "cfg = " << config << std::endl;
     };
     cmds["info"] = [this](auto args) {
-        std::cout << "ps.size() = " << ps.size() << std::endl;
+        std::cout << "aps.size() = " << aps.size() << std::endl;
+        std::cout << "gps.size() = " << gps.size() << std::endl;
+        std::cout << "gatewayId		ip:port" << std::endl;
+        for (auto &&kv : gps) {
+            std::cout << kv.first
+                      << EP::AddressToString(kv.second->addr) << std::endl;
+        }
+        std::cout << "sps.size() = " << sps.size() << std::endl;
         std::cout << "serverId		ip:port" << std::endl;
-        for (auto &&kv : ps) {
+        for (auto &&kv : sps) {
             std::cout << kv.first
                       << EP::AddressToString(kv.second->addr) << std::endl;
         }
@@ -32,11 +39,18 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
 }
 
 Server::~Server() {
+    // 打上开始析构的标志
+    disposing = true;
+
     // Dispose 各种弱引用对象
-    for (auto &&iter : ps) {
-        if (iter.second) {
-            iter.second->Dispose();
-        }
+    for (auto &&iter : aps) {
+        iter.second->Dispose();
+    }
+    for (auto &&iter : gps) {
+        iter.second->Dispose();
+    }
+    for (auto &&iter : sps) {
+        iter.second->Dispose();
     }
 }
 
