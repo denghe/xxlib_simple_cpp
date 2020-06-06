@@ -21,7 +21,7 @@ void Listener::OnAccept(EP::TcpPeer_r const &peer_) {
     // 引用到 server 的dps 备用
     auto &&s = GetServer();
 
-    // 检查是否已经与 0 号服务建立了连接. 如果没有，则直接断开 退出
+    // 检查是否已经与 0 号服务( server_base )建立了连接. 如果没有，则直接断开 退出
     auto&& s0 = s.dps[0].second.Lock();
     if(!s0) {
         peer_->Dispose();

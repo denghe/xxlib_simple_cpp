@@ -1,18 +1,15 @@
-﻿#include "peer.h"
-#include "server.h"
+﻿#include "server.h"
+#include "peer.h"
+#include "phandler.h"
+#include "sphandler.h"
+#include "gphandler.h"
 
-Server &Peer::GetServer() const {
+Server &Peer::GetServer() {
     // 拿到服务上下文
     return *(Server *) ep;
 }
 
 void Peer::OnReceive() {
-    // 如果属于延迟踢人拒收数据状态，直接清数据短路退出
-    if (closed) {
-        recv.Clear();
-        return;
-    }
-
     // Disposed 判断变量
     EP::Ref<Item> alive(this);
 
@@ -40,7 +37,7 @@ void Peer::OnReceive() {
         buf += sizeof(dataLen);
         {
             // 取出地址
-            addr = *(uint32_t *)buf;
+            addr = *(uint32_t *) buf;
 
             // 包类型判断
             if (addr == 0xFFFFFFFFu) {
@@ -61,6 +58,20 @@ void Peer::OnReceive() {
     // 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
     recv.RemoveFront(buf - recv.buf);
 }
+
+
+void Peer::OnReceivePackage(char *const &buf, size_t const &len) {
+
+}
+
+void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
+
+}
+
+void Peer::OnDisconnect(int const &reason) {
+    //handler->
+}
+
 
 // 开始向 data 写包. 跳过 长度 头部不写, 写入地址
 void Peer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {

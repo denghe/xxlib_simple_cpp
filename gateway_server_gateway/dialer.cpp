@@ -1,6 +1,7 @@
 ﻿#include "dialer.h"
 #include "server.h"
 #include "speer.h"
+#include "config.h"
 
 Server &Dialer::GetServer() {
     // 拿到服务上下文
@@ -17,14 +18,14 @@ void Dialer::OnConnect(EP::TcpPeer_r const &peer_) {
     if (!peer_) return;
 
     // 转为具体类型
-    auto &&p = peer_.As<SPeer>();
+    auto &&sp = peer_.As<SPeer>();
 
     // 将 peer 放入容器
-    auto &&s = GetServer();
-    s.dps[serverId].second = p;
+    GetServer().dps[serverId].second = sp;
 
     // 继续填充一些依赖
-    p->serverId = this->serverId;
+    sp->serverId = serverId;
 
-    std::cout << "serverId: " << serverId << " connected." << std::endl;
+    // 向 server 发送自己的 gatewayId
+    sp->SendCommand_GatewayId(config.gatewayId);
 }

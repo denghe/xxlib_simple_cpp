@@ -25,7 +25,4 @@ struct CPeer : Peer {
 
     // 断开时 向 serverIds 对应的 server peer 群发断开指令
     void OnDisconnect(int const &reason) override;
-
-    // 通过 server id 获取 相应的 服务器 peer 指针. 没找到 或者 已断开 返回 空
-    SPeer *TryGetSPeer(uint32_t const &serverId);
 };

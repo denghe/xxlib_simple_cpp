@@ -39,7 +39,10 @@ void CPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
 
 void CPeer::OnDisconnect(int const &reason) {
     // 延迟掐线模式 已经触发过该事件, 故 跳过
-    if (!allowReceive) return;
+    if (closed) return;
+
+    // 打上关闭标记( 拒收数据并避免 OnDisconnect 事件反复触发 for 延迟掐线 )
+    closed = true;
 
     // 从字典移除
     GetServer().cps.erase(clientId);
@@ -48,11 +51,4 @@ void CPeer::OnDisconnect(int const &reason) {
     for (auto &&sid : serverIds) {
         GetServer().dps[sid].second->SendCommand_Disconnect(clientId);
     }
-}
-
-SPeer *CPeer::TryGetSPeer(uint32_t const &serverId) {
-    auto &&dps = GetServer().dps;
-    auto &&iter = dps.find(serverId);
-    if (iter == dps.end()) return nullptr;
-    return iter->second.second.Lock();
 }
