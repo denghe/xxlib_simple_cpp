@@ -9,7 +9,7 @@
 
 gateway 过来的 指令列表：
 
-    gatewayId(uint32_t id)
+    gatewayId(uint32_t gatewayId)
         首包, 注册网关. 如果收到该包时发现 id 已存在，则忽略并断线( 不顶下线 )
 
     accept(uint32_t clientId, string ip)

@@ -11,8 +11,9 @@ add_executable(gateway_server_base
         peer.cpp
         listener.cpp
         phandler.cpp
-        sphandler.cpp
+        aphandler.cpp
         gphandler.cpp
+        sphandler.cpp
         )
 
 target_link_libraries(gateway_server_base pthread readline)

@@ -9,17 +9,23 @@ struct PHandler {
     // 引用到 peer
     Peer& peer;
 
+    // 初始化 peer 引用
     PHandler(Peer& peer);
+    PHandler(PHandler const&) = delete;
+    PHandler& operator=(PHandler const&) = delete;
 
-    // 拿到 server 上下文引用, 以方便写事件处理代码
+    // 等同于 peer.GetServer()
     Server &GetServer();
 
+    // 等同于 peer.Dispose()
+    void Dispose();
+
     // 收到正常包
-    virtual void OnReceivePackage(char *const &buf, size_t const &len);
+    virtual void OnReceivePackage(char *const &buf, size_t const &len) = 0;
 
     // 收到内部指令
-    virtual void OnReceiveCommand(char *const &buf, size_t const &len);
+    virtual void OnReceiveCommand(char *const &buf, size_t const &len) = 0;
 
-    // 断开时 清除所有 client peer 中的 相关 open id. 列表被清空则踢掉
-    virtual void OnDisconnect(int const &reason);
+    // 断开
+    virtual void OnDisconnect(int const &reason) = 0;
 };

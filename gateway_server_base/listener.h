@@ -10,9 +10,6 @@ struct Listener : EP::TcpListener {
     // 透传构造函数
     using EP::TcpListener::TcpListener;
 
-    // 拿到 server 上下文引用, 以方便写事件处理代码
-    Server &GetServer();
-
     // 提供创建目标类实例的内存操作支持
     EP::TcpPeer_u OnCreatePeer() override;
 

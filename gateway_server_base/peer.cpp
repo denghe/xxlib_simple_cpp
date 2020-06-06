@@ -1,8 +1,25 @@
 ﻿#include "server.h"
 #include "peer.h"
 #include "phandler.h"
-#include "sphandler.h"
+#include "aphandler.h"
 #include "gphandler.h"
+#include "sphandler.h"
+
+void Peer::SetAPHandler() {
+    phandler = xx::MakeU<APHandler>(*this);
+}
+
+void Peer::SetGPHandler(uint32_t const &gatewayId) {
+    auto &&h = xx::MakeU<GPHandler>(*this);
+    h->gatewayId = gatewayId;
+    phandler = std::move(h);
+}
+
+void Peer::SetSPHandler(uint32_t const &serverId) {
+    auto &&h = xx::MakeU<SPHandler>(*this);
+    h->serverId = serverId;
+    phandler = std::move(h);
+}
 
 Server &Peer::GetServer() {
     // 拿到服务上下文
@@ -61,15 +78,15 @@ void Peer::OnReceive() {
 
 
 void Peer::OnReceivePackage(char *const &buf, size_t const &len) {
-
+    phandler->OnReceivePackage(buf, len);
 }
 
 void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
-
+    phandler->OnReceiveCommand(buf, len);
 }
 
 void Peer::OnDisconnect(int const &reason) {
-    //handler->
+    phandler->OnDisconnect(reason);
 }
 
 

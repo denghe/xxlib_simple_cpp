@@ -1,12 +1,8 @@
 ﻿#pragma once
-#include <cstdint>
 #include "phandler.h"
 
-// for gateway peer
-struct GPHandler : PHandler {
-    // 网关编号. 类构造后填充
-    uint32_t gatewayId = -1;
-
+// for anynymous peer
+struct APHandler : PHandler {
     // 继承构造函数
     using PHandler::PHandler;
 
