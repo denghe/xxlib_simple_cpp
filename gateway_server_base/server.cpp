@@ -5,9 +5,9 @@
 
 Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     // 初始化监听器
-    listener = CreateTcpListener<Listener>(::config.listenPort);
+    listener = CreateTcpListener<Listener>(config.listenPort);
     if (!this->listener) {
-        throw -1;
+        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.listenPort) + " failed.");
     }
 
     // 注册交互指令
@@ -21,14 +21,12 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
         std::cout << "gps.size() = " << gps.size() << std::endl;
         std::cout << "gatewayId		ip:port" << std::endl;
         for (auto &&kv : gps) {
-            std::cout << kv.first
-                      << EP::AddressToString(kv.second->addr) << std::endl;
+            std::cout << kv.first << "\t\t" << EP::AddressToString(kv.second->addr) << std::endl;
         }
         std::cout << "sps.size() = " << sps.size() << std::endl;
         std::cout << "serverId		ip:port" << std::endl;
         for (auto &&kv : sps) {
-            std::cout << kv.first
-                      << EP::AddressToString(kv.second->addr) << std::endl;
+            std::cout << kv.first << "\t\t" << EP::AddressToString(kv.second->addr) << std::endl;
         }
     };
 

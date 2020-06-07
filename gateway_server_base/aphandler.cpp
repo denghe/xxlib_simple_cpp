@@ -8,6 +8,9 @@ APHandler::APHandler(Peer &peer, uint32_t const &id) : PHandler(peer, id) {
 }
 
 APHandler::~APHandler() {
+    // 如果是因 server 析构导致执行到此, 则 server 派生层 成员 已析构, 不可访问. 短路退出
+    if(!peer.GetServer().running) return;
+
     // 从容器移除
     peer.GetServer().aps.erase(id);
 }
