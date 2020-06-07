@@ -7,4 +7,4 @@ include_directories(../xxlib)
 
 add_executable(gateway_client_lua main.cpp)
 
-target_link_libraries(gateway_client_lua pthread readline)
+target_link_libraries(gateway_client_lua pthread readline luajit-5.1)
