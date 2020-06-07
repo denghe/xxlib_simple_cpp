@@ -7,42 +7,20 @@
 
 void Peer::SetAPHandler() {
     assert(!phandler);
-    // 创建处理类
-    auto &&h = xx::MakeU<APHandler>(*this);
-    // 填充id
-    h->id = ++GetServer().autoIncId;
-    // 放入容器
-    GetServer().aps[h->id] = this;
-    // 关联
-    phandler = std::move(h);
+    // 创建处理类并关联, 处理类创建过程中会将 peer 放入相应容器
+    phandler = xx::MakeU<APHandler>(*this, ++GetServer().autoIncId);
 }
 
 void Peer::SetGPHandler(uint32_t const &gatewayId) {
     assert(phandler);
-    // 从匿名 peer 移除
-    GetServer().aps.erase(phandler->id);
-    // 创建处理类
-    auto &&h = xx::MakeU<GPHandler>(*this);
-    // 填充id
-    h->id = gatewayId;
-    // 放入容器
-    GetServer().gps[h->id] = this;
-    // 关联( 会导致之前的 peer handler 析构 )
-    phandler = std::move(h);
+    // 创建处理类并关联( 会导致之前的 peer handler 析构 并从相应容器移除 ) 处理类创建过程中会将 peer 放入相应容器
+    phandler = xx::MakeU<GPHandler>(*this, gatewayId);
 }
 
 void Peer::SetSPHandler(uint32_t const &serverId) {
     assert(phandler);
-    // 从匿名 peer 移除
-    GetServer().aps.erase(phandler->id);
-    // 创建处理类
-    auto &&h = xx::MakeU<SPHandler>(*this);
-    // 填充id
-    h->id = serverId;
-    // 放入容器
-    GetServer().sps[h->id] = this;
-    // 关联( 会导致之前的 peer handler 析构 )
-    phandler = std::move(h);
+    // 创建处理类并关联( 会导致之前的 peer handler 析构 并从相应容器移除 ) 处理类创建过程中会将 peer 放入相应容器
+    phandler = xx::MakeU<SPHandler>(*this, serverId);
 }
 
 Server &Peer::GetServer() {

@@ -68,20 +68,6 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     cmds["exit"] = this->cmds["quit"];
 }
 
-Server::~Server() {
-    // Dispose 各种弱引用对象
-    for (auto &&iter : dps) {
-        auto &&dialer = iter.second.first;
-        auto &&peer = iter.second.second;
-        if (dialer) {
-            dialer->Dispose();
-        }
-        if (peer) {
-            peer->Dispose();
-        }
-    }
-}
-
 int Server::FrameUpdate() {
     // 自动拨号 & 重连逻辑
     for (auto &&iter : dps) {

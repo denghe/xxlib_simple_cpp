@@ -670,13 +670,8 @@ namespace xx::Epoll {
     inline void Peer::OnDisconnect(int const& reason) {}
 
     inline void Peer::OnReceive() {
-        if (Send(recv.buf, recv.len)) {
-            OnDisconnect(__LINE__);
-            Dispose();
-        }
-        else {
-            recv.Clear();
-        }
+        Send(recv.buf, recv.len);
+        recv.Clear();
     }
 
     inline void Peer::OnTimeout() {

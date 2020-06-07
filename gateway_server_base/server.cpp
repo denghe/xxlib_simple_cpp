@@ -38,22 +38,6 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     cmds["exit"] = this->cmds["quit"];
 }
 
-Server::~Server() {
-    // 打上开始析构的标志
-    disposing = true;
-
-    // Dispose 各种弱引用对象
-    for (auto &&iter : aps) {
-        iter.second->Dispose();
-    }
-    for (auto &&iter : gps) {
-        iter.second->Dispose();
-    }
-    for (auto &&iter : sps) {
-        iter.second->Dispose();
-    }
-}
-
 int Server::FrameUpdate() {
     return 0;
 }

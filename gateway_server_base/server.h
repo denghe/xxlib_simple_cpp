@@ -11,9 +11,6 @@ using Peer_r = EP::Ref<Peer>;
 
 // 服务本体
 struct Server : EP::Context {
-    // 当 server 直接析构时, 该值将为 true. 以便通知各个 peer 啥的在析构时不再将自己从容器中移除
-    bool disposing = false;
-
     // 等待 client 接入的监听器
     Listener_r listener;
 
@@ -32,9 +29,6 @@ struct Server : EP::Context {
 
     // 在构造函数中根据 config 进一步初始化各种拨号器
     Server(size_t const &wheelLen = 1 << 12);
-
-    // 析构当前类中的一些成员
-    ~Server() override;
 
     // 帧逻辑：遍历 dialerPeers 检查 Peer 状态并自动拨号
     int FrameUpdate() override;
