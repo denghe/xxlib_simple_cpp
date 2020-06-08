@@ -1,15 +1,15 @@
-﻿#include "aphandler.h"
-#include "peer.h"
+﻿#include "gpeer_aphandler.h"
+#include "gpeer.h"
 #include "server.h"
 
-APHandler::APHandler(Peer &peer, uint32_t const &id) : PHandler(peer, id) {
+APHandler::APHandler(GPeer &peer, uint32_t const &id) : PHandler(peer, id) {
     // 放入容器
     peer.GetServer().aps[id] = &peer;
 }
 
 APHandler::~APHandler() {
     // 如果是因 server 析构导致执行到此, 则 server 派生层 成员 已析构, 不可访问. 短路退出
-    if(!peer.GetServer().running) return;
+    if (!peer.GetServer().running) return;
 
     // 从容器移除
     peer.GetServer().aps.erase(id);
@@ -53,6 +53,8 @@ void APHandler::OnReceiveCommand(char *const &buf, size_t const &len) {
 
             // 试读出 指令参数. 失败直接断开
             if (int r = dr.Read(serverId)) break;
+
+            std::cout << "serverId = " << serverId << std::endl;
 
             // 检查是否存在. 如果已存在就断开. 不顶下线
             if (s.sps.find(serverId) != s.sps.end()) break;

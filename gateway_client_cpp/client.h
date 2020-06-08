@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "xx_epoll.h"
 
+// todo: 连接网关走完整流程
+
 namespace EP = xx::Epoll;
 
 // 预声明
@@ -12,15 +14,15 @@ using Peer_r = EP::Ref<Peer>;
 
 
 // 服务本体
-struct Gateway : EP::Context {
+struct Client : EP::Context {
 	// 在构造函数中根据 config 进一步初始化
-	Gateway(size_t const& wheelLen = 1 << 12);
+	Client(size_t const& wheelLen = 1 << 12);
 
 	// 帧逻辑放在这里
 	virtual int FrameUpdate() override;
 
 	// 析构当前类中的一些成员
-	~Gateway();
+	~Client();
 
 	// 拨号器
 	Dialer_r dialer;
@@ -74,8 +76,8 @@ inline void Dialer::OnConnect(EP::TcpPeer_r const& peer_) {
 	// 没连上
 	if (!peer_) return;
 
-	// 拿到 Gateway 上下文
-	auto c = (Gateway*)ep;
+	// 拿到 client 上下文
+	auto c = (Client*)ep;
 
 	// 将 peer 存放到 c 备用
 	c->peer = peer_.As<Peer>();
@@ -109,13 +111,13 @@ inline void Peer::OnReceive() {
 	// 死亡判断变量
 	EP::Ref<Item> alive(this);
 
-	// 数据偏移
-	size_t offset = 0;
-
 	// 包头容器
 	Header h;
 
-	// 确保包头长度充足
+    // 数据偏移
+    size_t offset = 0;
+
+    // 确保包头长度充足
 	while (offset + sizeof(h) <= recv.len) {
 
 		// 拷贝数据头出来
@@ -149,7 +151,7 @@ inline void Peer::HandleReceive(char* buf, size_t len) {
 }
 
 
-inline Gateway::Gateway(size_t const& wheelLen) : EP::Context(wheelLen) {
+inline Client::Client(size_t const& wheelLen) : EP::Context(wheelLen) {
 
 	// 初始化拨号器
 	this->dialer = CreateTcpDialer<Dialer>();
@@ -186,7 +188,7 @@ inline Gateway::Gateway(size_t const& wheelLen) : EP::Context(wheelLen) {
 	this->cmds["exit"] = this->cmds["quit"];
 }
 
-inline int Gateway::FrameUpdate() {
+inline int Client::FrameUpdate() {
 	// 自动拨号 & 重连逻辑
 	// 如果未创建连接并且拨号器没有正在拨号, 就开始拨号
 	if (!peer && !dialer->Busy()) {
@@ -199,6 +201,6 @@ inline int Gateway::FrameUpdate() {
 	return 0;
 }
 
-inline Gateway::~Gateway() {
+inline Client::~Client() {
 	// todo
 }

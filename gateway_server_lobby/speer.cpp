@@ -1,34 +1,27 @@
 ﻿#include "server.h"
-#include "peer.h"
+#include "speer.h"
 #include "phandler.h"
-#include "aphandler.h"
-#include "gphandler.h"
-#include "sphandler.h"
+#include "speer_aphandler.h"
+#include "speer_sphandler.h"
 
-void Peer::SetAPHandler() {
+void SPeer::SetAPHandler() {
     assert(!phandler);
     // 创建处理类并关联, 处理类创建过程中会将 peer 放入相应容器
     phandler = xx::MakeU<APHandler>(*this, ++GetServer().autoIncId);
 }
 
-void Peer::SetGPHandler(uint32_t const &gatewayId) {
-    assert(phandler);
-    // 创建处理类并关联( 会导致之前的 peer handler 析构 并从相应容器移除 ) 处理类创建过程中会将 peer 放入相应容器
-    phandler = xx::MakeU<GPHandler>(*this, gatewayId);
-}
-
-void Peer::SetSPHandler(uint32_t const &serverId) {
+void SPeer::SetSPHandler(uint32_t const &serverId) {
     assert(phandler);
     // 创建处理类并关联( 会导致之前的 peer handler 析构 并从相应容器移除 ) 处理类创建过程中会将 peer 放入相应容器
     phandler = xx::MakeU<SPHandler>(*this, serverId);
 }
 
-Server &Peer::GetServer() {
+Server &SPeer::GetServer() {
     // 拿到服务上下文
     return *(Server *) ep;
 }
 
-void Peer::OnReceive() {
+void SPeer::OnReceive() {
     // Disposed 判断变量
     EP::Ref<Item> alive(this);
 
@@ -79,27 +72,27 @@ void Peer::OnReceive() {
 }
 
 
-void Peer::OnReceivePackage(char *const &buf, size_t const &len) {
+void SPeer::OnReceivePackage(char *const &buf, size_t const &len) {
     phandler->OnReceivePackage(buf, len);
 }
 
-void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
+void SPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
     phandler->OnReceiveCommand(buf, len);
 }
 
-void Peer::OnDisconnect(int const &reason) {
+void SPeer::OnDisconnect(int const &reason) {
     phandler->OnDisconnect(reason);
 }
 
 
 // 开始向 data 写包. 跳过 长度 头部不写, 写入地址
-void Peer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {
+void SPeer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {
     d.Reserve(4 + reserveLen);
     d.len = 4;
     d.WriteFixed(addr);
 }
 
 // 结束写包。根据数据长度 填写 包头
-void Peer::WritePackageEnd(xx::Data &d) {
+void SPeer::WritePackageEnd(xx::Data &d) {
     *(uint32_t *) d.buf = (uint32_t) (d.len - 4);
 }

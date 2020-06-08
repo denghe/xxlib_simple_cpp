@@ -2,19 +2,17 @@
 #include <cstddef>  // for size_t
 #include <cstdint>
 
-struct Peer;
-struct Server;
-
 // Peer Handler 基础接口. 挂接在 peer 下面。 peer Dispose 也将导致本接口析构
+template<typename PeerType>
 struct PHandler {
     // 引用到所在 peer
-    Peer& peer;
+    PeerType& peer;
 
-    // 复用编号( 自增 | 网关 | 服务 )
+    // 复用编号( 自增 | 网关 )
     uint32_t id = -1;
 
     // 初始化 peer 引用
-    explicit PHandler(Peer& peer, uint32_t const& id);
+    explicit PHandler(PeerType& peer, uint32_t const& id) : peer(peer), id(id) {}
     PHandler(PHandler const&) = delete;
     PHandler& operator=(PHandler const&) = delete;
     virtual ~PHandler() = default;

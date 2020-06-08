@@ -1,15 +1,15 @@
-﻿#include "sphandler.h"
-#include "peer.h"
+﻿#include "speer_sphandler.h"
+#include "speer.h"
 #include "server.h"
 
-SPHandler::SPHandler(Peer& peer, uint32_t const& id) : PHandler(peer, id) {
+SPHandler::SPHandler(SPeer &peer, uint32_t const &id) : PHandler(peer, id) {
     // 放入容器
     peer.GetServer().sps[id] = &peer;
 }
 
 SPHandler::~SPHandler() {
     // 如果是因 server 析构导致执行到此, 则 server 派生层 成员 已析构, 不可访问. 短路退出
-    if(!peer.GetServer().running) return;
+    if (!peer.GetServer().running) return;
 
     // 从容器移除
     peer.GetServer().sps.erase(id);

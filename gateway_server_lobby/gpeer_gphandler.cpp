@@ -1,15 +1,15 @@
-﻿#include "gphandler.h"
-#include "peer.h"
+﻿#include "gpeer_gphandler.h"
+#include "gpeer.h"
 #include "server.h"
 
-GPHandler::GPHandler(Peer& peer, uint32_t const& id) : PHandler(peer, id) {
+GPHandler::GPHandler(Peer &peer, uint32_t const &id) : PHandler(peer, id) {
     // 放入容器
     peer.GetServer().gps[id] = &peer;
 }
 
 GPHandler::~GPHandler() {
     // 如果是因 server 析构导致执行到此, 则 server 派生层 成员 已析构, 不可访问. 短路退出
-    if(!peer.GetServer().running) return;
+    if (!peer.GetServer().running) return;
 
     // 从容器移除
     peer.GetServer().gps.erase(id);

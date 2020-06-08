@@ -2,8 +2,6 @@
 #include "peer.h"
 namespace EP = xx::Epoll;
 
-struct CPeer;
-
 // 拨号到 lobby 服务 产生的 peer
 struct LPeer : Peer {
     // 收到正常包

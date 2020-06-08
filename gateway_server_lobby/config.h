@@ -6,9 +6,10 @@
 
 struct Config {
     int serverId = 0;						// 服务id, 各个服务之间不可重复. 可以和 gatewayId 重复
-    int listenPort = 0;						// 监听端口
+    int gatewayListenPort = 0;						// 监听端口
+    int serverListenPort = 0;						// 监听端口
 };
-AJSON(Config, serverId, listenPort);
+AJSON(Config, serverId, gatewayListenPort, serverListenPort);
 
 
 // 适配 std::cout

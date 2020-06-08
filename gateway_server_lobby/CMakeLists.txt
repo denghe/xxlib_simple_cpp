@@ -8,12 +8,14 @@ include_directories(../xxlib)
 add_executable(gateway_server_lobby
         main.cpp
         server.cpp
-        peer.cpp
-        listener.cpp
-        phandler.cpp
-        aphandler.cpp
-        gphandler.cpp
-        sphandler.cpp
+        gpeer.cpp
+        speer.cpp
+        glistener.cpp
+        slistener.cpp
+        gpeer_aphandler.cpp
+        gpeer_gphandler.cpp
+        speer_aphandler.cpp
+        speer_sphandler.cpp
         )
 
 target_link_libraries(gateway_server_lobby pthread readline)

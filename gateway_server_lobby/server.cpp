@@ -1,7 +1,7 @@
 ﻿#include "server.h"
-#include "peer.h"
+#include "gpeer.h"
 #include "config.h"
-#include "listener.h"
+#include "glistener.h"
 
 Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     // 初始化监听器

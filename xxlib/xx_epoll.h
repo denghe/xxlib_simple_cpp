@@ -589,7 +589,8 @@ namespace xx::Epoll {
 
     template<typename T>
     inline T *Ref<T>::operator->() const {
-        if (!operator bool()) throw std::logic_error(
+        if (!operator bool())
+            throw std::logic_error(
                     std::string("error: nullptr -> at line number:") + std::to_string(__LINE__));        // 空指针
         return (T *) items->ValueAt(index).get();
     }
@@ -1493,10 +1494,13 @@ namespace xx::Epoll {
 
 
     inline std::string AddressToString(sockaddr *const &in) {
-        char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-        if (!getnameinfo(in, in->sa_family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN, hbuf, sizeof hbuf, sbuf,
-                         sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV)) {
-            return std::string(hbuf) + ":" + sbuf;
+        if (in) {
+            char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+            if (!getnameinfo(in, in->sa_family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN, hbuf, sizeof hbuf,
+                             sbuf,
+                             sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV)) {
+                return std::string(hbuf) + ":" + sbuf;
+            }
         }
         return "";
     }

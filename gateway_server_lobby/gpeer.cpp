@@ -1,26 +1,26 @@
 ﻿#include "server.h"
-#include "peer.h"
-#include "aphandler.h"
-#include "gphandler.h"
+#include "gpeer.h"
+#include "gpeer_aphandler.h"
+#include "gpeer_gphandler.h"
 
-void Peer::SetAPHandler() {
+void GPeer::SetAPHandler() {
     assert(!phandler);
     // 创建处理类并关联, 处理类创建过程中会将 peer 放入相应容器
     phandler = xx::MakeU<APHandler>(*this, ++GetServer().autoIncId);
 }
 
-void Peer::SetGPHandler(uint32_t const &gatewayId) {
+void GPeer::SetGPHandler(uint32_t const &gatewayId) {
     assert(phandler);
     // 创建处理类并关联( 会导致之前的 peer handler 析构 并从相应容器移除 ) 处理类创建过程中会将 peer 放入相应容器
     phandler = xx::MakeU<GPHandler>(*this, gatewayId);
 }
 
-Server &Peer::GetServer() {
+Server &GPeer::GetServer() {
     // 拿到服务上下文
     return *(Server *) ep;
 }
 
-void Peer::OnReceive() {
+void GPeer::OnReceive() {
     // Disposed 判断变量
     EP::Ref<Item> alive(this);
 
@@ -71,27 +71,27 @@ void Peer::OnReceive() {
 }
 
 
-void Peer::OnReceivePackage(char *const &buf, size_t const &len) {
+void GPeer::OnReceivePackage(char *const &buf, size_t const &len) {
     phandler->OnReceivePackage(buf, len);
 }
 
-void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
+void GPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
     phandler->OnReceiveCommand(buf, len);
 }
 
-void Peer::OnDisconnect(int const &reason) {
+void GPeer::OnDisconnect(int const &reason) {
     phandler->OnDisconnect(reason);
 }
 
 
 // 开始向 data 写包. 跳过 长度 头部不写, 写入地址
-void Peer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {
+void GPeer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {
     d.Reserve(4 + reserveLen);
     d.len = 4;
     d.WriteFixed(addr);
 }
 
 // 结束写包。根据数据长度 填写 包头
-void Peer::WritePackageEnd(xx::Data &d) {
+void GPeer::WritePackageEnd(xx::Data &d) {
     *(uint32_t *) d.buf = (uint32_t) (d.len - 4);
 }

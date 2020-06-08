@@ -2,13 +2,15 @@
 #include <cstdint>
 #include "phandler.h"
 
-// for server peer
-struct SPHandler : PHandler {
+struct SPeer;
+
+// for anonymous peer
+struct APHandler : PHandler<SPeer> {
     // 放入容器
-    SPHandler(Peer& peer, uint32_t const& id);
+    APHandler(SPeer& peer, uint32_t const& id);
 
     // 从容器移除
-    ~SPHandler() override;
+    ~APHandler() override;
 
     // 收到正常包
     void OnReceivePackage(char *const &buf, size_t const &len) override;

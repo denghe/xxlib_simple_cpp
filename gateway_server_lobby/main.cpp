@@ -1,8 +1,9 @@
 ﻿/*
 模拟了一个 base + lobby 服务. 被 gateway, game servers 连.
 设计要点:
-    一个 listener, 监听一个端口
-    accept 之后, 先产生 "匿名peer". 此时, 只接受 "gatewayId" 或 "serverId" 指令
+    2个 listener 分别应对 gateway 和 内部服务
+    accept 之后, 先产生 "peer" 并设置匿名处理 handler. \
+    此时, 只接受 "gatewayId" ( gateway peer ) 或 "serverId" 指令 ( 内部服务 peer )
     在解析指令之后, 根据 接入者类型, 创建相应的 事件处理类
 
 下文中 指令 使用函数长相来描述 ( 以函数名 string 打头, 后跟参数 )

@@ -16,6 +16,8 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     if (!dialer) {
         throw std::logic_error("create dialer failed.");
     }
+    // 添加拨号地址
+    dialer->AddAddress(config.lobbyIp, config.lobbyPort);
 
     // 注册交互指令
     EnableCommandLine();
