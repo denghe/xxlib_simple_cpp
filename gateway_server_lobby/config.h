@@ -5,9 +5,9 @@
 // 用类结构映射到 json 格式:
 
 struct Config {
-    int serverId = 0;						// 服务id, 各个服务之间不可重复. 可以和 gatewayId 重复
-    int gatewayListenPort = 0;						// 监听端口
-    int serverListenPort = 0;						// 监听端口
+    uint32_t serverId = 0;						// 服务id, 各个服务之间不可重复. 可以和 gatewayId 重复
+    uint32_t gatewayListenPort = 0;				// 监听端口 for gateway 接入
+    uint32_t serverListenPort = 0;				// 监听端口 for server 接入
 };
 AJSON(Config, serverId, gatewayListenPort, serverListenPort);
 

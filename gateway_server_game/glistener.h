@@ -2,11 +2,8 @@
 #include "xx_epoll.h"
 namespace EP = xx::Epoll;
 
-// 预声明
-struct Server;
-
 // 继承默认监听器覆盖关键函数
-struct Listener : EP::TcpListener {
+struct GListener : EP::TcpListener {
     // 透传构造函数
     using EP::TcpListener::TcpListener;
 

@@ -31,7 +31,8 @@
 #include "xx_itempool.h"
 #include "xx_scopeguard.h"
 
-
+#define LIKELY(x)       __builtin_expect(!!(x), 1)
+#define UNLIKELY(x)     __builtin_expect(!!(x), 0)
 
 // todo: 统一递增填充各种 return -?
 

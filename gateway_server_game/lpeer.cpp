@@ -6,8 +6,8 @@ void LPeer::OnReceivePackage(char *const &buf, size_t const &len) {
     // todo
 }
 
-void LPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
-    // todo
+void LPeer::OnReceiveFirstPackage(char *const &buf, size_t const &len) {
+    assert(false);
 }
 
 void LPeer::OnDisconnect(int const &reason) {

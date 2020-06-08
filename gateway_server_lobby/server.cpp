@@ -1,13 +1,19 @@
 ﻿#include "server.h"
 #include "gpeer.h"
+#include "speer.h"
 #include "config.h"
 #include "glistener.h"
+#include "slistener.h"
 
 Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     // 初始化监听器
-    listener = CreateTcpListener<Listener>(config.listenPort);
-    if (!this->listener) {
-        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.listenPort) + " failed.");
+    gatewayListener = CreateTcpListener<GListener>(config.gatewayListenPort);
+    if (!gatewayListener) {
+        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.gatewayListenPort) + " failed.");
+    }
+    serverListener = CreateTcpListener<SListener>(config.serverListenPort);
+    if (!serverListener) {
+        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.serverListenPort) + " failed.");
     }
 
     // 注册交互指令
@@ -17,7 +23,6 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
         std::cout << "cfg = " << config << std::endl;
     };
     cmds["info"] = [this](auto args) {
-        std::cout << "aps.size() = " << aps.size() << std::endl;
         std::cout << "gps.size() = " << gps.size() << std::endl;
         std::cout << "gatewayId		ip:port" << std::endl;
         for (auto &&kv : gps) {

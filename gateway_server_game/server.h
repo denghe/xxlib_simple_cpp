@@ -1,34 +1,30 @@
 ﻿#pragma once
+
 #include "xx_epoll.h"
 #include <unordered_map>
+
 namespace EP = xx::Epoll;
 
 // 预声明
-struct Listener;
-using Listener_r = EP::Ref<Listener>;
-struct Peer;
-using Peer_r = EP::Ref<Peer>;
-struct LPeer;
-using LPeer_r = EP::Ref<LPeer>;
+struct GListener;
+using GListener_r = EP::Ref<GListener>;
+struct GPeer;
+using GPeer_r = EP::Ref<GPeer>;
 struct Dialer;
 using Dialer_r = EP::Ref<Dialer>;
+struct LPeer;
+using LPeer_r = EP::Ref<LPeer>;
 
 // 服务本体
 struct Server : EP::Context {
-    // 等待 client 接入的监听器
-    Listener_r listener;
-
-    // anonymous peers's auto increase id
-    uint32_t autoIncId = 0;
-
-    // anonymous peers
-    std::unordered_map<uint32_t, Peer_r> aps;
+    // 等待 gateway 接入的监听器
+    GListener_r gatewayListener;
 
     // gateway peers
-    std::unordered_map<uint32_t, Peer_r> gps;
+    std::unordered_map<uint32_t, GPeer_r> gps;
 
     // 连到 lobby 的拨号器
-    Dialer_r dialer;
+    Dialer_r lobbyDialer;
 
     // 保存 lobby 连接
     LPeer_r lobbyPeer;

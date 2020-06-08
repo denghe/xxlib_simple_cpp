@@ -51,9 +51,6 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
                       << "\t\t" << (dialer->Busy() ? "true" : "false")
                       << "\t\t" << (peer ? "true" : "false") << std::endl;
         }
-    };
-
-    cmds["onlines"] = [this](auto args) {
         std::cout << "cps.size() = " << cps.size() << std::endl;
         std::cout << "clientId		ip:port" << std::endl;
         for (auto &&kv : cps) {
@@ -61,7 +58,6 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
                       << EP::AddressToString(kv.second->addr) << std::endl;
         }
     };
-
     cmds["quit"] = [this](auto args) {
         running = false;
     };

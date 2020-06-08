@@ -30,7 +30,7 @@ struct Peer : EP::TcpPeer {
     // 结束写包。根据数据长度 填写 包头
     static void WritePackageEnd(xx::Data& d);
 
-    // 构造内部指令包. cmd string + args...
+    // 构造内部指令包. LEN + ADDR + cmd string + args...
     template<typename...Args>
     void SendCommand(Args const &... cmdAndArgs) {
         xx::Data d;

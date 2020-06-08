@@ -1,23 +1,24 @@
 ﻿#include "server.h"
 #include "peer.h"
+#include "gpeer.h"
 #include "dialer.h"
 #include "config.h"
-#include "listener.h"
+#include "glistener.h"
 
 Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
     // 创建监听器
-    listener = CreateTcpListener<Listener>(config.listenPort);
-    if (!this->listener) {
-        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.listenPort) + " failed.");
+    gatewayListener = CreateTcpListener<GListener>(config.gatewayListenPort);
+    if (!gatewayListener) {
+        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.gatewayListenPort) + " failed.");
     }
 
     // 创建拨号器
-    dialer = CreateTcpDialer<Dialer>();
-    if (!dialer) {
+    lobbyDialer = CreateTcpDialer<Dialer>();
+    if (!lobbyDialer) {
         throw std::logic_error("create dialer failed.");
     }
     // 添加拨号地址
-    dialer->AddAddress(config.lobbyIp, config.lobbyPort);
+    lobbyDialer->AddAddress(config.lobbyIp, config.lobbyPort);
 
     // 注册交互指令
     EnableCommandLine();
@@ -26,7 +27,6 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
         std::cout << "cfg = " << config << std::endl;
     };
     cmds["info"] = [this](auto args) {
-        std::cout << "aps.size() = " << aps.size() << std::endl;
         std::cout << "gps.size() = " << gps.size() << std::endl;
         std::cout << "gatewayId		ip:port" << std::endl;
         for (auto &&kv : gps) {
@@ -34,8 +34,8 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
         }
         std::cout << "dial to:		ip:port		busy		peer alive" << std::endl;
         std::cout << "lobby"
-                  << "\t\t" << EP::AddressToString(dialer->addrs[0])
-                  << "\t\t" << (dialer->Busy() ? "true" : "false")
+                  << "\t\t" << EP::AddressToString(lobbyDialer->addrs[0])
+                  << "\t\t" << (lobbyDialer->Busy() ? "true" : "false")
                   << "\t\t" << (lobbyPeer ? "true" : "false") << std::endl;
     };
 
@@ -50,9 +50,9 @@ int Server::FrameUpdate() {
     // 未建立连接
     if (!lobbyPeer) {
         // 并非正在拨号
-        if (!dialer->Busy()) {
+        if (!lobbyDialer->Busy()) {
             // 超时时间 2 秒
-            dialer->DialSeconds(2);
+            lobbyDialer->DialSeconds(2);
         }
     }
     return 0;

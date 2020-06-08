@@ -5,17 +5,17 @@
 // 用类结构映射到 json 格式:
 
 struct ServerInfo {
-    int serverId = 0;                       // 服务id（连上之后校验用）
+    uint32_t serverId = 0;                      // 服务id（连上之后校验用）
     std::string ip;
-    int port = 0;
+    uint32_t port = 0;
 };
 AJSON(ServerInfo, serverId, ip, port);
 
 struct Config {
-    int gatewayId = 0;						// 网关id, 各个网关之间不可重复. 可以和 serverId 重复
-    double clientTimeoutSeconds = 0;        // 客户端连接如果超过这个时间没有流量产生则被踢
-    int listenPort = 0;						// 监听端口
-    std::vector<ServerInfo> serverInfos;	// 要连接到哪些服务
+    uint32_t gatewayId = 0;						// 网关id, 各个网关之间不可重复. 可以和 serverId 重复
+    double clientTimeoutSeconds = 0;            // 客户端连接如果超过这个时间没有流量产生则被踢
+    uint32_t listenPort = 0;					// 监听端口
+    std::vector<ServerInfo> serverInfos;	    // 要连接到哪些服务
 };
 AJSON(Config, gatewayId, clientTimeoutSeconds, listenPort, serverInfos);
 

@@ -9,12 +9,10 @@ add_executable(gateway_server_game
         main.cpp
         server.cpp
         peer.cpp
+        gpeer.cpp
         lpeer.cpp
         dialer.cpp
-        listener.cpp
-        phandler.cpp
-        aphandler.cpp
-        gphandler.cpp
+        glistener.cpp
         )
 
 target_link_libraries(gateway_server_game pthread readline)

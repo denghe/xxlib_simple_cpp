@@ -11,5 +11,5 @@ struct SListener : EP::TcpListener {
     EP::TcpPeer_u OnCreatePeer() override;
 
     // 连接已建立, 搞事
-    void OnAccept(EP::TcpPeer_r const& peer_) override;
+    void OnAccept(EP::TcpPeer_r const& p) override;
 };

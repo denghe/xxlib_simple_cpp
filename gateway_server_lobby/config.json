@@ -1,5 +1,5 @@
 ﻿{
   "serverId": 0,
-  "gatewayListenPort": 10000,
-  "serverListenPort": 10000
+  "gatewayListenPort": 20000,
+  "serverListenPort": 30000
 }
