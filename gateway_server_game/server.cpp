@@ -44,5 +44,14 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
 }
 
 int Server::FrameUpdate() {
+    // 自动拨号 & 重连逻辑
+    // 未建立连接
+    if (!lobbyPeer) {
+        // 并非正在拨号
+        if (!dialer->Busy()) {
+            // 超时时间 2 秒
+            dialer->DialSeconds(2);
+        }
+    }
     return 0;
 }
