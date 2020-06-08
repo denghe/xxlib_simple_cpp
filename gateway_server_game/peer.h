@@ -10,7 +10,7 @@ namespace EP = xx::Epoll;
 // 预声明
 struct Server;
 
-// 继承 默认 连接覆盖收包函数
+// 被 gateway 连 产生的 peer
 struct Peer : EP::TcpPeer {
     // 可后期绑定的事件处理类
     std::unique_ptr<PHandler> phandler;
@@ -18,7 +18,6 @@ struct Peer : EP::TcpPeer {
     // 将事件处理类设置为具体派生类型
     void SetAPHandler();
     void SetGPHandler(uint32_t const& gatewayId);
-    void SetSPHandler(uint32_t const& serverId);
 
     // 拿到 server 上下文引用, 以方便写事件处理代码
     Server &GetServer();

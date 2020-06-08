@@ -1,9 +1,11 @@
 ﻿/*
-模拟了一个 base 服务. 被 gateway, lobby , game servers 连.
+模拟了一个 game 服务. 被 gateways 连. 连到 lobby 服务.
 设计要点:
     一个 listener, 监听一个端口
-    accept 之后, 先产生 "匿名peer". 此时, 只接受 "gatewayId" 或 "serverId" 指令
-    在解析指令之后, 根据 接入者类型, 创建相应的 事件( Recveive, Disconnect )处理类
+    accept 之后, 先产生 "匿名peer". 此时, 只接受 "gatewayId" 指令
+    在解析指令之后, 根据 接入者类型, 创建相应的 事件处理类
+    一个 dialer, 自动连向 lobby. 连上之后, 发注册包
+
 
 下文中 指令 使用函数长相来描述 ( 以函数名 string 打头, 后跟参数 )
 
@@ -32,12 +34,13 @@ gateway 如果断开, 则断开所有与之关联的 虚拟 peer
     kick(uint32_t clientId, double delaySeconds)
         通知 gateway 踢掉指定 client ( gateway: 踢人 )
 
-其他服务 过来的指令列表：
+
+
+发向 lobby 的 指令列表：
 
     serverId(uint32_t serverId)
         首包, 注册某服务( 具体是啥可以进一步 switch case ). 如果收到该包时发现 id 已存在，则忽略并断线( 不顶下线 )
 
-其他服务 除了发送指令以外, 还发其他数据, 走正常业务逻辑处理即可
 
 */
 

@@ -79,11 +79,17 @@ File -- Settings -- Build,Execution,Deployment -- Toolchains -- 可点击 + 添�
 
 
 
-各种需要安装的东西总结如下: ( 可以一波流 )
+各种需要安装的东西总结如下: ( 可以按需窜起来一波流 )
 
 gcc g++ gdb gdbserver cmake valgrind
 llvm-10 llvm-10-dev clang-10 llvm-10-tools
-libreadline-dev libboost-all-dev libsqlite3-dev libmariadb-dev uuid-dev libluajit-5.1-dev 
+libreadline-dev
+libboost-all-dev
+libsqlite3-dev
+libmariadb-dev
+uuid-dev
+libluajit-5.1-dev
+libuv1-dev 
 openssh-server net-tools git vim
 open-vm-tools-desktop open-vm-tools
 

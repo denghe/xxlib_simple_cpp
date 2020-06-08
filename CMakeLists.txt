@@ -4,7 +4,7 @@ project(all)
 add_subdirectory(simple_echo_client)
 add_subdirectory(simple_echo_server)
 
-add_subdirectory(gateway_server_base)
+add_subdirectory(gateway_server_game)
 add_subdirectory(gateway_server_gateway)
 add_subdirectory(gateway_server_lobby)
 add_subdirectory(gateway_client_cpp)

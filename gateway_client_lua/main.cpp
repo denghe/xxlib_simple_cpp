@@ -13,7 +13,8 @@ int main() {
     auto&& r = luaL_dostring(L, R"-(
 
 x = 12345678901234567ULL
-x = x * 100
+x = x * 1.5 * 100LL
+print(x)
 
 )-");
     if(r) {
@@ -24,8 +25,11 @@ x = x * 100
 
     // [-0, +1, e]
     lua_getglobal(L, "x");
+
     // [-0, +0, -]
     auto&& p = lua_topointer(L, -1);
+
+    // 1234567890123456700
     std::cout << *(uint64_t*)p << std::endl;
 
     // [-0, +0, -]
