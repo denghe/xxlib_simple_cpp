@@ -36,6 +36,7 @@ void SPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
     // 试读取 cmd 字串. 失败直接断开
     std::string cmd;
     if (int r = dr.ReadLimit<64>(cmd)) {
+        OnDisconnect(__LINE__);
         Dispose();
         return;
     }
@@ -46,6 +47,7 @@ void SPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
     if (cmd == "open") {                        // 向客户端开放 serverId. 参数: clientId
         // 试读出 clientId. 失败直接断开
         if (int r = dr.Read(clientId)) {
+            OnDisconnect(__LINE__);
             Dispose();
             return;
         }
@@ -60,6 +62,7 @@ void SPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
     } else if (cmd == "close") {                // 关端口. 参数: clientId
         // 试读出 clientId. 失败直接断开
         if (int r = dr.Read(clientId)) {
+            OnDisconnect(__LINE__);
             Dispose();
             return;
         }
@@ -75,6 +78,7 @@ void SPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
         // 试读出参数
         int64_t delayMS = 0;
         if (int r = dr.Read(clientId, delayMS)) {
+            OnDisconnect(__LINE__);
             Dispose();
             return;
         }
@@ -95,6 +99,7 @@ void SPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
             cp->Dispose();
         }
     } else {                                    // 未知指令
+        OnDisconnect(__LINE__);
         Dispose();
         return;
     }

@@ -11,8 +11,11 @@ struct Client;
 
 // 继承 默认 连接覆盖收包函数
 struct Peer : EP::TcpPeer {
-    // 先用 一个简单结构 来模拟收到的包
-    std::deque<std::pair<std::string, uint32_t>> packages;
+    // 先用 一个简单结构 来存放收到的包. uint32: serverId( 谁发的 )
+    std::deque<std::pair<uint32_t, xx::Data>> packages;
+
+    // 已开放的 server id 列表( 发送时如果目标 id 不在列表里则忽略发送但不报错? )
+    std::vector<uint32_t> openServerIds;
 
     // 拿到 client 上下文引用, 以方便写事件处理代码
     Client &GetClient();
@@ -21,24 +24,20 @@ struct Peer : EP::TcpPeer {
     void OnReceive() override;
 
     // 收到正常包
-    void OnReceivePackage(char *const &buf, size_t const &len);
+    void OnReceivePackage(uint32_t const &serverId, char *const &buf, size_t const &len);
 
     // 收到内部指令
     void OnReceiveCommand(char *const &buf, size_t const &len);
 
-    // 开始向 data 写包. 空出 长度 头部
-    static void WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr);
-
-    // 结束写包。根据数据长度 填写 包头
-    static void WritePackageEnd(xx::Data &d);
-
-    // 构造内部指令包. LEN + ADDR + cmd string + args...
+    // 构造数据包并发送. len(uint32) + serverId(uint32) + args...
     template<typename...Args>
-    void SendCommand(Args const &... cmdAndArgs) {
+    void SendTo(uint32_t const &serverId, Args const &... args) {
         xx::Data d;
-        WritePackageBegin(d, 1024, 0xFFFFFFFFu);
-        xx::Write(d, cmdAndArgs...);
-        WritePackageEnd(d);
+        d.Reserve(1024);
+        d.len = sizeof(uint32_t);
+        d.WriteFixed(serverId);
+        xx::Write(d, args...);
+        *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
         this->Send(std::move(d));
     }
 };

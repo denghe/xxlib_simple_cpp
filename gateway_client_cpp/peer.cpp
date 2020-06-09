@@ -1,5 +1,6 @@
 ﻿#include "peer.h"
 #include "client.h"
+#include <vector>
 
 Client &Peer::GetClient() {
     // 拿到服务上下文
@@ -14,7 +15,7 @@ void Peer::OnReceive() {
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
     uint32_t dataLen = 0;
-    uint32_t addr = 0;
+    uint32_t serverId = 0;
 
     // 确保包头长度充足
     while (buf + sizeof(dataLen) <= end) {
@@ -22,7 +23,7 @@ void Peer::OnReceive() {
         dataLen = *(uint32_t *) buf;
 
         // 长度异常则断线退出( 不含地址? 超长? 256k 不够可以改长 )
-        if (dataLen < sizeof(addr) || dataLen > 1024 * 256) {
+        if (dataLen < sizeof(serverId) || dataLen > 1024 * 256) {
             Dispose();
             return;
         }
@@ -33,16 +34,16 @@ void Peer::OnReceive() {
         // 跳到数据区开始调用处理回调
         buf += sizeof(dataLen);
         {
-            // 取出地址
-            addr = *(uint32_t *)buf;
+            // 取出地址( 手机上最好用 memcpy )
+            serverId = *(uint32_t *) buf;
 
             // 包类型判断
-            if (addr == 0xFFFFFFFFu) {
-                // 内部指令. 传参时跳过 addr 部分
-                OnReceiveCommand(buf + sizeof(addr), dataLen - sizeof(addr));
+            if (serverId == 0xFFFFFFFFu) {
+                // 内部指令
+                OnReceiveCommand(buf + sizeof(serverId), dataLen - sizeof(serverId));
             } else {
-                // 普通包. id 打头
-                OnReceivePackage(buf, dataLen);
+                // 普通包. serverId 打头
+                OnReceivePackage(serverId, buf + sizeof(serverId), dataLen - sizeof(serverId));
             }
 
             // 如果当前类实例已自杀则退出
@@ -56,24 +57,42 @@ void Peer::OnReceive() {
     recv.RemoveFront(buf - recv.buf);
 }
 
-// 收到正常包
-void Peer::OnReceivePackage(char* const& buf, size_t const& len) {
-
+void Peer::OnReceivePackage(uint32_t const &serverId, char *const &buf, size_t const &len) {
+    packages.emplace_back(serverId, xx::Data(buf, len));
 }
 
-// 收到内部指令
-void Peer::OnReceiveCommand(char* const& buf, size_t const& len) {
+void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
+    // 要填充的变量
+    std::string cmd;
+    uint32_t serverId = 0;
 
-}
+    // 读取失败直接断开
+    if (int r = xx::Read(buf, len, cmd, serverId)) {
+        OnDisconnect(__LINE__);
+        Dispose();
+        return;
+    }
 
-// 开始向 data 写包. 跳过 长度 头部不写, 写入地址
-void Peer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {
-    d.Reserve(4 + reserveLen);
-    d.len = 4;
-    d.WriteFixed(addr);
-}
+    if (cmd == "open") {
+        // serverId 放入白名单
+        openServerIds.emplace_back(serverId);
 
-// 结束写包。根据数据长度 填写 包头
-void Peer::WritePackageEnd(xx::Data &d) {
-    *(uint32_t *) d.buf = (uint32_t) (d.len - 4);
+        // 塞一条 serverId + 空数据 模拟 open 事件
+        packages.emplace_back(serverId, xx::Data());
+
+    } else if (cmd == "close") {
+        // serverId 从白名单移除
+        openServerIds.erase(std::find(openServerIds.begin(), openServerIds.end(), serverId));
+        if (openServerIds.empty()) {
+            OnDisconnect(__LINE__);
+            Dispose();
+            return;
+        }
+        // close 不模拟事件?
+    }
+    else {
+        OnDisconnect(__LINE__);
+        Dispose();
+        return;
+    }
 }

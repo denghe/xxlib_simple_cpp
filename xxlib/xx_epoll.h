@@ -1,13 +1,13 @@
 ﻿#pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <errno.h>
-#include <signal.h>
+#include <cerrno>
+#include <csignal>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
@@ -89,6 +89,9 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
 
     // 针对 Item 的 弱引用伪指针. 几个操作符每次都会检查是否失效. 失效会 throw. 可以 try catch。
+    // 有别于 shared_ptr + weak_ptr 套装, 这个方案基于 unique_ptr 单例 模式, 降低编写 weak_ptr lock() 的复杂度
+    // 强制内存回收，避免对象生命周期延长
+
     template<typename T>
     struct Ref {
         ItemPool<Item_u> *items = nullptr;
@@ -104,11 +107,11 @@ namespace xx::Epoll {
 
         Ref(Ref const &) = default;
 
-        Ref(Ref &&);
+        Ref(Ref &&) noexcept;
 
         Ref &operator=(Ref const &) = default;
 
-        Ref &operator=(Ref &&);
+        Ref &operator=(Ref &&) noexcept;
 
         template<typename U>
         Ref &operator=(std::enable_if_t<std::is_base_of_v<T, U>, Ref<U>> const &o);
@@ -119,11 +122,11 @@ namespace xx::Epoll {
         template<typename U>
         Ref<U> As() const;
 
-        operator bool() const;
+        explicit operator bool() const;
 
         T *operator->() const;
 
-        T *Lock() const;
+        [[nodiscard]] T *Lock() const;
 
         template<typename U = T>
         void Reset(U *const &ptr = nullptr);
@@ -158,7 +161,7 @@ namespace xx::Epoll {
 
         virtual void OnTimeout() = 0;
 
-        ~ItemTimeout();
+        ~ItemTimeout() override;
     };
 
 
@@ -174,17 +177,26 @@ namespace xx::Epoll {
         std::function<void(Timer_r const &timer)> onFire;
 
         // 超时触发 onFire + 可选 Dispose
-        virtual void OnTimeout() override;
+        void OnTimeout() override;
     };
 
 
     /***********************************************************************************************************/
-    // Peer
+    // TcpPeer
     /***********************************************************************************************************/
 
-    struct Peer : ItemTimeout {
-        // 对方的 addr( udp 收到数据时就会刷新这个属性. Send 将采用这个属性 )
-        sockaddr_in6 addr;
+    struct TcpPeer : ItemTimeout {
+        // 对方的 addr
+        sockaddr_in6 addr{};
+
+        // 每 fd 每一次可写, 写入的长度限制( 希望能实现当大量数据下发时各个 socket 公平的占用带宽 )
+        size_t sendLenPerFrame = 65536;
+
+        // 是否正在发送( 是：不管 sendQueue 空不空，都不能 write, 只能塞 sendQueue )
+        bool writing = false;
+
+        // 待发送队列
+        xx::DataQueue sendQueue;
 
         // 收数据用堆积容器
         Data recv;
@@ -192,6 +204,10 @@ namespace xx::Epoll {
         // 读缓冲区内存扩容增量
         size_t readBufLen = 65536;
 
+        // 将 fd 移交 给一个新的 TcpPeer 沿用。需确保 没有发送过数据 & 没有剩余数据未处理
+        // 常见于 读取到首包之后 才能创建出具体 peer 处理后续数据包. 通常接下来需要 Dispose
+        template<typename T>
+        Ref<T> MoveFD();
 
         // 数据接收事件: 从 recv 拿数据. 默认实现为 echo
         virtual void OnReceive();
@@ -200,49 +216,19 @@ namespace xx::Epoll {
         virtual void OnDisconnect(int const &reason);
 
         // buf + len 塞队列并开始发送
-        virtual int Send(char const *const &buf, size_t const &len) = 0;
+        virtual int Send(char const *const &buf, size_t const &len);
 
-        // Data 对象移进队列并开始发送( 通常来自序列化器 CutData. 也可以 xx::Data(buf, len) 临时构造 )
-        virtual int Send(Data &&data) = 0;
+        // Data 对象移进队列并开始发送
+        virtual int Send(Data &&data);
 
-        // 立刻开始发送数据
-        virtual int Flush() = 0;
-
-    protected:
-        // 超时触发 Disconnect(-4) + Dispose
-        virtual void OnTimeout() override;
-    };
-
-    using Peer_r = Ref<Peer>;
-    using Peer_u = std::unique_ptr<Peer>;
-
-
-
-    /***********************************************************************************************************/
-    // TcpPeer
-    /***********************************************************************************************************/
-
-    struct TcpPeer : Peer {
-
-        // 是否正在发送( 是：不管 sendQueue 空不空，都不能 write, 只能塞 sendQueue )
-        bool writing = false;
-
-        // 待发送队列
-        xx::DataQueue sendQueue;
-
-        // 每 fd 每一次可写, 写入的长度限制( 希望能实现当大量数据下发时各个 socket 公平的占用带宽 )
-        size_t sendLenPerFrame = 65536;
-
-        virtual void OnEpollEvent(uint32_t const &e) override;
-
-        virtual int Send(Data &&data) override;
-
-        virtual int Send(char const *const &buf, size_t const &len) override;
-
-        virtual int Flush() override;
+        // epoll 事件处理
+        void OnEpollEvent(uint32_t const &e) override;
 
     protected:
         int Write();
+
+        // 超时触发 Disconnect(-4) + Dispose
+        void OnTimeout() override;
     };
 
     using TcpPeer_r = Ref<TcpPeer>;
@@ -255,7 +241,7 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
 
     struct TcpListener : Item {
-        typedef TcpPeer PeerType;
+        [[maybe_unused]] typedef TcpPeer PeerType;
 
         // 提供创建 peer 对象的实现
         virtual TcpPeer_u OnCreatePeer();
@@ -264,7 +250,7 @@ namespace xx::Epoll {
         inline virtual void OnAccept(TcpPeer_r const &peer) {}
 
         // 调用 accept
-        virtual void OnEpollEvent(uint32_t const &e) override;
+        void OnEpollEvent(uint32_t const &e) override;
 
     protected:
         // return fd. <0: error. 0: empty (EAGAIN / EWOULDBLOCK), > 0: fd
@@ -285,7 +271,7 @@ namespace xx::Epoll {
         TcpDialer_r dialer;
 
         // 判断是否连接成功
-        virtual void OnEpollEvent(uint32_t const &e) override;
+        void OnEpollEvent(uint32_t const &e) override;
     };
 
     using TcpConn_r = Ref<TcpConn>;
@@ -323,7 +309,7 @@ namespace xx::Epoll {
         virtual TcpPeer_u OnCreatePeer();
 
         // Stop()
-        ~TcpDialer();
+        ~TcpDialer() override;
 
         // 存个空值备用 以方便返回引用
         TcpPeer_r emptyPeer;
@@ -332,7 +318,7 @@ namespace xx::Epoll {
         std::vector<Item_r> conns;
 
         // 超时表明所有连接都没有连上. 触发 OnConnect( nullptr )
-        virtual void OnTimeout() override;
+        void OnTimeout() override;
 
     protected:
         // 按具体协议创建 Conn 对象
@@ -357,9 +343,9 @@ namespace xx::Epoll {
 
         static char *CompleteGenerate(const char *text, int state);
 
-        virtual void OnEpollEvent(uint32_t const &e) override;
+        void OnEpollEvent(uint32_t const &e) override;
 
-        virtual ~CommandHandler();
+        ~CommandHandler() override;
 
     protected:
         // 解析 row 内容并调用 cmd 绑定 handler
@@ -434,10 +420,10 @@ namespace xx::Epoll {
         int MakeSocketFD(int const &port, int const &sockType = SOCK_STREAM); // SOCK_DGRAM
 
         // 添加 fd 到 epoll 监视. return !0: error
-        int Ctl(int const &fd, uint32_t const &flags, int const &op = EPOLL_CTL_ADD);
+        int Ctl(int const &fd, uint32_t const &flags, int const &op = EPOLL_CTL_ADD) const;
 
         // 关闭并从 epoll 移除监视
-        int CloseDel(int const &fd);
+        int CloseDel(int const &fd) const;
 
         // 进入一次 epoll wait. 可传入超时时间.
         int Wait(int const &timeoutMS);
@@ -456,10 +442,10 @@ namespace xx::Epoll {
         // 下面是外部主要使用的函数
 
         // 将秒转为帧数
-        inline int SecondsToFrames(double const &sec) { return (int) (frameRate * sec); }
+        inline int SecondsToFrames(double const &sec) const { return (int) (frameRate * sec); }
 
         // 将毫秒转为帧数
-        inline int MsToFrames(int const &ms) { return (int) (frameRate * ms / 1000); }
+        [[maybe_unused]] inline int MsToFrames(int const &ms) const { return (int) (frameRate * ms / 1000); }
 
 
         // 帧逻辑可以覆盖这个函数. 返回非 0 将令 Run 退出.
@@ -480,7 +466,8 @@ namespace xx::Epoll {
 
         // 创建 定时器
         template<typename T = Timer, typename ...Args>
-        Ref<T> CreateTimer(int const &interval, std::function<void(Timer_r const &timer)> &&cb, Args &&...args);
+        [[maybe_unused]] Ref<T>
+        CreateTimer(int const &interval, std::function<void(Timer_r const &timer)> &&cb, Args &&...args);
 
 
         // 启用命令行输入控制. 支持方向键, tab 补齐, 上下历史
@@ -499,7 +486,7 @@ namespace xx::Epoll {
 
     std::string AddressToString(sockaddr *const &in);
 
-    std::string AddressToString(sockaddr_in const &in);
+    [[maybe_unused]] std::string AddressToString(sockaddr_in const &in);
 
     std::string AddressToString(sockaddr_in6 const &in);
 
@@ -517,9 +504,9 @@ namespace xx::Epoll {
     inline void Item::Dispose() {
         if (indexAtContainer != -1) {
             // 因为 gcc 傻逼，此处由于要自杀，故先复制参数到栈，避免出异常
-            auto ep = this->ep;
-            auto indexAtContainer = this->indexAtContainer;
-            ep->items.RemoveAt(indexAtContainer);    // 触发析构
+            auto e = this->ep;
+            auto i = this->indexAtContainer;
+            e->items.RemoveAt(i);    // 触发析构
         }
     }
 
@@ -546,7 +533,7 @@ namespace xx::Epoll {
     inline Ref<T>::Ref(std::unique_ptr<T> const &ptr) : Ref(ptr.get()) {}
 
     template<typename T>
-    inline Ref<T>::Ref(Ref &&o)
+    inline Ref<T>::Ref(Ref &&o) noexcept
             : items(o.items), index(o.index), version(o.version) {
         o.items = nullptr;
         o.index = -1;
@@ -554,7 +541,7 @@ namespace xx::Epoll {
     }
 
     template<typename T>
-    Ref<T> &Ref<T>::operator=(Ref &&o) {
+    Ref<T> &Ref<T>::operator=(Ref &&o) noexcept {
         std::swap(items, o.items);
         std::swap(index, o.index);
         std::swap(version, o.version);
@@ -565,13 +552,15 @@ namespace xx::Epoll {
     template<typename T>
     template<typename U>
     Ref<T> &Ref<T>::operator=(std::enable_if_t<std::is_base_of_v<T, U>, Ref<U>> const &o) {
-        return operator=(*(Ref<T> *) &o);
+        operator=(*(Ref<T> *) &o);
+        return *this;
     }
 
     template<typename T>
     template<typename U>
     Ref<T> &Ref<T>::operator=(std::enable_if_t<std::is_base_of_v<T, U>, Ref<U>> &&o) {
-        return operator=(std::move(*(Ref<T> *) &o));
+        operator=(std::move(*(Ref<T> *) &o));
+        return *this;
     }
 
 
@@ -695,28 +684,41 @@ namespace xx::Epoll {
 
 
     /***********************************************************************************************************/
-    // Peer
+    // TcpPeer
     /***********************************************************************************************************/
 
-    inline void Peer::OnDisconnect(int const &reason) {}
+    template<typename T>
+    Ref<T> TcpPeer::MoveFD() {
+        // 解除映射关系( 避免 AddItem 报错 )
+        ep->fdMappings[fd] = nullptr;
 
-    inline void Peer::OnReceive() {
+        // 新建 T 实例 放入容器
+        auto p = ep->AddItem(xx::TryMakeU<T>(), fd);
+
+        // 填充 ip
+        memcpy(&p->addr, &addr, sizeof(addr));
+
+        // 设为 -1 以绕开析构函数中的 close
+        this->fd = -1;
+
+        // 返回新对象 的 弱引用
+        return p;
+    }
+
+    inline void TcpPeer::OnDisconnect(int const &reason) {}
+
+    inline void TcpPeer::OnReceive() {
         Send(recv.buf, recv.len);
         recv.Clear();
     }
 
-    inline void Peer::OnTimeout() {
-        Ref<Peer> alive(this);
+    inline void TcpPeer::OnTimeout() {
+        Ref<TcpPeer> alive(this);
         OnDisconnect(__LINE__);
         if (alive) {
             Dispose();
         }
     }
-
-
-    /***********************************************************************************************************/
-    // TcpPeer
-    /***********************************************************************************************************/
 
     inline void TcpPeer::OnEpollEvent(uint32_t const &e) {
         // error
@@ -790,16 +792,12 @@ namespace xx::Epoll {
         return !writing ? Write() : 0;
     }
 
-    inline int TcpPeer::Flush() {
-        return !writing ? Write() : 0;
-    }
-
     inline int TcpPeer::Write() {
         // 如果没有待发送数据，停止监控 EPOLLOUT 并退出
         if (!sendQueue.bytes) return ep->Ctl(fd, EPOLLIN, EPOLL_CTL_MOD);
 
         // 前置准备
-        std::array<iovec, UIO_MAXIOV> vs;                    // buf + len 数组指针
+        std::array<iovec, UIO_MAXIOV> vs;                     // buf + len 数组指针
         int vsLen = 0;                                        // 数组长度
         auto bufLen = sendLenPerFrame;                        // 计划发送字节数
 
@@ -1060,7 +1058,7 @@ namespace xx::Epoll {
         // 继续初始化并放入容器
         auto o = ep->AddItem(std::move(o_), fd);
         o->dialer = this;
-        conns.push_back(o);
+        conns.emplace_back(o);
 
         sg.Cancel();
         o->Init();
@@ -1101,11 +1099,11 @@ namespace xx::Epoll {
                 s += c;
             }
         }
-        if (s.size()) {
+        if (!s.empty()) {
             args.emplace_back(std::move(s));
         }
 
-        if (args.size()) {
+        if (!args.empty()) {
             auto &&iter = ep->cmds.find(args[0]);
             if (iter != ep->cmds.end()) {
                 if (iter->second) {
@@ -1153,7 +1151,8 @@ namespace xx::Epoll {
         return strdup(matches[match_index++].c_str());
     }
 
-    inline char **CommandHandler::CompleteCallback(const char *text, int start, int end) {
+    inline char **
+    CommandHandler::CompleteCallback(const char *text, [[maybe_unused]] int start, [[maybe_unused]] int end) {
         // 不做文件名适配
         rl_attempted_completion_over = 1;
         return rl_completion_matches(text, (rl_compentry_func_t *) &CompleteGenerate);
@@ -1248,7 +1247,7 @@ namespace xx::Epoll {
         return fd;
     }
 
-    inline int Context::Ctl(int const &fd, uint32_t const &flags, int const &op) {
+    inline int Context::Ctl(int const &fd, uint32_t const &flags, int const &op) const {
         epoll_event event;
         bzero(&event, sizeof(event));
         event.data.fd = fd;
@@ -1256,7 +1255,7 @@ namespace xx::Epoll {
         return epoll_ctl(efd, op, fd, &event);
     };
 
-    inline int Context::CloseDel(int const &fd) {
+    inline int Context::CloseDel(int const &fd) const {
         assert(fd != -1);
         epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr);
         return close(fd);
@@ -1296,9 +1295,9 @@ namespace xx::Epoll {
     }
 
 
-    inline int Context::Run(double const &frameRate) {
-        assert(frameRate > 0);
-        this->frameRate = frameRate;
+    inline int Context::Run(double const &frameRate_) {
+        assert(frameRate_ > 0);
+        this->frameRate = frameRate_;
 
         // 稳定帧回调用的时间池
         double ticksPool = 0;
@@ -1307,7 +1306,7 @@ namespace xx::Epoll {
         int waitMS = 0;
 
         // 计算帧时间间隔
-        auto ticksPerFrame = 10000000.0 / frameRate;
+        auto ticksPerFrame = 10000000.0 / frameRate_;
 
         // 取当前时间
         auto lastTicks = xx::NowEpoch10m();
@@ -1418,7 +1417,7 @@ namespace xx::Epoll {
 
 
     template<typename T, typename ...Args>
-    inline Ref<T>
+    [[maybe_unused]] [[maybe_unused]] inline Ref<T>
     Context::CreateTimer(int const &interval, std::function<void(Timer_r const &timer)> &&cb, Args &&...args) {
         static_assert(std::is_base_of_v<Timer, T>);
 
@@ -1506,7 +1505,7 @@ namespace xx::Epoll {
         return "";
     }
 
-    inline std::string AddressToString(sockaddr_in const &in) {
+    [[maybe_unused]] [[maybe_unused]] inline std::string AddressToString(sockaddr_in const &in) {
         return AddressToString((sockaddr *) &in);
     }
 
