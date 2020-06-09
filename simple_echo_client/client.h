@@ -152,38 +152,38 @@ inline void Peer::HandleReceive(char* buf, size_t len) {
 inline Client::Client(size_t const& wheelLen) : EP::Context(wheelLen) {
 
 	// 初始化拨号器
-	this->dialer = CreateTcpDialer<Dialer>();
-	if (!this->dialer) {
-		throw - 1;
+	dialer = CreateTcpDialer<Dialer>();
+	if (!dialer) {
+        throw std::logic_error("create dialer failed.");
 	}
 
 	// 添加默认拨号地址
 	dialer->AddAddress("127.0.0.1", 10000);
 
 	// 注册交互指令
-	this->EnableCommandLine();
+	EnableCommandLine();
 
-	this->cmds["send"] = [this](std::vector<std::string> const& args) {
+	cmds["send"] = [this](std::vector<std::string> const& args) {
 		if (args.size() < 2) {
 			std::cout << "send: miss data" << std::endl;
 		}
 		else if (args[1].size() > std::numeric_limits<decltype(Header::len)>::max()) {
 			std::cout << "send: data's size > max len" << std::endl;
 		}
-		else if (!this->peer) {
+		else if (!peer) {
 			std::cout << "send: no peer" << std::endl;
 		}
 		else {
-			this->peer->SendPackage(args[1].data(), args[1].size());
+			peer->SendPackage(args[1].data(), args[1].size());
 			std::cout << "send: success" << std::endl;
 		}
 	};
 
-	this->cmds["quit"] = [this](auto args) {
-		this->running = false;
+	cmds["quit"] = [this](auto args) {
+		running = false;
 	};
 
-	this->cmds["exit"] = this->cmds["quit"];
+	cmds["exit"] = cmds["quit"];
 }
 
 inline int Client::FrameUpdate() {
@@ -193,9 +193,6 @@ inline int Client::FrameUpdate() {
 		// 超时时间 2 秒
 		dialer->DialSeconds(2);
 	}
-
-	//std::cout << ".";
-	//std::cout.flush();
 	return 0;
 }
 

@@ -158,9 +158,9 @@ inline void Peer::HandleReceive(char* buf, size_t len) {
 
 inline Server::Server(size_t const& wheelLen) : EP::Context(wheelLen) {
 	// 按配置的端口创建监听器
-	this->listener = CreateTcpListener<Listener>(::config.listenPort);
-	if (!this->listener) {
-		throw - 1;
+	listener = CreateTcpListener<Listener>(::config.listenPort);
+	if (!listener) {
+        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.listenPort) + " failed.");
 	}
 
 	// todo: 注册交互指令?

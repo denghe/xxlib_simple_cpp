@@ -1,4 +1,13 @@
-﻿#include "xx_signal.h"
+﻿/*
+大体流程:
+    1. client dial to gateway
+    2. client wait open( serverId )
+    3. client send request to serverId: pkg
+    4. client wait callback
+    5. .......
+*/
+
+#include "xx_signal.h"
 #include "client.h"
 
 int main() {
