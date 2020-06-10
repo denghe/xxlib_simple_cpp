@@ -61,15 +61,3 @@ void Peer::OnReceive() {
     // 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
     recv.RemoveFront(buf - recv.buf);
 }
-
-// 开始向 data 写包. 跳过 长度 头部不写, 写入地址
-void Peer::WritePackageBegin(xx::Data &d, size_t const &reserveLen, uint32_t const &addr) {
-    d.Reserve(4 + reserveLen);
-    d.len = 4;
-    d.WriteFixed(addr);
-}
-
-// 结束写包。根据数据长度 填写 包头
-void Peer::WritePackageEnd(xx::Data &d) {
-    *(uint32_t *) d.buf = (uint32_t) (d.len - 4);
-}

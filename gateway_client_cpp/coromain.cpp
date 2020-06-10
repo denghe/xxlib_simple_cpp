@@ -1,10 +1,10 @@
-#include "coro1.h"
+#include "coromain.h"
 #include "client.h"
 #include "dialer.h"
 #include "peer.h"
 #include "config.h"
 
-int Coro1::Update() {
+int CoroMain::Update() {
     COR_BEGIN {
             // 初始化拨号器
             c.dialer = c.CreateTcpDialer<Dialer>();
@@ -13,6 +13,7 @@ int Coro1::Update() {
             for (auto &&addr : config.addrs) {
                 c.dialer->AddAddress(addr.ip, addr.port);
             }
+            std::cout << "inited." << std::endl;
 
             LabDial:
         COR_YIELD
@@ -34,43 +35,63 @@ int Coro1::Update() {
             c.gameServerId = -1;
 
 
+            std::cout << "dial..." << std::endl;
             // 开始拨号( 5秒超时 ) // todo: 域名解析, 包协议版本比对
             r = c.dialer->DialSeconds(5);
 
             // 如果立刻发生错误: 重新拨号
-            if (r) goto LabDial;
+            if (r) {
+                std::cout << "dial failed. r = " << r << std::endl;
+                goto LabDial;
+            }
 
             // 等拨号器变得不忙
             while (c.dialer->Busy()) {
                 COR_YIELD
             }
 
-            // 如果 peer 为空: 表示没有连上. 重新拨号
-            if (!c.peer) goto LabDial;
+            // 如果 peer 为空: 表示没有连上, 或者刚连上就被掐线. 重新拨号
+            if (!c.peer) {
+                std::cout << "dial timeout or peer disconnected." << std::endl;
+                goto LabDial;
+            }
 
+            std::cout << "wait 0 open..." << std::endl;
             // 连上了：带 5 秒超时 等 0 号服务 open
             nowSecs = xx::NowSteadyEpochSeconds();
             while (xx::NowSteadyEpochSeconds() - nowSecs < 5) {
                 COR_YIELD
 
                 // 如果断线, 重新拨号
-                if (!c.peer) goto LabDial;
+                if (!c.peer) {
+                    std::cout << "peer disconnected." << std::endl;
+                    goto LabDial;
+                }
 
                 // 如果检测到 0 号服务已 open 就跳出循环
-                if (c.peer->IsOpened(0)) break;
+                if (c.peer->IsOpened(0)) goto LabAuth;
             }
 
+            // 等 0 号服务 open 超时: 重连
+            std::cout << "wait 0 open timeout" << std::endl;
+            goto LabDial;
+
+            LabAuth:
             // 简单模拟 send request
             // 开始发包. 格式: serial, cmd, args...
             c.peer->SendTo(0, 1, "auth", "username", "password");
 
+            std::cout << "wait auth response..." << std::endl;
             // 带 5 秒超时 等回包
             nowSecs = xx::NowSteadyEpochSeconds();
             while (xx::NowSteadyEpochSeconds() - nowSecs < 5) {
                 COR_YIELD
 
                 // 如果断线, 重新拨号
-                if (!c.peer) goto LabDial;
+                if (!c.peer) {
+                    std::cout << "peer disconnected." << std::endl;
+                    goto LabDial;
+                }
 
                 // 如果有收到包，就开始处理
                 if (!c.peer->receivedPackages.empty()) {
@@ -79,13 +100,13 @@ int Coro1::Update() {
 
                     // 此处不应该收到来自 非0 serverId 的数据. 收到则 断线重拨. 别处可将消息分发到具体逻辑
                     if (pkg.serverId != 0) {
-                        // todo: log logic error
+                        std::cout << "wrong package serverId. expect 0. pkg.serverId = " << pkg.serverId << std::endl;
                         goto LabDial;
                     }
 
                     // 此处不应该收到别的数据. serial 对不上: 断线重拨
                     if (pkg.serial != 1) {
-                        // todo: log logic error
+                        std::cout << "wrong package serial. expect 1. pkg.serial = " << pkg.serial << std::endl;
                         goto LabDial;
                     }
 
@@ -101,43 +122,62 @@ int Coro1::Update() {
                     std::string cmd;
 
                     // 如果解包错误: 重新拨号
-                    if (xx::Read(d, cmd)) {
-                        // todo: log logic error
+                    if (int rtv = xx::Read(d, cmd)) {
+                        std::cout << "Read cmd from d error. rtv = " << rtv << std::endl;
                         goto LabDial;
                     }
 
                     // 进一步分析回包内容
                     if (cmd == "lobby") {
                         // 如果是进大厅：进一步取出目标 serverId 保存下来
-                        if(xx::Read(d, c.lobbyServerId)) {
-                            // todo: log logic error
+                        if (int rtv = xx::Read(d, c.lobbyServerId)) {
+                            std::cout << "Read lobbyServerId from d error. rtv = " << rtv << std::endl;
                             goto LabDial;
                         }
                         goto LabLobby;
 
                     } else if (cmd == "game") {
                         // 如果是进游戏：进一步取出目标 serverId 保存下来
-                        if(xx::Read(d, c.gameServerId)) {
-                            // todo: log logic error
+                        if (int rtv = xx::Read(d, c.gameServerId)) {
+                            std::cout << "Read gameServerId from d error. rtv = " << rtv << std::endl;
                             goto LabDial;
                         }
                         goto LabGame;
-                    }
-                    else {
+                    } else {
                         // 不认识的包内容
-                        // todo: log logic error
+                        std::cout << "receive unknown package." << std::endl;
+                        // dump d ?
                         goto LabDial;
                     }
                 }
             }
 
-            LabLobby:;
-            // todo: 载入或激活 lobby 功能协程. 协程内部扫自己的消息队列并处理
+            // 等回包超时: 重连
+            std::cout << "wait auth response timeout" << std::endl;
+            goto LabDial;
 
-            LabGame:;
-            // todo: 载入或激活 game 功能协程. 协程内部扫自己的消息队列并处理
+            LabLobby:
+            if (!c.ExistsCoroName("lobby")) {
+                std::cout << "load lobby coro..." << std::endl;
+                // todo: 载入或激活 lobby 功能协程( 如果没有载入的话 ). 协程内部扫自己的消息队列并处理
+            }
+            // else 用设置变量的方式通知 lobby coro 继续?
+            goto LabDispatch;
 
-            //  进入数据分发模式
+
+            LabGame:
+            std::cout << "load game coro..." << std::endl;
+            if (!c.ExistsCoroName("game")) {
+                std::cout << "load game coro..." << std::endl;
+                // todo: 载入或激活 game 功能协程( 如果没有载入的话 ). 协程内部扫自己的消息队列并处理
+            }
+            // else 用设置变量的方式通知 game coro 继续?
+            goto LabDispatch;
+
+
+            LabDispatch:
+            std::cout << "begin dispatch package to server's coro..." << std::endl;
+            //  进入数据分发模式. 具体处理代码在别的协程. 这里只是将包挪到相应容器
             while (c.peer) {
                 COR_YIELD
 
@@ -150,7 +190,7 @@ int Coro1::Update() {
                     auto &&pkg = c.peer->receivedPackages.front();
 
                     // 定位到相应服务的队列
-                    auto&& dq = c.serverPackages[pkg.serverId];
+                    auto &&dq = c.serverPackages[pkg.serverId];
 
                     // 将数据挪到服务队列
                     dq.emplace_back(std::move(pkg));
@@ -160,7 +200,8 @@ int Coro1::Update() {
                 }
             }
 
-            // todo: 根据类型分发. 如果 serial == 0 即 push 性质, 那就临时 call 相应函数处理后返回此处
+            // 断线了. 自动重连? ( 可能是别的协程或事件代码造成 c.peer 断开, 或者是被服务器断开 )
+            goto LabDial;
         };
     COR_END
 }

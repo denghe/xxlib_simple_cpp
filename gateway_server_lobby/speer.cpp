@@ -22,18 +22,29 @@ void SPeer::OnReceiveFirstPackage(char *const &buf, size_t const &len) {
     uint32_t serverId = 0;
     xx::DataReader dr(buf, len);
 
-    do {
-        // 读取失败: 断线退出
-        if (dr.Read(cmd, serverId)) break;
+    // 读取失败: 断线退出
+    if (dr.Read(cmd, serverId)) {
+        OnDisconnect(__LINE__);
+        Dispose();
+        return;
+    }
 
-        // 前置检查失败: 断线退出
-        if (cmd != "serverId" || !serverId) break;
+    // 前置检查失败: 断线退出
+    if (cmd != "serverId" || !serverId) {
+        OnDisconnect(__LINE__);
+        Dispose();
+        return;
+    }
 
-        // for easy use
-        auto &&sps = GetServer().sps;
+    // for easy use
+    auto &&sps = GetServer().sps;
 
-        // 如果 serverId 已存在: 断线退出
-        if (sps.find(serverId) != sps.end()) break;
+    // 如果 serverId 已存在: 断线退出
+    if (sps.find(serverId) != sps.end()) {
+        OnDisconnect(__LINE__);
+        Dispose();
+        return;
+    }
 
 //        // 通过移交 fd 保持连接不断开 的方式来切换 peer.
 //        // 这样一来 可以做功能单一的 "首包通信专用 peer", 还能简化掉 OnReceiveFirstPackage 事件
@@ -46,17 +57,10 @@ void SPeer::OnReceiveFirstPackage(char *const &buf, size_t const &len) {
 //        Dispose();
 //        return;
 
-        // 放入相应容器( 通常这部分和相应的负载均衡或者具体游戏配置密切相关 )
-        sps[serverId] = this;
-        id = serverId;
+    // 放入相应容器( 通常这部分和相应的负载均衡或者具体游戏配置密切相关 )
+    sps[serverId] = this;
+    id = serverId;
 
-        // 设置不超时
-        SetTimeoutSeconds(0);
-
-        return;
-    } while (0);
-
-    // 触发断线事件并自杀
-    OnDisconnect(__LINE__);
-    Dispose();
+    // 设置不超时
+    SetTimeoutSeconds(0);
 }

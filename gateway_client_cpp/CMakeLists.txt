@@ -11,7 +11,7 @@ add_executable(gateway_client_cpp
         dialer.cpp
         peer.cpp
         coro.cpp
-        coro1.cpp
+        coromain.cpp
         )
 
 target_link_libraries(gateway_client_cpp pthread readline)

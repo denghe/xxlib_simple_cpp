@@ -24,19 +24,15 @@ struct Peer : EP::TcpPeer {
     // 收到内部指令
     virtual void OnReceiveCommand(char* const& buf, size_t const& len) = 0;
 
-    // 开始向 data 写包. 空出 长度 头部
-    static void WritePackageBegin(xx::Data& d, size_t const& reserveLen, uint32_t const& addr);
-
-    // 结束写包。根据数据长度 填写 包头
-    static void WritePackageEnd(xx::Data& d);
-
     // 构造内部指令包. LEN + ADDR + cmd string + args...
     template<typename...Args>
     void SendCommand(Args const &... cmdAndArgs) {
         xx::Data d;
-        WritePackageBegin(d, 1024, 0xFFFFFFFFu);
+        d.Reserve(32);
+        d.len = sizeof(uint32_t);
+        d.WriteFixed(0xFFFFFFFFu);
         xx::Write(d, cmdAndArgs...);
-        WritePackageEnd(d);
+        *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
         this->Send(std::move(d));
     }
 };

@@ -4,6 +4,9 @@
 #include "package.h"
 #include <unordered_map>
 #include <deque>
+#include <string>
+#include <unordered_set>
+#include "coro.h"
 
 // todo: 连接网关走完整流程
 
@@ -19,32 +22,34 @@ using Peer_r = EP::Ref<Peer>;
 
 // 服务本体
 struct Client : EP::Context {
-    // 在构造函数中根据 config 进一步初始化
+    // 在构造函数中根据 config 进一步初始化. 创建主线协程
     Client(size_t const &wheelLen = 1 << 12);
 
-    // 模拟客户端帧逻辑
+    // 模拟客户端帧逻辑. 每一帧驱动协程
     int FrameUpdate() override;
 
+    // 所有正在执行的协程
+    std::vector<std::unique_ptr<Coro>> coros;
 
-    // 协程模拟
-    int Update();
+    // 所有正在执行的协程 的 名字集合( 方便判断是否存在某协程正在执行 )
+    std::unordered_set<std::string> coroNames;
 
-    // 协程模拟之 行号 内部变量
-    int lineNumber = 0;
+    // return coroNames.find(name) != coroNames.end()
+    bool ExistsCoroName(std::string const& name);
 
-    // 下面是协程中要用到的用户变量
+    // 创建并添加协程
+    template<typename CoroType>
+    CoroType& CreateCoro() {
+        auto&& coro = coros.emplace_back(std::make_unique<CoroType>(*this));
+        coroNames.emplace(coro->GetName());
+        return *(CoroType*)coro.get();
+    }
 
     // 到网关的拨号器
     Dialer_r dialer;
 
     // 拨号器连接成功后将 peer 存在此以便使用
     Peer_r peer;
-
-    // 存当前时间
-    double nowSecs = 0;
-
-    // 通常用于存放返回值
-    int r = 0;
 
     // 某阶段状态时存储需要与之通信的 分类存放的 服务 id. 按类型互斥
     uint32_t lobbyServerId = -1;

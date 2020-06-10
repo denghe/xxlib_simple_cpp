@@ -33,6 +33,9 @@ struct Peer : EP::TcpPeer {
     // 收到内部指令
     void OnReceiveCommand(char *const &buf, size_t const &len);
 
+    // 关注一下断线原因
+    void OnDisconnect(int const &reason) override;
+
     // 构造数据包并发送. len(uint32) + serverId(uint32) + args...
     template<typename...Args>
     void SendTo(uint32_t const &serverId, Args const &... args) {

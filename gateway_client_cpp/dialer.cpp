@@ -16,6 +16,8 @@ void Dialer::OnConnect(EP::TcpPeer_r const &peer_) {
     // 没连上
     if (!peer_) return;
 
+    std::cout << "dialer connected." << std::endl;
+
     // 将 peer 放入容器
     GetClient().peer = peer_.As<Peer>();
 }

@@ -78,14 +78,12 @@ void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
     }
 
     if (cmd == "open") {
+        std::cout << "peer recv cmd: open " << serverId << std::endl;
         // serverId 放入白名单
         openServerIds.emplace_back(serverId);
 
-        // 塞一条 serverId + 空数据 模拟 open 事件
-        //receivedPackages.emplace_back(serverId, 0, xx::Data());
-        // todo
-
     } else if (cmd == "close") {
+        std::cout << "peer recv cmd: close " << serverId << std::endl;
         // serverId 从白名单移除
         openServerIds.erase(std::find(openServerIds.begin(), openServerIds.end(), serverId));
         if (openServerIds.empty()) {
@@ -93,11 +91,16 @@ void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
             Dispose();
             return;
         }
-        // close 可以不通知?
     }
     else {
+        std::cout << "peer recv cmd: unknown " << std::endl;
         OnDisconnect(__LINE__);
         Dispose();
         return;
     }
+}
+
+
+void Peer::OnDisconnect(int const &reason) {
+    std::cout << "peer disconnected. reason = " << reason << std::endl;
 }

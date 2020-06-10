@@ -13,6 +13,7 @@ add_executable(gateway_server_lobby
         speer.cpp
         glistener.cpp
         slistener.cpp
+        vpeer.cpp
         )
 
 target_link_libraries(gateway_server_lobby pthread readline)
