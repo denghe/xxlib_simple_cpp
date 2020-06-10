@@ -1,6 +1,9 @@
 ﻿#include "peer.h"
 #include "client.h"
-#include <vector>
+
+bool Peer::IsOpened(uint32_t const& serverId) const {
+    return std::find(openServerIds.begin(), openServerIds.end(), serverId) != openServerIds.end();
+}
 
 Client &Peer::GetClient() {
     // 拿到服务上下文
@@ -58,7 +61,8 @@ void Peer::OnReceive() {
 }
 
 void Peer::OnReceivePackage(uint32_t const &serverId, char *const &buf, size_t const &len) {
-    packages.emplace_back(serverId, xx::Data(buf, len));
+    // todo: 用 datareader 读出 serial. 剩余数据打包为 xx::Data
+    //receivedPackages.emplace_back({serverId,, xx::Data(buf, len)});
 }
 
 void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
@@ -78,7 +82,8 @@ void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
         openServerIds.emplace_back(serverId);
 
         // 塞一条 serverId + 空数据 模拟 open 事件
-        packages.emplace_back(serverId, xx::Data());
+        //receivedPackages.emplace_back(serverId, 0, xx::Data());
+        // todo
 
     } else if (cmd == "close") {
         // serverId 从白名单移除
@@ -88,7 +93,7 @@ void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
             Dispose();
             return;
         }
-        // close 不模拟事件?
+        // close 可以不通知?
     }
     else {
         OnDisconnect(__LINE__);

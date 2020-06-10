@@ -2,6 +2,7 @@
 
 #include "xx_epoll.h"
 #include "xx_datareader.h"
+#include "package.h"
 #include <deque>
 
 namespace EP = xx::Epoll;
@@ -11,11 +12,14 @@ struct Client;
 
 // 继承 默认 连接覆盖收包函数
 struct Peer : EP::TcpPeer {
-    // 先用 一个简单结构 来存放收到的包. uint32: serverId( 谁发的 )
-    std::deque<std::pair<uint32_t, xx::Data>> packages;
+    // 存放已收到的包
+    std::deque<Package> receivedPackages;
 
-    // 已开放的 server id 列表( 发送时如果目标 id 不在列表里则忽略发送但不报错? )
+    // 已开放的 serverId 列表( 发送时如果 目标id 不在列表里则忽略发送但不报错? 或是返回 操作失败? )
     std::vector<uint32_t> openServerIds;
+
+    // 检查某 serverId
+    [[nodiscard]] bool IsOpened(uint32_t const& serverId) const;
 
     // 拿到 client 上下文引用, 以方便写事件处理代码
     Client &GetClient();

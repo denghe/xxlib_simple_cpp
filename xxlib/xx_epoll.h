@@ -186,6 +186,8 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
 
     struct TcpPeer : ItemTimeout {
+        TcpPeer() = default;
+
         // 对方的 addr
         sockaddr_in6 addr{};
 
@@ -207,7 +209,7 @@ namespace xx::Epoll {
         // 将 fd 移交 给一个新的 TcpPeer 沿用。需确保 没有发送过数据 & 没有剩余数据未处理
         // 常见于 读取到首包之后 才能创建出具体 peer 处理后续数据包. 通常接下来需要 Dispose
         template<typename T>
-        Ref<T> MoveFD();
+        Ref<T> CreateByFD();
 
         // 数据接收事件: 从 recv 拿数据. 默认实现为 echo
         virtual void OnReceive();
@@ -688,7 +690,7 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
 
     template<typename T>
-    Ref<T> TcpPeer::MoveFD() {
+    Ref<T> TcpPeer::CreateByFD() {
         // 解除映射关系( 避免 AddItem 报错 )
         ep->fdMappings[fd] = nullptr;
 

@@ -53,10 +53,10 @@ namespace xx {
 		}
 
 		// 移动构造
-		Data(Data&& o) {
+		Data(Data&& o)  noexcept {
 			operator=(std::move(o));
 		}
-		inline Data& operator=(Data&& o) {
+		inline Data& operator=(Data&& o)  noexcept {
 			std::swap(buf, o.buf);
 			std::swap(len, o.len);
 			std::swap(cap, o.cap);
