@@ -79,7 +79,7 @@ int CoroMain::Update() {
             LabAuth:
             // 简单模拟 send request
             // 开始发包. 格式: serial, cmd, args...
-            c.peer->SendTo(0, 1, "auth", "username", "password");
+            c.peer->SendTo(0, -1, "auth");
 
             std::cout << "wait auth response..." << std::endl;
             // 带 5 秒超时 等回包

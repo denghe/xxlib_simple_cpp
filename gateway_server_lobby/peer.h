@@ -23,7 +23,7 @@ struct Peer : EP::TcpPeer {
     // 收到数据并切割. 切割后进一步调用 OnReceiveFirstPackage 和 OnReceivePackage
     void OnReceive() override;
 
-    // 收到正常包
+    // 收到包
     virtual void OnReceivePackage(char *const &buf, size_t const &len) = 0;
 
     // 收到首包

@@ -61,8 +61,16 @@ void Peer::OnReceive() {
 }
 
 void Peer::OnReceivePackage(uint32_t const &serverId, char *const &buf, size_t const &len) {
-    // todo: 用 datareader 读出 serial. 剩余数据打包为 xx::Data
-    //receivedPackages.emplace_back({serverId,, xx::Data(buf, len)});
+    // 试读出序号. 出错直接断开退出
+    int serial = 0;
+    xx::DataReader dr(buf, len);
+    if (dr.Read(serial)) {
+        OnDisconnect(__LINE__);
+        Dispose();
+        return;
+    }
+    // 剩余数据打包为 xx::Data 塞到收包队列
+    receivedPackages.emplace_back(serverId, serial, xx::Data(buf + dr.offset, len - dr.offset));
 }
 
 void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {

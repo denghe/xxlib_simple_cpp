@@ -19,6 +19,8 @@ void SPeer::OnReceivePackage(char *const &buf, size_t const &len) {
     // 读出 clientId
     auto&& clientId = *(uint32_t *) buf;
 
+    //std::cout << "recv data from clientId = " << clientId << ", len = " << len << std::endl;
+
     // 如果没找到 client peer, 则忽略并返回
     if(auto &&cp = TryGetCPeer(clientId)) {
         // 篡改 clientId 为 serverId

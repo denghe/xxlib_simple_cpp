@@ -8,7 +8,7 @@ struct SPeer : Peer {
     using Peer::Peer;
 
     // 从相应容器中移除
-    ~SPeer();
+    ~SPeer() override;
 
     // 收到正常包
     void OnReceivePackage(char *const &buf, size_t const &len) override;
