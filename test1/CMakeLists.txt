@@ -3,6 +3,6 @@ project(test1)
 
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(../../xxlib)
+include_directories(../xxlib)
 
 add_executable(test1 main.cpp)

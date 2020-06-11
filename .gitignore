@@ -1,4 +1,8 @@
-*.user
 .idea
 cmake-build-debug
 cmake-build-release
+
+.vs
+*.user
+Debug
+Release
