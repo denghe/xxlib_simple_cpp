@@ -51,7 +51,7 @@ struct Client : EP::Context {
     // 拨号器连接成功后将 peer 存在此以便使用
     Peer_r peer;
 
-    // 某阶段状态时存储需要与之通信的 分类存放的 服务 id. 按类型互斥
+    // 某阶段状态时存储需要与之通信的 分类存放的 服务 id. 按类型互斥。同时也是相关 coro 是否继续运行的判断依据
     uint32_t lobbyServerId = -1;
     uint32_t gameServerId = -1;
 

@@ -1,4 +1,5 @@
 #include "coromain.h"
+#include "corolobby.h"
 #include "client.h"
 #include "dialer.h"
 #include "peer.h"
@@ -93,61 +94,72 @@ int CoroMain::Update() {
                     goto LabDial;
                 }
 
-                // 如果有收到包，就开始处理
-                if (!c.peer->receivedPackages.empty()) {
-                    // 定位到最前面一条
-                    auto &&pkg = c.peer->receivedPackages.front();
+                {
+                    auto &&pkgs = c.peer->receivedPackages;
+                    // 如果有收到包，就开始处理
+                    if (!pkgs.empty()) {
+                        // 定位到最前面一条
+                        auto &&pkg = pkgs.front();
+                        // 弹出最前面一条
+                        pkgs.pop_front();
 
-                    // 此处不应该收到来自 非0 serverId 的数据. 收到则 断线重拨. 别处可将消息分发到具体逻辑
-                    if (pkg.serverId != 0) {
-                        std::cout << "wrong package serverId. expect 0. pkg.serverId = " << pkg.serverId << std::endl;
-                        goto LabDial;
-                    }
-
-                    // 此处不应该收到别的数据. serial 对不上: 断线重拨
-                    if (pkg.serial != 1) {
-                        std::cout << "wrong package serial. expect 1. pkg.serial = " << pkg.serial << std::endl;
-                        goto LabDial;
-                    }
-
-                    // 将数据挪出来
-                    auto &&d = std::move(pkg.data);
-
-                    // 弹出最前面一条
-                    c.peer->receivedPackages.pop_front();
-
-
-
-                    // 开始读出 Data 内容
-                    std::string cmd;
-
-                    // 如果解包错误: 重新拨号
-                    if (int rtv = xx::Read(d, cmd)) {
-                        std::cout << "Read cmd from d error. rtv = " << rtv << std::endl;
-                        goto LabDial;
-                    }
-
-                    // 进一步分析回包内容
-                    if (cmd == "lobby") {
-                        // 如果是进大厅：进一步取出目标 serverId 保存下来
-                        if (int rtv = xx::Read(d, c.lobbyServerId)) {
-                            std::cout << "Read lobbyServerId from d error. rtv = " << rtv << std::endl;
+                        // 此处不应该收到来自 非0 serverId 的数据. 收到则 断线重拨. 别处可将消息分发到具体逻辑
+                        if (pkg.serverId != 0) {
+                            std::cout << "wrong package serverId. expect 0. pkg.serverId = " << pkg.serverId
+                                      << std::endl;
                             goto LabDial;
                         }
-                        goto LabLobby;
 
-                    } else if (cmd == "game") {
-                        // 如果是进游戏：进一步取出目标 serverId 保存下来
-                        if (int rtv = xx::Read(d, c.gameServerId)) {
-                            std::cout << "Read gameServerId from d error. rtv = " << rtv << std::endl;
+                        // 此处不应该收到别的数据. serial 对不上: 断线重拨
+                        if (pkg.serial != 1) {
+                            std::cout << "wrong package serial. expect 1. pkg.serial = " << pkg.serial << std::endl;
                             goto LabDial;
                         }
-                        goto LabGame;
-                    } else {
-                        // 不认识的包内容
-                        std::cout << "receive unknown package." << std::endl;
-                        // dump d ?
-                        goto LabDial;
+
+                        xx::DataReader dr(pkg.data);
+                        // 开始读出 Data 内容
+                        std::string cmd;
+
+                        // 如果解包错误: 重新拨号
+                        if (int rtv = dr.Read(cmd)) {
+                            std::cout << "Read cmd from d error. rtv = " << rtv << std::endl;
+                            goto LabDial;
+                        }
+
+                        // 进一步分析回包内容
+                        if (cmd == "lobby") {
+                            // 如果是进大厅：进一步取出目标 serverId 保存下来
+                            if (int rtv = dr.Read(c.lobbyServerId)) {
+                                std::cout << "Read lobbyServerId from d error. rtv = " << rtv << std::endl;
+                                goto LabDial;
+                            }
+                            if (!c.ExistsCoroName("lobby")) {
+                                std::cout << "load lobby coro..." << std::endl;
+                                // 载入 lobby 功能协程. 协程内部扫自己的消息队列并处理
+                                c.CreateCoro<CoroLobby>();
+                            }
+                            goto LabDispatch;
+
+                        } else if (cmd == "game") {
+                            // 如果是进游戏：进一步取出目标 serverId 保存下来
+                            if (int rtv = dr.Read(c.gameServerId)) {
+                                std::cout << "Read gameServerId from d error. rtv = " << rtv << std::endl;
+                                goto LabDial;
+                            }
+                            std::cout << "load game coro..." << std::endl;
+                            if (!c.ExistsCoroName("game")) {
+                                std::cout << "load game coro..." << std::endl;
+                                // 载入 game 功能协程. 协程内部扫自己的消息队列并处理
+                                //c.CreateCoro<CoroGame>();
+                            }
+                            goto LabDispatch;
+
+                        } else {
+                            // 不认识的包内容
+                            std::cout << "receive unknown package." << std::endl;
+                            // dump d ?
+                            goto LabDial;
+                        }
                     }
                 }
             }
@@ -155,24 +167,6 @@ int CoroMain::Update() {
             // 等回包超时: 重连
             std::cout << "wait auth response timeout" << std::endl;
             goto LabDial;
-
-            LabLobby:
-            if (!c.ExistsCoroName("lobby")) {
-                std::cout << "load lobby coro..." << std::endl;
-                // todo: 载入或激活 lobby 功能协程( 如果没有载入的话 ). 协程内部扫自己的消息队列并处理
-            }
-            // else 用设置变量的方式通知 lobby coro 继续?
-            goto LabDispatch;
-
-
-            LabGame:
-            std::cout << "load game coro..." << std::endl;
-            if (!c.ExistsCoroName("game")) {
-                std::cout << "load game coro..." << std::endl;
-                // todo: 载入或激活 game 功能协程( 如果没有载入的话 ). 协程内部扫自己的消息队列并处理
-            }
-            // else 用设置变量的方式通知 game coro 继续?
-            goto LabDispatch;
 
 
             LabDispatch:

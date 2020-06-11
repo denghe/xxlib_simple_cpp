@@ -133,9 +133,15 @@ void VPeer::OnReceiveRequest(uint32_t const &serial, char const *const &buf, siz
     std::cout << "vpeer: " << clientId << " recv request: " << txt << std::endl;
 
     if (txt == "auth") {
+        // 模拟构造回包: 服务类型 + serverId
+        xx::Data d;
+        xx::Write(d, "lobby", (uint32_t)0);
+        SendResponse(serial, d.buf, d.len);
+        // 通知 gateway open 指定 serverId?
+    } else if (txt == "info") {
         // 模拟构造回包
         xx::Data d;
-        xx::Write(d, "lobby");
+        xx::Write(d, "username:xxxxx coin:123123123");
         SendResponse(serial, d.buf, d.len);
     } else {
         // 未知包?

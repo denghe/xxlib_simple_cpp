@@ -28,7 +28,8 @@ Client::Client(size_t const &wheelLen) : EP::Context(wheelLen) {
 int Client::FrameUpdate() {
     // 倒着扫, 便于中途交焕移除
     for (auto &&i = coros.size() - 1; i != (size_t) -1; --i) {
-        auto &&coro = coros[i];
+        // 拿到协程指针
+        auto &&coro = coros[i].get();
         // 执行协程
         coro->lineNumber = coro->Update();
         // 如果协程已执行完毕

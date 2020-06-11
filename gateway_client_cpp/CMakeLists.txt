@@ -12,6 +12,7 @@ add_executable(gateway_client_cpp
         peer.cpp
         coro.cpp
         coromain.cpp
+        corolobby.cpp
         )
 
 target_link_libraries(gateway_client_cpp pthread readline)
