@@ -99,7 +99,7 @@ int CoroMain::Update() {
                     // 如果有收到包，就开始处理
                     if (!pkgs.empty()) {
                         // 定位到最前面一条
-                        auto &&pkg = pkgs.front();
+                        auto pkg = std::move(pkgs.front());
                         // 弹出最前面一条
                         pkgs.pop_front();
 
