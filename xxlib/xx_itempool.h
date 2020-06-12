@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <functional>
-#include "xx_ispod.h"
+#include "xx_typetraits.h"
 
 namespace xx {
 

@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "xx_ispod.h"
+#include "xx_typetraits.h"
 #include "xx_math.h"
 #include <type_traits>
 

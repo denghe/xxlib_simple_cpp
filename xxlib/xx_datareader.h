@@ -53,50 +53,7 @@ namespace xx {
 		(void)(n);
 	}
 
-	
-	/************************************************************************************/
-	// 容器深度探测 系列: 计算 Container<Container<... 嵌套深度. 返回 0 表明不是 container
 
-	template<typename T>
-	struct IsOptional : std::false_type {};
-
-	template<typename T>
-	struct IsOptional<std::optional<T>> : std::true_type {};
-
-	template<typename T>
-	struct IsVector : std::false_type {};
-
-	template<typename T>
-	struct IsVector<std::vector<T>> : std::true_type {};
-
-	template<typename T>
-	struct ChildType {
-		using type = void;
-	};
-	template<typename T>
-	using ChildType_t = typename ChildType<T>::type;
-
-	template<typename T>
-	struct ChildType<std::optional<T>> {
-		using type = T;
-	};
-	template<typename T>
-	struct ChildType<std::vector<T>> {
-		using type = T;
-	};
-
-	template<typename T>
-	constexpr size_t DeepLevel(T* const& v) {
-		if constexpr (IsOptional<T>::value) return 0 + DeepLevel((ChildType_t<T>*)0);
-		if constexpr (IsVector<T>::value) return 1 + DeepLevel((ChildType_t<T>*)0);
-		if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, Data>) return 1;
-		return 0;
-	}
-
-	template<typename T>
-	constexpr size_t DeepLevel_v = DeepLevel((std::decay_t<T>*)0);
-	
-	
 	
 	/************************************************************************************/
 	// Data 查看器 / 反序列化器. 内存为引用模式, 不持有
