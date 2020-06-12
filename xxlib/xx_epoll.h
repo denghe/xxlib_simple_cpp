@@ -27,7 +27,7 @@
 #include <deque>
 #include <mutex>
 
-#include "xx_ptr.h"
+#include "xx_typetraits.h"
 #include "xx_chrono.h"
 #include "xx_data_queue.h"
 #include "xx_itempool.h"
@@ -1215,7 +1215,7 @@ namespace xx::Epoll {
     // PipeReader
     /***********************************************************************************************************/
 
-    void PipeReader::OnEpollEvent(uint32_t const &e) {
+    inline void PipeReader::OnEpollEvent(uint32_t const &e) {
         ep->HandleActions();
     }
 
