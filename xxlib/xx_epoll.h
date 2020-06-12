@@ -24,6 +24,8 @@
 
 #include <iostream>
 #include <string>
+#include <deque>
+#include <mutex>
 
 #include "xx_ptr.h"
 #include "xx_chrono.h"
@@ -355,6 +357,15 @@ namespace xx::Epoll {
     };
 
 
+    /***********************************************************************************************************/
+    // PipeReader
+    /***********************************************************************************************************/
+
+    // 用于读取 pipe( 这里只是用于跨线程 dispatch 通知, 不是真的读 )
+    struct PipeReader : Item {
+        void OnEpollEvent(uint32_t const &e) override;
+    };
+
 
     /***********************************************************************************************************/
     // Context
@@ -375,6 +386,20 @@ namespace xx::Epoll {
 
         // 存储的 epoll fd
         int efd = -1;
+
+
+        // 其他线程封送到 epoll 线程的函数容器
+        std::deque<std::function<void()>> actions;
+
+        // 用于锁 actions
+        std::mutex actionsMutex;
+
+        // 0 读 1 写 用于 dispatch 时通知 epoll_wait
+        std::array<int, 2> actionsPipes;
+
+        // 当前正要执行的函数
+        std::function<void()> action;
+
 
 
         // 时间轮. 只存指针引用, 不管理内存
@@ -439,6 +464,10 @@ namespace xx::Epoll {
         T *AddItem(std::unique_ptr<T> &&item, int const &fd = -1);
 
 
+        // 执行所有 Dispatch 的函数
+        int HandleActions();
+
+
 
         /********************************************************/
         // 下面是外部主要使用的函数
@@ -457,6 +486,8 @@ namespace xx::Epoll {
         // 开始运行并尽量维持在指定帧率. 临时拖慢将补帧
         int Run(double const &frameRate = 10);
 
+        // 封送函数到 epoll 线程执行( 线程安全 ). 可能会阻塞.
+        int Dispatch(std::function<void()>&& action);
 
         // 创建 TCP 监听器
         template<typename T = TcpListener, typename ...Args>
@@ -1180,6 +1211,14 @@ namespace xx::Epoll {
     }
 
 
+    /***********************************************************************************************************/
+    // PipeReader
+    /***********************************************************************************************************/
+
+    void PipeReader::OnEpollEvent(uint32_t const &e) {
+        ep->HandleActions();
+    }
+
 
     /***********************************************************************************************************/
     // Context
@@ -1189,6 +1228,23 @@ namespace xx::Epoll {
         // 创建 epoll fd
         efd = epoll_create1(0);
         if (-1 == efd) throw std::logic_error("create epoll context failed.");
+
+        // 创建 pipe fd
+        if (pipe(actionsPipes.data())) {
+            close(efd);
+            throw std::logic_error("create pipe context failed.");;
+        }
+
+        // 设置 pipe 为非阻塞( 当前逻辑因为是只要进入一次 HandleActions 就执行光队列里的函数, 故写失败可忽略 )
+        fcntl(actionsPipes[1], F_SETFL, O_NONBLOCK);
+        fcntl(actionsPipes[0], F_SETFL, O_NONBLOCK);
+
+        // 将 pipe fd 纳入 epoll 管理
+        Ctl(actionsPipes[0], EPOLLIN);
+
+        // 为 pipe fd[0] 创建处理 item
+        AddItem(xx::MakeU<PipeReader>(), actionsPipes[0]);
+
 
         // 初始化时间伦
         wheel.resize(wheelLen);
@@ -1205,6 +1261,12 @@ namespace xx::Epoll {
         if (efd != -1) {
             close(efd);
             efd = -1;
+        }
+
+        // 关闭 pipe fd( [0] 在 item 自杀时已经关闭 )
+        if (actionsPipes[1]) {
+            close(actionsPipes[1]);
+            actionsPipes.fill(0);
         }
     }
 
@@ -1296,6 +1358,23 @@ namespace xx::Epoll {
         };
     }
 
+    inline int Context::HandleActions() {
+        char buf[512];
+        if (read(actionsPipes[0], buf, sizeof(buf)) <= 0) return -1;
+        while (true) {
+            {
+                std::scoped_lock<std::mutex> g(actionsMutex);
+                if (actions.empty()) break;
+                action = std::move(actions.front());
+                actions.pop_front();
+            }
+            action();
+            action = nullptr;
+        }
+        return 0;
+    }
+
+
 
     inline int Context::Run(double const &frameRate_) {
         assert(frameRate_ > 0);
@@ -1352,6 +1431,15 @@ namespace xx::Epoll {
         }
 
         return 0;
+    }
+
+
+    inline int Context::Dispatch(std::function<void()>&& action) {
+        {
+            std::scoped_lock<std::mutex> g(actionsMutex);
+            actions.push_back(std::move(action));
+        }
+        return write(actionsPipes[1], ".", 1) == 1 ? -1 : 0;
     }
 
 
