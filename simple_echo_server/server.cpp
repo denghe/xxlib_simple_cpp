@@ -2,7 +2,7 @@
 
 void Listener::OnAccept(std::shared_ptr<Peer> const &peer) {
     // 放入 ec->holdItems 以确保 智能指针不自杀
-    peer->Retain();
+    peer->Hold();
 
     // 设置 n 秒后断线( 触发 OnDisconnect )
     peer->SetTimeoutSeconds(30);
@@ -13,7 +13,7 @@ void Listener::OnAccept(std::shared_ptr<Peer> const &peer) {
 
 void Peer::OnDisconnect(int const &reason) {
     // 从 ec->holdItems 延迟移除 以 释放智能指针( 出函数后 )
-    AutoRelease();
+    DelayUnhold();
 
     std::cout << EP::AddressToString(addr) << " disconnected. reason = " << reason << std::endl;
 }
@@ -82,20 +82,16 @@ void Peer::HandleReceive(char *buf, size_t len) {
     SetTimeoutSeconds(30);
 }
 
-int Server::FrameUpdate() {
-    return 0;
-}
-
-std::string Server::Init() {
+int Server::Run(double const &frameRate) {
     // 按配置的端口创建监听器
     xx::MakeTo(listener, shared_from_this());
+    xx::ScopeGuard sgListener([&]{
+        // 清理监听器( 消除对 Context 的引用计数的影响 )
+        listener.reset();
+    });
     if(listener->Listen(config.listenPort)) {
-        return std::string("listen to port ") + std::to_string(config.listenPort) + " failed.";
+        std::cout << "listen to port " << std::to_string(config.listenPort) << " failed." << std::endl;
+        return __LINE__;
     }
-    return "";
-}
-
-void Server::Dispose() {
-    // 清理监听器( 消除对 Context 的引用计数的影响 )
-    listener.reset();
+    return this->EP::Context::Run(frameRate);
 }

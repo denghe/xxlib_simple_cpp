@@ -6,8 +6,8 @@ int main() {
 	xx::IgnoreSignal();
 
 	// 创建类实例
-	Client c;
+    auto &&c = xx::Make<Client>();
 
 	// 开始运行
-	return c.Run();
+	return c->Run(10);
 }

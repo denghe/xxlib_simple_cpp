@@ -13,17 +13,11 @@ struct Server : EP::Context {
     // 透传构造函数
     using EP::Context::Context;
 
-	// 帧逻辑放在这里
-	int FrameUpdate() override;
+    // run 前创建 listener 啥的. run 后清除
+    int Run(double const &frameRate) override;
 
 	// 监听器
 	std::shared_ptr<Listener> listener;
-
-	// run 之前初始化
-	std::string Init();
-
-	// run 之后擦屁股
-	void Dispose();
 };
 
 

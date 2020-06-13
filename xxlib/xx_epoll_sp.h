@@ -1,9 +1,4 @@
-﻿/*
-    xx_epoll 的 shared_ptr 版本. 进一步简化, 规范构造函数与创建方式
-    注意：Item 不能在代码中直接干掉容器变量导致析构.
-    具体参考 Retain + AutoRelease 函数实现, 并且最好先清除实例内部引用到的别的 Item( 如果有的话, 防止 析构顺序不可控 )
-*/
-#pragma once
+﻿#pragma once
 
 #include <cstdio>
 #include <cstdlib>
@@ -35,11 +30,17 @@
 #include "xx_typetraits.h"
 #include "xx_chrono.h"
 #include "xx_data_queue.h"
-#include "xx_itempool.h"
 #include "xx_scopeguard.h"
 
 #define LIKELY(x)       __builtin_expect(!!(x), 1)
 #define UNLIKELY(x)     __builtin_expect(!!(x), 0)
+
+/*
+    注意：Item 不能在代码中直接干掉容器变量导致析构.
+    具体参考 Hold + DelayUnhold 函数实现, 并且最好先清除实例内部引用到的别的 Item( 如果有的话, 防止 析构顺序不可控 )
+    基类析构 无法调用 派生类 override 的部分, 需谨慎
+    构造与析构过程中无法执行 shared_from_this
+*/
 
 namespace xx::Epoll {
 
@@ -60,9 +61,9 @@ namespace xx::Epoll {
         // 会导致 关闭 fd 解除映射, fd = -1. reason 通常传 __LINE__. 如果传 0 则可能有特殊含义
         virtual void Close(int const& reason);
         // 将当前实例的智能指针放入 ec->holdItems( 不能在构造函数或析构中执行 )
-        void Retain();
+        void Hold();
         // 将当前实例的指针放入 ec->deadItems( 不能在析构中执行 ) 稍后会从 ec->holdItems 移除以触发析构
-        void AutoRelease();
+        void DelayUnhold();
     protected:
         friend Context;
         // epoll 事件处理. 用不上不必实现
@@ -144,11 +145,15 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // TcpConn
+
+    template<typename PeerType, class ENABLED = std::is_base_of<TcpPeer, PeerType>>
+    struct TcpDialer;
+
     // TcpDialer 产生的临时 fd 封装类. 连接成功后将 fd 移交给 TcpPeer
     template<typename PeerType, class ENABLED = std::is_base_of<TcpPeer, PeerType>>
     struct TcpConn : Item {
         // 指向拨号器, 方便调用其 OnConnect 函数
-        std::shared_ptr<PeerType> dialer;
+        std::shared_ptr<TcpDialer<PeerType>> dialer;
         // 继承构造函数
         using Item::Item;
         // 判断是否连接成功
@@ -156,11 +161,10 @@ namespace xx::Epoll {
     };
 
 
-
     /***********************************************************************************************************/
     // TcpDialer
     // 拨号器
-    template<typename PeerType, class ENABLED = std::is_base_of<TcpPeer, PeerType>>
+    template<typename PeerType, class ENABLED>
     struct TcpDialer : Timer {
         // 要连的地址数组. 带协议标记
         std::vector<sockaddr_in6> addrs;
@@ -206,6 +210,22 @@ namespace xx::Epoll {
     };
 
     /***********************************************************************************************************/
+    // CommandHandler
+    // 处理键盘输入指令的专用类( 单例 ). 直接映射到 STDIN_FILENO ( fd == 0 ). 由首个创建的 epoll context 来注册和反注册
+    struct CommandHandler : Item {
+        inline static std::shared_ptr<CommandHandler> self;
+        std::vector<std::string> args;
+        CommandHandler(std::shared_ptr<Context> const& ec);
+        static void ReadLineCallback(char *line);
+        static char **CompleteCallback(const char *text, int start, int end);
+        static char *CompleteGenerate(const char *text, int state);
+        void OnEpollEvent(uint32_t const &e) override;
+        ~CommandHandler() override;
+        // 解析 row 内容并调用 cmd 绑定 handler
+        void Exec(char const *const &row, size_t const &len);
+    };
+
+    /***********************************************************************************************************/
     // Context
     // 封装了 epoll 的 fd
     struct Context : std::enable_shared_from_this<Context> {
@@ -217,6 +237,8 @@ namespace xx::Epoll {
         int64_t nowMS = 0;
         // Run 时填充, 以便于局部获取并转换时间单位
         double frameRate = 1;
+        // 映射通过 stdin 进来的指令的处理函数. 去空格 去 tab 后第一个单词作为 key. 剩余部分作为 args
+        std::unordered_map<std::string, std::function<void(std::vector<std::string> const &args)>> cmds;
 
         // 参数：时间轮长度( 要求为 2^n )
         explicit Context(size_t const &wheelLen = (1u << 12u));
@@ -227,9 +249,14 @@ namespace xx::Epoll {
         // 帧逻辑可以覆盖这个函数. 返回非 0 将令 Run 退出
         inline virtual int FrameUpdate() { return 0; }
         // 开始运行并尽量维持在指定帧率. 临时拖慢将补帧
-        int Run(double const &frameRate = 10);
+        virtual int Run(double const &frameRate);
         // 封送函数到 epoll 线程执行( 线程安全 ). 可能会阻塞.
         int Dispatch(std::function<void()>&& action);
+
+        // 启用命令行输入控制. 支持方向键, tab 补齐, 上下历史
+        int EnableCommandLine();
+        // 关闭命令行输入控制( 减持 Context 的引用计数 )
+        void DisableCommandLine();
     protected:
         friend Item;
         friend Timer;
@@ -239,6 +266,9 @@ namespace xx::Epoll {
         template<typename PeerType, class ENABLED>
         friend struct TcpDialer;
         friend PipeReader;
+        friend CommandHandler;
+        template<typename PeerType, class ENABLED>
+        friend struct TcpConn;
 
         // fd 到 处理类* 的 映射
         std::array<Item*, 40000> fdMappings;
@@ -317,11 +347,11 @@ namespace xx::Epoll {
         }
     }
 
-    inline void Item::Retain() {
+    inline void Item::Hold() {
         ec->holdItems[this] = shared_from_this();
     }
 
-    inline void Item::AutoRelease() {
+    inline void Item::DelayUnhold() {
         ec->deadItems.emplace_back(this);
     }
 
@@ -667,7 +697,7 @@ namespace xx::Epoll {
         // 试创建目标类实例
         auto&& o = xx::Make<TcpConn<PeerType>>(ec, fd);
         // 继续初始化并放入容器
-        o->dialer = this;
+        o->dialer = xx::As<TcpDialer<PeerType, ENABLED>>(shared_from_this());
         conns.emplace_back(o);
         return 0;
     }
@@ -680,6 +710,111 @@ namespace xx::Epoll {
         if (read(fd, buf, sizeof(buf)) <= 0) return;
         ec->HandleActions();
     }
+
+    /***********************************************************************************************************/
+    // CommandHandler
+    inline CommandHandler::CommandHandler(std::shared_ptr<Context> const& ec) : Item(ec, STDIN_FILENO) {
+        rl_attempted_completion_function = (rl_completion_func_t *) &CompleteCallback;
+        rl_callback_handler_install("# ", (rl_vcpfunc_t *) &ReadLineCallback);
+    }
+
+    inline void CommandHandler::Exec(char const *const &row, size_t const &len) {
+        // 读取 row 内容, call ep->cmds[ args[0] ]( args )
+        args.clear();
+        std::string s;
+        bool jumpSpace = true;
+        for (size_t i = 0; i < len; ++i) {
+            auto c = row[i];
+            if (jumpSpace) {
+                if (c != '	' && c != ' '/* && c != 10*/) {
+                    s += c;
+                    jumpSpace = false;
+                }
+                continue;
+            } else if (c == '	' || c == ' '/* || c == 10*/) {
+                args.emplace_back(std::move(s));
+                jumpSpace = true;
+                continue;
+            } else {
+                s += c;
+            }
+        }
+        if (!s.empty()) {
+            args.emplace_back(std::move(s));
+        }
+
+        if (!args.empty()) {
+            auto &&iter = ec->cmds.find(args[0]);
+            if (iter != ec->cmds.end()) {
+                if (iter->second) {
+                    iter->second(args);
+                }
+            } else {
+                std::cout << "unknown command: " << args[0] << std::endl;
+            }
+        }
+    }
+
+    inline void CommandHandler::ReadLineCallback(char *line) {
+        if (!line) return;
+        auto len = strlen(line);
+        if (len) {
+            add_history(line);
+        }
+        self->Exec(line, len);
+        free(line);
+    }
+
+    inline char *CommandHandler::CompleteGenerate(const char *t, int state) {
+        static std::vector<std::string> matches;
+        static size_t match_index = 0;
+
+        // 如果是首次回调 则开始填充对照表
+        if (state == 0) {
+            matches.clear();
+            match_index = 0;
+
+            std::string s(t);
+            for (auto &&kv : self->ec->cmds) {
+                auto &&word = kv.first;
+                if (word.size() >= s.size() &&
+                    word.compare(0, s.size(), s) == 0) {
+                    matches.push_back(word);
+                }
+            }
+        }
+
+        // 没找到
+        if (match_index >= matches.size()) return nullptr;
+
+        // 找到: 克隆一份返回
+        return strdup(matches[match_index++].c_str());
+    }
+
+    inline char **
+    CommandHandler::CompleteCallback(const char *text, [[maybe_unused]] int start, [[maybe_unused]] int end) {
+        // 不做文件名适配
+        rl_attempted_completion_over = 1;
+        return rl_completion_matches(text, (rl_compentry_func_t *) &CompleteGenerate);
+    }
+
+    inline void CommandHandler::OnEpollEvent(uint32_t const &e) {
+        // error
+        if (e & EPOLLERR || e & EPOLLHUP) return;
+        rl_callback_read_char();
+    }
+
+    inline CommandHandler::~CommandHandler() {
+        // 清理 readline 的上下文
+        rl_callback_handler_remove();
+        rl_clear_history();
+
+        // 这个 fd 特殊, 不 close. 只是解绑解控
+        epoll_ctl(ec->efd, EPOLL_CTL_DEL, fd, nullptr);
+        ec->fdMappings[fd] = nullptr;
+        fd = -1;
+    }
+
 
     /***********************************************************************************************************/
     // Context
@@ -701,6 +836,22 @@ namespace xx::Epoll {
         }
     }
 
+    inline int Context::EnableCommandLine() {
+        // 已存在：直接短路返回
+        if (CommandHandler::self) return __LINE__;
+        // 试将 fd 纳入 epoll 管理
+        if (-1 == Ctl(STDIN_FILENO, EPOLLIN)) return __LINE__;
+        // 创建单例
+        xx::MakeTo(CommandHandler::self, shared_from_this());
+        return 0;
+    }
+
+    inline void Context::DisableCommandLine() {
+        if (CommandHandler::self && &*CommandHandler::self->ec == this) {
+            CommandHandler::self.reset();
+        }
+    }
+
     inline int Context::MakeSocketFD(int const &port, int const &sockType) {
         char portStr[20];
         snprintf(portStr, sizeof(portStr), "%d", port);
@@ -712,7 +863,7 @@ namespace xx::Epoll {
         hints.ai_flags = AI_PASSIVE;                                            // all interfaces
 
         addrinfo *ai_, *ai;
-        if (getaddrinfo(nullptr, portStr, &hints, &ai_)) return -1;
+        if (getaddrinfo(nullptr, portStr, &hints, &ai_)) return __LINE__;
 
         int fd;
         for (ai = ai_; ai != nullptr; ai = ai->ai_next) {
@@ -730,12 +881,12 @@ namespace xx::Epoll {
         }
         freeaddrinfo(ai_);
 
-        if (!ai) return -2;
+        if (!ai) return __LINE__;
 
         // 检测 fd 存储上限
         if (fd >= (int) fdMappings.size()) {
             close(fd);
-            return -3;
+            return __LINE__;
         }
         assert(!fdMappings[fd]);
 
