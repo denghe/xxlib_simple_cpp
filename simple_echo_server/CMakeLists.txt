@@ -8,6 +8,8 @@ include_directories(../xxlib)
 add_executable(simple_echo_server
         main.cpp
         server.cpp
+        listener.cpp
+        peer.cpp
         )
 
 target_link_libraries(simple_echo_server pthread readline)

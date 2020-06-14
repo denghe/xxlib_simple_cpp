@@ -5,18 +5,22 @@
 #include "config.h"
 #include "glistener.h"
 
-Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
+int Server::Run(double const &frameRate) {
+    // 初始化回收sg
+    xx::ScopeGuard sg1([&]{
+        gatewayListener.reset();
+        lobbyDialer.reset();
+        DisableCommandLine();
+    });
     // 创建监听器
-    gatewayListener = CreateTcpListener<GListener>(config.gatewayListenPort);
-    if (!gatewayListener) {
-        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.gatewayListenPort) + " failed.");
+    xx::MakeTo(gatewayListener, shared_from_this());
+    if (int r = gatewayListener->Listen(config.gatewayListenPort)) {
+        std::cout << "listen to port " <<config.gatewayListenPort << "failed." << std::endl;
+        return r;
     }
 
     // 创建拨号器
-    lobbyDialer = CreateTcpDialer<Dialer>();
-    if (!lobbyDialer) {
-        throw std::logic_error("create dialer failed.");
-    }
+    xx::MakeTo(lobbyDialer, shared_from_this());
     // 添加拨号地址
     lobbyDialer->AddAddress(config.lobbyIp, config.lobbyPort);
 
@@ -43,6 +47,9 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
         running = false;
     };
     cmds["exit"] = this->cmds["quit"];
+
+    // 进入循环
+    return this->EP::Context::Run(frameRate);
 }
 
 int Server::FrameUpdate() {

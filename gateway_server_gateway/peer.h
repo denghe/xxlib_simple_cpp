@@ -9,8 +9,11 @@ struct Server;
 
 // 继承 默认 连接覆盖收包函数
 struct Peer : EP::TcpPeer {
-    // 是否已关闭. true: 拒收数据, 且断线时不再次执行 Dispose  ( 主用于 延迟掐线 )
+    // 是否已关闭. true: 拒收数据, 且断线时不再次执行 Dispose  ( 主用于 延迟掐线 )   // todo: 用 shutdown 语句令 fd 只写
     bool closed = false;
+
+    // 继承构造函数
+    using EP::TcpPeer::TcpPeer;
 
     // 拿到 server 上下文引用, 以方便写事件处理代码
     Server &GetServer() const;

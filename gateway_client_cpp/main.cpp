@@ -34,8 +34,8 @@ int main() {
     std::cout << ::config << std::endl;
 
     // 创建类实例
-    Client c;
+    auto&& c = xx::Make<Client>();
 
     // 开始运行( 每秒 60 帧 )
-    return c.Run(60);
+    return c->Run(60);
 }

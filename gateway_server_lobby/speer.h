@@ -7,8 +7,8 @@ struct SPeer : Peer {
     // 继承构造函数
     using Peer::Peer;
 
-    // 从相应容器中移除
-    ~SPeer() override;
+    // 关闭 fd, 注册延迟自杀函数( 直接析构并不会触发这个 Close )
+    bool Close(int const& reason) override;
 
     // 收到正常包
     void OnReceivePackage(char *const &buf, size_t const &len) override;

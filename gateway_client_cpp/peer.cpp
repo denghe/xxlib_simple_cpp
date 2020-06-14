@@ -1,19 +1,23 @@
 ﻿#include "peer.h"
 #include "client.h"
 
+bool Peer::Close(int const& reason) {
+    // close fd 解绑 并触发 OnDisconnect
+    if (this->Item::Close(reason)) {
+        // 从容器移除 this( 如果有放入的话 )
+        ((Client*)&*ec)->peer.reset();
+        // 延迟自杀
+        DelayUnhold();
+        return true;
+    }
+    return false;
+}
+
 bool Peer::IsOpened(uint32_t const& serverId) const {
     return std::find(openServerIds.begin(), openServerIds.end(), serverId) != openServerIds.end();
 }
 
-Client &Peer::GetClient() {
-    // 拿到服务上下文
-    return *(Client *) ep;
-}
-
 void Peer::OnReceive() {
-    // Disposed 判断变量
-    EP::Ref<Item> alive(this);
-
     // 取出指针备用
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
@@ -27,7 +31,7 @@ void Peer::OnReceive() {
 
         // 长度异常则断线退出( 不含地址? 超长? 256k 不够可以改长 )
         if (dataLen < sizeof(serverId) || dataLen > 1024 * 256) {
-            Dispose();
+            Close(__LINE__);
             return;
         }
 
@@ -50,7 +54,7 @@ void Peer::OnReceive() {
             }
 
             // 如果当前类实例已自杀则退出
-            if (!alive) return;
+            if (!Alive()) return;
         }
         // 跳到下一个包的开头
         buf += dataLen;
@@ -65,8 +69,7 @@ void Peer::OnReceivePackage(uint32_t const &serverId, char *const &buf, size_t c
     int serial = 0;
     xx::DataReader dr(buf, len);
     if (dr.Read(serial)) {
-        OnDisconnect(__LINE__);
-        Dispose();
+        Close(__LINE__);
         return;
     }
     // 剩余数据打包为 xx::Data 塞到收包队列
@@ -80,8 +83,7 @@ void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
 
     // 读取失败直接断开
     if (int r = xx::Read(buf, len, cmd, serverId)) {
-        OnDisconnect(__LINE__);
-        Dispose();
+        Close(__LINE__);
         return;
     }
 
@@ -95,15 +97,13 @@ void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
         // serverId 从白名单移除
         openServerIds.erase(std::find(openServerIds.begin(), openServerIds.end(), serverId));
         if (openServerIds.empty()) {
-            OnDisconnect(__LINE__);
-            Dispose();
+            Close(__LINE__);
             return;
         }
     }
     else {
         std::cout << "peer recv cmd: unknown " << std::endl;
-        OnDisconnect(__LINE__);
-        Dispose();
+        Close(__LINE__);
         return;
     }
 }

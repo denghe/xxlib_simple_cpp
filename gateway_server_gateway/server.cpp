@@ -1,27 +1,32 @@
 ﻿#include "server.h"
 #include "dialer.h"
-#include "speer.h"
-#include "cpeer.h"
 #include "config.h"
 #include "listener.h"
 
-Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
-    // 初始化监听器
-    listener = CreateTcpListener<Listener>(::config.listenPort);
-    if (!this->listener) {
-        throw std::logic_error(std::string("listen to port ") + std::to_string(config.listenPort) + "failed.");
+int Server::Run(double const &frameRate) {
+    // 初始化回收sg
+    xx::ScopeGuard sg1([&]{
+        listener.reset();
+        dps.clear();
+        DisableCommandLine();
+    });
+
+    // 初始化监听器和回收sg
+    xx::MakeTo(listener, shared_from_this());
+    // 如果监听失败则输出错误提示并退出
+    if (int r = listener->Listen(config.listenPort)) {
+        std::cout << "listen to port " <<config.listenPort << "failed." << std::endl;
+        return r;
     }
 
     // 遍历配置并生成相应的 dialer
     for (auto &&si : config.serverInfos) {
         // 创建拨号器
-        auto dialer = CreateTcpDialer<Dialer>();
-        if (!dialer) {
-            throw std::logic_error("create dialer failed.");
-        }
+        auto&& dialer = xx::Make<Dialer>(shared_from_this());
         // 放入字典。如果 server id 重复就报错
-        if (!dps.insert({si.serverId, std::make_pair(dialer, SPeer_r())}).second) {
-            throw std::logic_error(std::string("duplicate serverId: ") + std::to_string(si.serverId));
+        if (!dps.insert({si.serverId, std::make_pair(dialer, nullptr)}).second) {
+            std::cout << "duplicate serverId: " << si.serverId << std::endl;
+            return __LINE__;
         }
         // 填充数据，为开始拨号作准备（会在帧回调逻辑中开始拨号）
         dialer->serverId = si.serverId;
@@ -30,9 +35,9 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
 
     // 核查是否存在 0 号服务的 dialer. 没有就报错
     if (dps.find(0) == dps.end()) {
-        throw std::logic_error("can't find base server ( serverId = 0 )'s dialer.");
+        std::cout << "can't find base server ( serverId = 0 )'s dialer." << std::endl;
+        return __LINE__;
     }
-
 
     // 注册交互指令
     EnableCommandLine();
@@ -62,6 +67,9 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
         running = false;
     };
     cmds["exit"] = this->cmds["quit"];
+
+    // 正式进入 epoll wait 循环
+    return this->EP::Context::Run(frameRate);
 }
 
 int Server::FrameUpdate() {

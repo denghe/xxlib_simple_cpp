@@ -1,9 +1,5 @@
 ﻿#pragma once
 #include "peer.h"
-namespace EP = xx::Epoll;
-
-// 预声明
-struct SPeer;
 
 // 客户端 连进来产生的 peer
 struct CPeer : Peer {
@@ -13,9 +9,14 @@ struct CPeer : Peer {
     // 允许访问的 server peers 的 id 的白名单
     std::unordered_set<uint32_t> serverIds;
 
-    void SendCommand_Open(uint32_t const& serverId);
+    // 继承构造函数
+    using Peer::Peer;
 
-    void SendCommand_Close(uint32_t const& serverId);
+    // 关闭同时时注册延迟自杀函数( 直接析构并不会触发这个 Close )
+    bool Close(int const& reason) override;
+
+    // 延迟关闭( 设置 closed = true, 立即触发 OnDisconnect, 设置超时, 从容器移除并 hold. 令 clientId = 0xFFFFFFFFu )
+    void DelayClose(double const& delaySeconds);
 
     // 收到正常包
     void OnReceivePackage(char* const& buf, size_t const& len) override;

@@ -8,7 +8,7 @@ struct GPeer : Peer {
     using Peer::Peer;
 
     // 从相应容器中移除
-    ~GPeer();
+    bool Close(int const &reason) override;
 
     // 收到正常包
     void OnReceivePackage(char *const &buf, size_t const &len) override;

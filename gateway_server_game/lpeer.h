@@ -4,6 +4,9 @@ namespace EP = xx::Epoll;
 
 // 拨号到 lobby 服务 产生的 peer
 struct LPeer : Peer {
+    // 继承构造函数
+    using Peer::Peer;
+
     // 收到正常包
     void OnReceivePackage(char* const& buf, size_t const& len) override;
 

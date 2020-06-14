@@ -68,8 +68,8 @@ int main() {
     std::cout << ::config << std::endl;
 
 	// 创建类实例
-	Server s;
+	auto&& s = xx::Make<Server>();
 
 	// 开始运行
-	return s.Run();
+	return s->Run(10);
 }

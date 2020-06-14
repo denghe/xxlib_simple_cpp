@@ -9,20 +9,28 @@ bool Client::ExistsCoroName(std::string const& name) {
     return coroNames.find(name) != coroNames.end();
 }
 
-Client::Client(size_t const &wheelLen) : EP::Context(wheelLen) {
+int Client::Run(double const &frameRate) {
+    // 创建回收器
+    xx::ScopeGuard sgCmdLine([&] {
+        // 反注册交互指令( 消除对 Context 的引用计数的影响 )
+        DisableCommandLine();
+        // 清理成员变量( 消除对 Context 的引用计数的影响 )
+        dialer.reset();
+        peer.reset();
+    });
     // 创建默认协程
     CreateCoro<CoroMain>();
 
     // 注册交互指令
-    this->EnableCommandLine();
-
+    EnableCommandLine();
     // todo
-
     cmds["quit"] = [this](auto args) {
         running = false;
     };
-
     cmds["exit"] = cmds["quit"];
+
+    // 开始循环
+    return this->EP::Context::Run(frameRate);
 }
 
 int Client::FrameUpdate() {

@@ -62,8 +62,7 @@ int CoroLobby::Update() {
 
             // 等回包超时: 重连
             std::cout << "wait info response timeout" << std::endl;
-            c.peer->OnDisconnect(__LINE__);
-            c.peer->Dispose();
+            c.peer->Close(__LINE__);
             goto LabBegin;
 
             LabHandlePackages:

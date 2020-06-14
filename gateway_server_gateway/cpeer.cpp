@@ -3,12 +3,36 @@
 #include "server.h"
 #include "config.h"
 
-void CPeer::SendCommand_Open(uint32_t const &serverId) {
-    SendCommand("open", serverId);
+bool CPeer::Close(int const& reason) {
+    // close fd 解绑 并触发 OnDisconnect
+    if (this->Peer::Close(reason)) {
+        // 群发断开通知并解除 client id 映射, 从容器移除, 转为 Hold 持有
+        DelayClose(0);
+        // 延迟自杀
+        DelayUnhold();
+        return true;
+    }
+    return false;
 }
 
-void CPeer::SendCommand_Close(uint32_t const &serverId) {
-    SendCommand("close", serverId);
+void CPeer::DelayClose(double const& delaySeconds) {
+    // 避免重复执行
+    if (closed || !Alive()) return;
+    // 标记为延迟自杀
+    closed = true;
+    // 兼容 Close 直接关闭
+    if (delaySeconds > 0) {
+        // 主动调用 OnDisconnect
+        OnDisconnect(__LINE__);
+        // 利用超时来 Close
+        SetTimeoutSeconds(delaySeconds);
+    }
+    // 群发断开通知
+    for (auto &&sid : serverIds) {
+        GetServer().dps[sid].second->SendCommand("disconnect", clientId);
+    }
+    // 从容器移除( 减持 )
+    GetServer().cps.erase(clientId);
 }
 
 void CPeer::OnReceivePackage(char *const &buf, size_t const &len) {
@@ -32,32 +56,19 @@ void CPeer::OnReceivePackage(char *const &buf, size_t const &len) {
     *(uint32_t *) buf = clientId;
 
     // 用 serverId 对应的 peer 转发完整数据包
-    GetServer().dps[sid].second->Send(buf - 4, len + 4);
+    GetServer().dps[sid].second->Send({buf - 4, len + 4});
 
     std::cout << "recv client package. serverId = " << sid << " len = " << len << std::endl;
 }
-
 
 void CPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
     // 续命
     SetTimeoutSeconds(config.clientTimeoutSeconds);
 
     // echo 发回( buf 指向了 header + 0xffffffff 之后的区域，故 -8 指向 header )
-    Send((char *) buf - 8, len + 8);
+    Send({buf - 8, len + 8});
 }
 
 void CPeer::OnDisconnect(int const &reason) {
-    // 延迟掐线模式 已经触发过该事件, 故 跳过
-    if (closed) return;
-
-    // 打上关闭标记( 拒收数据并避免 OnDisconnect 事件反复触发 for 延迟掐线 )
-    closed = true;
-
-    // 从字典移除
-    GetServer().cps.erase(clientId);
-
-    // 群发断开通知
-    for (auto &&sid : serverIds) {
-        GetServer().dps[sid].second->SendCommand_Disconnect(clientId);
-    }
+    std::cout << "" << std::endl;
 }

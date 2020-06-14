@@ -2,13 +2,12 @@
 #include "corolobby.h"
 #include "client.h"
 #include "dialer.h"
-#include "peer.h"
 #include "config.h"
 
 int CoroMain::Update() {
     COR_BEGIN {
             // 初始化拨号器
-            c.dialer = c.CreateTcpDialer<Dialer>();
+            xx::MakeTo(c.dialer, c.shared_from_this());
 
             // 添加拨号地址
             for (auto &&addr : config.addrs) {
@@ -21,7 +20,7 @@ int CoroMain::Update() {
             // clean up: 停掉拨号器( 保险起见 ), 杀掉 peer( 方便自杀 )
             c.dialer->Stop();
             if (c.peer) {
-                c.peer->Dispose();
+                c.peer->Close(__LINE__);
             }
 
             // 等 1 秒( 必须的. 除了防止低延迟疯狂拨号以外, 还可以令别的协程有机会处理断线逻辑 )

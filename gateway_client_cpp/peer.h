@@ -18,11 +18,14 @@ struct Peer : EP::TcpPeer {
     // 已开放的 serverId 列表( 发送时如果 目标id 不在列表里则忽略发送但不报错? 或是返回 操作失败? )
     std::vector<uint32_t> openServerIds;
 
+    // 继承构造函数
+    using EP::TcpPeer::TcpPeer;
+
+    // 关闭 fd, 从容器移除 并 DelayUnhold
+    bool Close(int const& reason) override;
+
     // 检查某 serverId
     [[nodiscard]] bool IsOpened(uint32_t const& serverId) const;
-
-    // 拿到 client 上下文引用, 以方便写事件处理代码
-    Client &GetClient();
 
     // 收到数据. 切割后进一步调用 OnReceivePackage 和 OnReceiveCommand
     void OnReceive() override;

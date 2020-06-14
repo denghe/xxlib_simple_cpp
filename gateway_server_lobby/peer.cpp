@@ -3,13 +3,10 @@
 
 Server &Peer::GetServer() {
     // 拿到服务上下文
-    return *(Server *) ep;
+    return *(Server *) &*ec;
 }
 
 void Peer::OnReceive() {
-    // Disposed 判断变量
-    EP::Ref<Item> alive(this);
-
     // 取出指针备用
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
@@ -22,7 +19,7 @@ void Peer::OnReceive() {
 
         // 长度异常则断线退出( 超长? 256k 不够可以改长 )
         if (UNLIKELY(dataLen > 1024 * 256)) {
-            Dispose();
+            Close(__LINE__);
             return;
         }
 
@@ -38,7 +35,7 @@ void Peer::OnReceive() {
                 OnReceiveFirstPackage(buf, dataLen);
             }
             // 如果当前类实例已自杀则退出
-            if (!alive) return;
+            if (!Alive()) return;
         }
         // 跳到下一个包的开头
         buf += dataLen;

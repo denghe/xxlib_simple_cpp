@@ -5,15 +5,24 @@
 #include "glistener.h"
 #include "slistener.h"
 
-Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
+int Server::Run(double const &frameRate) {
+    // 初始化回收sg
+    xx::ScopeGuard sg1([&]{
+        gatewayListener.reset();
+        serverListener.reset();
+        DisableCommandLine();
+    });
+
     // 初始化监听器
-    gatewayListener = CreateTcpListener<GListener>(config.gatewayListenPort);
-    if (!gatewayListener) {
-        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.gatewayListenPort) + " failed.");
+    xx::MakeTo(gatewayListener, shared_from_this());
+    if (int r = gatewayListener->Listen(config.gatewayListenPort)) {
+        std::cout << "listen to port " <<config.gatewayListenPort << "failed." << std::endl;
+        return r;
     }
-    serverListener = CreateTcpListener<SListener>(config.serverListenPort);
-    if (!serverListener) {
-        throw std::logic_error(std::string("listen to port: ") + std::to_string(config.serverListenPort) + " failed.");
+    xx::MakeTo(serverListener, shared_from_this());
+    if (int r = serverListener->Listen(config.serverListenPort)) {
+        std::cout << "listen to port " <<config.serverListenPort << "failed." << std::endl;
+        return r;
     }
 
     // 注册交互指令
@@ -39,6 +48,9 @@ Server::Server(size_t const &wheelLen) : EP::Context(wheelLen) {
         running = false;
     };
     cmds["exit"] = this->cmds["quit"];
+
+    // 正式进入 epoll wait 循环
+    return this->EP::Context::Run(frameRate);
 }
 
 int Server::FrameUpdate() {

@@ -1,16 +1,23 @@
 #include "vpeer.h"
 #include "gpeer.h"
 
-void VPeerCB::OnTimeout() {
-    // 传递空参数以体现这是超时
-    func(nullptr, 0);
-    // 执行完立刻自杀
-    Dispose();
+VPeerCB::VPeerCB(std::shared_ptr<VPeer> const &vpeer, int const &serial,
+                 std::function<void(char const *const &buf, size_t const &len)> &&cbfunc, double const &timeoutSeconds)
+        : EP::Timer(vpeer->ec, -1), serial(serial), func(std::move(cbfunc)) {
+    SetTimeoutSeconds(timeoutSeconds);
 }
 
-VPeer::VPeer(GPeer_r const &gatewayPeer, uint32_t const &clientId)
-        : gatewayPeer(gatewayPeer),
-          clientId(clientId) {
+void VPeerCB::OnTimeout() {
+    // 模拟超时
+    func(nullptr, 0);
+    // 从容器移除
+    vpeer->callbacks.erase(serial);
+    // 延迟自杀
+    DelayUnhold();
+}
+
+VPeer::VPeer(std::shared_ptr<GPeer> const &gatewayPeer, uint32_t const &clientId)
+        : EP::Item(gatewayPeer->ec, -1), gatewayPeer(gatewayPeer), clientId(clientId) {
     // 通过网关向客户端发 open 指令
     gatewayPeer->SendTo(0xFFFFFFFFu, "open", clientId);
 }
@@ -38,42 +45,46 @@ int VPeer::SendResponse(int32_t const &serial, char const *const &buf, size_t co
 }
 
 int VPeer::SendRequest(char const *const &buf, size_t const &len,
-                       std::function<void(char const *const &buf, size_t const &len)> &&cb,
+                       std::function<void(char const *const &buf, size_t const &len)> &&cbfunc,
                        double const &timeoutSeconds) {
-    // 创建一个 带超时的回调 将 cb 封装起来
-    auto &&vpcb = xx::MakeU<VPeerCB>();
-    vpcb->func = std::move(cb);
-    vpcb->SetTimeoutSeconds(timeoutSeconds);
-    auto &&p = ep->AddItem(std::move(vpcb), -1);
+    // 产生一个序号. 在正整数范围循环自增( 可能很多天之后会重复 )
+    autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;
+    // 创建一个 带超时的回调
+    auto &&cb = xx::Make<VPeerCB>(xx::As<VPeer>(shared_from_this()), autoIncSerial, std::move(cbfunc), timeoutSeconds);
+    cb->Hold();
     // 以序列号建立cb的映射
-    autoIncSerial = (autoIncSerial + 1) & 0x7FFFFFFF;            // uint circle use
-    callbacks[autoIncSerial] = p;
+    callbacks[autoIncSerial] = cb;
     // 发包并返回( 请求性质的包, 序号为负数 )
     return SendResponse(-autoIncSerial, buf, len);
 }
 
-void VPeer::Disconnect(int const &reason) {
-    // 如果物理 peer 还在
-    if (auto &&gp = gatewayPeer.Lock()) {
-        // 通过网关向客户端发 close 指令
-        gp->SendTo(0xFFFFFFFFu, "close", clientId);
-        // 从容器移除
-        gp->vpeers.erase(clientId);
-    }
-    // 触发断线回调
+bool VPeer::Close(int const &reason) {
+    // 防范重入
+    if (clientId == 0xFFFFFFFFu) return false;
+    // 触发断线事件
     OnDisconnect(reason);
-    // 将回调容器移到栈上，以便 Dispose 之后继续访问
-    auto cbs = std::move(callbacks);
-    // 自杀
-    Dispose();
-    // 触发所有已存在回调（ 模拟立刻超时 ）
-    for (auto &&iter : cbs) {
-        if (auto &&cb = iter.second.Lock()) {
-            // 回调中可自己探测 vpeer 是否已阵亡，可分辨是 一般超时（未断开） 还是 断线的伪超时
-            cb->func(nullptr, 0);
-            cb->Dispose();
-        }
+    // 如果物理 peer 没断:
+    if (gatewayPeer->Alive()) {
+        // 通过网关向客户端发 close 指令
+        gatewayPeer->SendTo(0xFFFFFFFFu, "close", clientId);
+        // 从容器移除自己
+        gatewayPeer->vpeers.erase(clientId);
     }
+    // 触发所有已存在回调（ 模拟立刻超时 ）
+    for (auto &&iter : callbacks) {
+        // 模拟超时回调
+        iter.second->func(nullptr, 0);
+        // 延迟自杀
+        iter.second->DelayUnhold();
+    }
+    // 从容器中移除所有回调( 相互减持 )
+    callbacks.clear();
+
+    // 延迟自杀
+    DelayUnhold();
+    // 防范重入
+    clientId = 0xFFFFFFFFu;
+    return true;
 }
 
 
@@ -82,7 +93,7 @@ void VPeer::OnReceive(char const *const &buf, size_t const &len) {
     int serial = 0;
     xx::DataReader dr(buf, len);
     if (dr.Read(serial)) {
-        Disconnect(__LINE__);
+        Close(__LINE__);
         return;
     }
 
@@ -98,17 +109,15 @@ void VPeer::OnReceive(char const *const &buf, size_t const &len) {
 }
 
 void VPeer::OnReceiveResponse(uint32_t const &serial, char const *const &buf, size_t const &len) {
-    // 根据序号定位到 cb
+    // 根据序号定位到 cb. 找不到可能是超时或发错?
     auto &&iter = callbacks.find(serial);
     if (iter == callbacks.end()) return;
     // 先取出来并从回调容器移除( 防止 callback 中有自杀行为导致中间逻辑不方便判断 )
-    auto &&cb = iter->second.Lock();
+    auto &&cb = std::move(iter->second);
     callbacks.erase(iter);
-    // 如果 cb 有效（未超时Dispose）则执行( 后面没有代码, 回调中导致自杀没有副作用 )
-    if (cb) {
-        cb->func(buf, len);
-        cb->Dispose();
-    }
+    // 执行后延迟自杀
+    cb->func(buf, len);
+    cb->DelayUnhold();
 }
 
 
@@ -116,7 +125,7 @@ void VPeer::OnReceivePush(char const *const &buf, size_t const &len) {
     // 模拟某协议解包
     std::string txt;
     if (xx::Read(buf, len, txt)) {
-        Disconnect(__LINE__);
+        Close(__LINE__);
         return;
     }
     std::cout << "vpeer: " << clientId << " recv push: " << txt << std::endl;
@@ -127,7 +136,7 @@ void VPeer::OnReceiveRequest(uint32_t const &serial, char const *const &buf, siz
     // 模拟某协议解包
     std::string txt;
     if (xx::Read(buf, len, txt)) {
-        Disconnect(__LINE__);
+        Close(__LINE__);
         return;
     }
     std::cout << "vpeer: " << clientId << " recv request: " << txt << std::endl;
@@ -135,7 +144,7 @@ void VPeer::OnReceiveRequest(uint32_t const &serial, char const *const &buf, siz
     if (txt == "auth") {
         // 模拟构造回包: 服务类型 + serverId
         xx::Data d;
-        xx::Write(d, "lobby", (uint32_t)0);
+        xx::Write(d, "lobby", (uint32_t) 0);
         SendResponse(serial, d.buf, d.len);
         // 通知 gateway open 指定 serverId?
     } else if (txt == "info") {
@@ -145,12 +154,10 @@ void VPeer::OnReceiveRequest(uint32_t const &serial, char const *const &buf, siz
         SendResponse(serial, d.buf, d.len);
     } else {
         // 未知包?
-        Disconnect(__LINE__);
-        return;
+        Close(__LINE__);
     }
 }
 
 void VPeer::OnDisconnect(int const &reason) {
     std::cout << "vpeer: " << clientId << " disconnected. reason: " << reason << std::endl;
-    // todo
 }
