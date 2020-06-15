@@ -16,13 +16,10 @@ struct SPeer : Peer {
     bool Close(int const& reason) override;
 
     // 收到正常包
-    void OnReceivePackage(char* const& buf, size_t const& len) override;
+    void ReceivePackage(char* const& buf, size_t const& len) override;
 
     // 收到内部指令
-    void OnReceiveCommand(char* const& buf, size_t const& len) override;
-
-    // 输出点日志
-    void OnDisconnect(int const &reason) override;
+    void ReceiveCommand(char* const& buf, size_t const& len) override;
 
     // 从 server cps 容器查找并返回 client peer 的指针. 没找到则返回 空
     CPeer* TryGetCPeer(uint32_t const& clientId);

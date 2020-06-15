@@ -2,24 +2,23 @@
 #include "speer.h"
 
 bool SPeer::Close(int const& reason) {
-    // close fd 解绑 并触发 OnDisconnect
-    if (this->Peer::Close(reason)) {
-        // 从容器移除( 如果有放入的话 )
-        if (id) {
-            GetServer().sps.erase(id);
-        }
-        DelayUnhold();
-        return true;
+    // 防重入( 同时关闭 fd )
+    if (!this->Peer::Close(reason)) return false;
+    // 从容器移除以减持( 如果有放入的话 )
+    if (id) {
+        GetServer().sps.erase(id);
     }
-    return false;
+    // 延迟减持
+    DelayUnhold();
+    return true;
 }
 
-void SPeer::OnReceivePackage(char *const &buf, size_t const &len) {
+void SPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // todo:
     // 服务之间正常通信
 }
 
-void SPeer::OnReceiveFirstPackage(char *const &buf, size_t const &len) {
+void SPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
     // 解析首包. 内容应该由 string + uint 组成
     std::string cmd;
     uint32_t serverId = 0;

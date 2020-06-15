@@ -14,7 +14,7 @@ bool GPeer::Close(int const &reason) {
     return false;
 }
 
-void GPeer::OnReceivePackage(char *const &buf, size_t const &len) {
+void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 引用到 server 备用
     auto &&s = GetServer();
 
@@ -70,7 +70,7 @@ void GPeer::OnReceivePackage(char *const &buf, size_t const &len) {
     }
 }
 
-void GPeer::OnReceiveFirstPackage(char *const &buf, size_t const &len) {
+void GPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
     // 解析首包. 内容应该由 string + uint 组成
     uint32_t addr = 0;
     std::string cmd;

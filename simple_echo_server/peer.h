@@ -9,13 +9,13 @@ struct Peer : EP::TcpPeer {
     using EP::TcpPeer::TcpPeer;
 
 	// 处理接收事件
-	void HandleReceive(char* buf, size_t len);
+	void ReceivePackage(char* buf, size_t len);
 
 	// 实现收数据逻辑
-	void OnReceive() override;
+	void Receive() override;
 
 	// 断线事件( 清除自持有 )
-	void OnDisconnect(int const& reason) override;
+	bool Close(int const& reason) override;
 
 	// 在数据前面附带上 长度 并发送. 返回 非0 表示出状况( 但不一定是断线 )
 	int SendPackage(char const* const& buf, size_t const& len);

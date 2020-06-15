@@ -4,15 +4,13 @@
 #include "config.h"
 
 bool CPeer::Close(int const& reason) {
-    // close fd 解绑 并触发 OnDisconnect
-    if (this->Peer::Close(reason)) {
-        // 群发断开通知并解除 client id 映射, 从容器移除, 转为 Hold 持有
-        DelayClose(0);
-        // 延迟自杀
-        DelayUnhold();
-        return true;
-    }
-    return false;
+    // 防重入( 同时关闭 fd )
+    if (!this->Peer::Close(reason)) return false;
+    // 群发断开通知并解除 client id 映射, 从容器移除 减持
+    DelayClose(0);
+    // 延迟减持
+    DelayUnhold();
+    return true;
 }
 
 void CPeer::DelayClose(double const& delaySeconds) {
@@ -22,8 +20,6 @@ void CPeer::DelayClose(double const& delaySeconds) {
     closed = true;
     // 兼容 Close 直接关闭
     if (delaySeconds > 0) {
-        // 主动调用 OnDisconnect
-        OnDisconnect(__LINE__);
         // 利用超时来 Close
         SetTimeoutSeconds(delaySeconds);
     }
@@ -35,7 +31,7 @@ void CPeer::DelayClose(double const& delaySeconds) {
     GetServer().cps.erase(clientId);
 }
 
-void CPeer::OnReceivePackage(char *const &buf, size_t const &len) {
+void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 取出 serverId
     auto sid = *(uint32_t *) buf;
 
@@ -61,14 +57,10 @@ void CPeer::OnReceivePackage(char *const &buf, size_t const &len) {
     std::cout << "recv client package. serverId = " << sid << " len = " << len << std::endl;
 }
 
-void CPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
+void CPeer::ReceiveCommand(char *const &buf, size_t const &len) {
     // 续命
     SetTimeoutSeconds(config.clientTimeoutSeconds);
 
     // echo 发回( buf 指向了 header + 0xffffffff 之后的区域，故 -8 指向 header )
     Send({buf - 8, len + 8});
-}
-
-void CPeer::OnDisconnect(int const &reason) {
-    std::cout << "" << std::endl;
 }

@@ -2,22 +2,23 @@
 #include "client.h"
 
 bool Peer::Close(int const& reason) {
-    // close fd 解绑 并触发 OnDisconnect
-    if (this->Item::Close(reason)) {
+    // 关闭 fd. 同时也是重入检测
+    if (!this->Item::Close(reason)) return false;
+    {
         // 从容器移除 this( 如果有放入的话 )
-        ((Client*)&*ec)->peer.reset();
-        // 延迟自杀
-        DelayUnhold();
-        return true;
+        ((Client *) &*ec)->peer.reset();
+        std::cout << "peer disconnected. reason = " << reason << std::endl;
     }
-    return false;
+    // 延迟减持
+    DelayUnhold();
+    return true;
 }
 
 bool Peer::IsOpened(uint32_t const& serverId) const {
     return std::find(openServerIds.begin(), openServerIds.end(), serverId) != openServerIds.end();
 }
 
-void Peer::OnReceive() {
+void Peer::Receive() {
     // 取出指针备用
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
@@ -47,10 +48,10 @@ void Peer::OnReceive() {
             // 包类型判断
             if (serverId == 0xFFFFFFFFu) {
                 // 内部指令
-                OnReceiveCommand(buf + sizeof(serverId), dataLen - sizeof(serverId));
+                ReceiveCommand(buf + sizeof(serverId), dataLen - sizeof(serverId));
             } else {
                 // 普通包. serverId 打头
-                OnReceivePackage(serverId, buf + sizeof(serverId), dataLen - sizeof(serverId));
+                ReceivePackage(serverId, buf + sizeof(serverId), dataLen - sizeof(serverId));
             }
 
             // 如果当前类实例已自杀则退出
@@ -64,7 +65,7 @@ void Peer::OnReceive() {
     recv.RemoveFront(buf - recv.buf);
 }
 
-void Peer::OnReceivePackage(uint32_t const &serverId, char *const &buf, size_t const &len) {
+void Peer::ReceivePackage(uint32_t const &serverId, char *const &buf, size_t const &len) {
     // 试读出序号. 出错直接断开退出
     int serial = 0;
     xx::DataReader dr(buf, len);
@@ -76,7 +77,7 @@ void Peer::OnReceivePackage(uint32_t const &serverId, char *const &buf, size_t c
     receivedPackages.emplace_back(serverId, serial, xx::Data(buf + dr.offset, len - dr.offset));
 }
 
-void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
+void Peer::ReceiveCommand(char *const &buf, size_t const &len) {
     // 要填充的变量
     std::string cmd;
     uint32_t serverId = 0;
@@ -106,9 +107,4 @@ void Peer::OnReceiveCommand(char *const &buf, size_t const &len) {
         Close(__LINE__);
         return;
     }
-}
-
-
-void Peer::OnDisconnect(int const &reason) {
-    std::cout << "peer disconnected. reason = " << reason << std::endl;
 }

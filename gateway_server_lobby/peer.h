@@ -20,12 +20,12 @@ struct Peer : EP::TcpPeer {
     // 拿到 server 上下文引用, 以方便写事件处理代码
     Server &GetServer();
 
-    // 收到数据并切割. 切割后进一步调用 OnReceiveFirstPackage 和 OnReceivePackage
-    void OnReceive() override;
+    // 收到数据并切割. 切割后进一步调用 ReceiveFirstPackage 和 ReceivePackage
+    void Receive() override;
 
     // 收到包
-    virtual void OnReceivePackage(char *const &buf, size_t const &len) = 0;
+    virtual void ReceivePackage(char *const &buf, size_t const &len) = 0;
 
     // 收到首包
-    virtual void OnReceiveFirstPackage(char *const &buf, size_t const &len) = 0;
+    virtual void ReceiveFirstPackage(char *const &buf, size_t const &len) = 0;
 };

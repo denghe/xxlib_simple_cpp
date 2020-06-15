@@ -4,27 +4,26 @@
 #include "config.h"
 
 bool GPeer::Close(int const &reason) {
-    // close fd 解绑 并触发 OnDisconnect
-    if (this->Peer::Close(reason)) {
-        // 关闭所有虚拟 peer
-        for (auto &&iter : vpeers) {
-            // OnDisconnect + callbacks timeout + delayUnhold
-            iter.second->Close(reason);
-        }
-        // 清除 vpeers 以减持
-        vpeers.clear();
-        // 从容器移除 this( 如果有放入的话 )
-        if (id) {
-            GetServer().gps.erase(id);
-        }
-        // 延迟自杀
-        DelayUnhold();
-        return true;
+    // 防重入( 同时关闭 fd )
+    if (!this->Item::Close(reason)) return false;
+    std::cout << "GPeer::Close. gatewayId = " << id << " reason = " << reason << std::endl;
+    // 关闭所有虚拟 peer
+    for (auto &&iter : vpeers) {
+        // OnDisconnect + callbacks timeout + delayUnhold
+        iter.second->Close(reason);
     }
-    return false;
+    // 清除 vpeers 以减持
+    vpeers.clear();
+    // 从容器移除 this( 如果有放入的话 )
+    if (id) {
+        GetServer().gps.erase(id);
+    }
+    // 延迟减持
+    DelayUnhold();
+    return true;
 }
 
-void GPeer::OnReceivePackage(char *const &buf, size_t const &len) {
+void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 引用到 server 备用
     auto &&s = GetServer();
 
@@ -93,11 +92,11 @@ void GPeer::OnReceivePackage(char *const &buf, size_t const &len) {
         // 如果没找到就退出( 有可能刚刚被逻辑代码杀掉, close 指令还在路上, 此时 gateway 并不知道 )
         if (iter == vpeers.end()) return;
         // 转发给 vp
-        iter->second->OnReceive(buf + sizeof(clientId), len - sizeof(clientId));
+        iter->second->Receive(buf + sizeof(clientId), len - sizeof(clientId));
     }
 }
 
-void GPeer::OnReceiveFirstPackage(char *const &buf, size_t const &len) {
+void GPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
     // 解析首包. 内容应该由 string + uint 组成
     uint32_t addr = 0;
     std::string cmd;
@@ -143,8 +142,4 @@ void GPeer::OnReceiveFirstPackage(char *const &buf, size_t const &len) {
 
     // 设置不超时
     SetTimeoutSeconds(0);
-}
-
-void GPeer::OnDisconnect(int const &reason) {
-    std::cout << "GPeer::OnDisconnect. gatewayId = " << id << " reason = " << reason << std::endl;
 }

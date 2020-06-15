@@ -17,7 +17,7 @@ void Dialer::OnConnect(std::shared_ptr<LPeer> const &sp) {
     // 将 peer 放入容器
     GetServer().lobbyPeer = sp;
 
-    // 随便填个值避免触发 OnReceiveFirstPackage
+    // 随便填个值避免触发 ReceiveFirstPackage
     // 因为是连向 lobby, 由这边发首包, 成功 lobby 无回复. 失败会被断开
     sp->id = -1;
 

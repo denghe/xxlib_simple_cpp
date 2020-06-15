@@ -4,24 +4,24 @@
 #include "xx_datareader.h"
 
 bool SPeer::Close(int const& reason) {
-    // close fd 解绑 并触发 OnDisconnect
-    if (this->Peer::Close(reason)) {
-        // 从所有 client peers 里的白名单中移除
-        for (auto &&kv : GetServer().cps) {
-            // 不管有没有, 试着 从 client peer 的 已open id列表 擦除该 服务id
-            kv.second->serverIds.erase(serverId);
-            // 下发 close( 如果全都没了, 则会导致 client 无法发送任何数据过来，自然超时断掉 )
-            kv.second->SendCommand("close", serverId);
-        }
-        // 从 dps 移除, 延迟自杀
-        GetServer().dps[serverId].second.reset();
-        DelayUnhold();
-        return true;
+    // 防重入( 同时关闭 fd )
+    if (!this->Peer::Close(reason)) return false;
+    std::cout << "SPeer Close. serverId = "<< serverId <<", reason = " << reason << std::endl;
+    // 从所有 client peers 里的白名单中移除
+    for (auto &&kv : GetServer().cps) {
+        // 不管有没有, 试着 从 client peer 的 已open id列表 擦除该 服务id
+        kv.second->serverIds.erase(serverId);
+        // 下发 close( 如果全都没了, 则会导致 client 无法发送任何数据过来，自然超时断掉 )
+        kv.second->SendCommand("close", serverId);
     }
-    return false;
+    // 从 dps 移除以减持
+    GetServer().dps[serverId].second.reset();
+    // 延迟减持
+    DelayUnhold();
+    return true;
 }
 
-void SPeer::OnReceivePackage(char *const &buf, size_t const &len) {
+void SPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 读出 clientId
     auto&& clientId = *(uint32_t *) buf;
 
@@ -37,7 +37,7 @@ void SPeer::OnReceivePackage(char *const &buf, size_t const &len) {
     }
 }
 
-void SPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
+void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
     // for easy use
     auto&& s = GetServer();
 
@@ -104,10 +104,6 @@ void SPeer::OnReceiveCommand(char *const &buf, size_t const &len) {
     } else {                                    // 未知指令
         Close(__LINE__);
     }
-}
-
-void SPeer::OnDisconnect(int const &reason) {
-    std::cout << "SPeer OnDisconnect. serverId = "<< serverId <<", reason = " << reason << std::endl;
 }
 
 CPeer *SPeer::TryGetCPeer(uint32_t const &clientId) {

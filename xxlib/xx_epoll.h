@@ -1,4 +1,9 @@
-﻿#pragma once
+﻿/*
+    注意：得到 Peer 后可以例行 Hold(), 释放时 DelayUnhold(). 直接干掉容器导致析构是不安全的.
+    基类构造&析构中 无法调用 派生类的 override( 没映射 ), 无法 shared_from_this( 构造万一 throw 则别处通过 ptr 能执行到析构 )
+*/
+
+#pragma once
 
 #include <cstdio>
 #include <cstdlib>
@@ -35,15 +40,7 @@
 #define LIKELY(x)       __builtin_expect(!!(x), 1)
 #define UNLIKELY(x)     __builtin_expect(!!(x), 0)
 
-/*
-    注意：Item 不能在代码中直接干掉容器变量导致析构.
-    具体参考 Hold + DelayUnhold 函数实现, 并且最好先清除实例内部引用到的别的 Item( 如果有的话, 防止 析构顺序不可控 )
-    基类析构 无法调用 派生类 override 的部分, 需谨慎
-    构造与析构过程中无法执行 shared_from_this
-*/
-
 namespace xx::Epoll {
-
     /***********************************************************************************************************/
     // Item
     // 所有受 Context 管理的子类的基类. 主要特征为其 fd 受 context 中的 epoll 管理
@@ -56,9 +53,9 @@ namespace xx::Epoll {
 
         // 初始化依赖上下文
         explicit Item(std::shared_ptr<Context> const& ec, int const& fd = -1);
-        // 注意：析构中调用虚函数，只会执行自己的实现, 不会 call 到派生类去
+        // 注意：析构中调用虚函数，不会 call 到派生类的 override 版本
         virtual ~Item() { Close(0); }
-        // 会导致 关闭 fd 解除映射, fd = -1. reason 通常传 __LINE__. 如果传 0 则可能有特殊含义
+        // 会导致 关闭 fd 解除映射, fd = -1. reason 通常传 __LINE__. 如果传 0 则通常由 非基类析构 发起
         virtual bool Close(int const& reason);
         // 将当前实例的智能指针放入 ec->holdItems( 不能在构造函数或析构中执行 )
         void Hold();
@@ -98,19 +95,15 @@ namespace xx::Epoll {
     struct TcpPeer : Timer {
         // 对方的 addr( 连接建立，获取后缓存在此. 用户可读之 )
         sockaddr_in6 addr;
-        // 收数据用堆积容器( OnReceive 里访问它来处理收到的数据 )
+        // 收数据用堆积容器( Receive 里访问它来处理收到的数据 )
         Data recv;
 
         // 继承构造函数
         using Timer::Timer;
         // 数据接收事件: 用户可以从 recv 拿数据, 并移除掉已处理的部分
-        virtual void OnReceive() = 0;
-        // 断线事件( 被 Close 触发 )
-        inline virtual void OnDisconnect(int const &reason) {}
+        virtual void Receive() = 0;
         // Data 对象移进队列并开始发送( 如果 fd == -1 则忽略 )
         int Send(Data &&data);
-        // 会导致 关闭 fd 解除映射, fd = -1. 如果 reason 传 0 则不触发 OnDisconnect. 返回 false 表示 Close 被忽略
-        bool Close(int const& reason) override;
         // 判断 peer 是否还活着( 没断 )
         inline bool Alive() { return fd != -1; }
     protected:
@@ -324,7 +317,6 @@ namespace xx::Epoll {
     int FillAddress(std::string const &ip, int const &port, sockaddr_in6 &addr);
     // addr 转为 string
     std::string AddressToString(sockaddr *const &in);
-    std::string AddressToString(sockaddr_in const &in);
     std::string AddressToString(sockaddr_in6 const &in);
 
 
@@ -422,16 +414,6 @@ namespace xx::Epoll {
         Close(__LINE__);
     }
 
-    inline bool TcpPeer::Close(int const& reason) {
-        if (this->Item::Close(reason)) {
-            if (reason) {
-                OnDisconnect(reason);
-            }
-            return true;
-        }
-        return false;
-    }
-
     inline void TcpPeer::OnEpollEvent(uint32_t const &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
@@ -458,7 +440,7 @@ namespace xx::Epoll {
             recv.len += len;
 
             // 调用用户数据处理函数
-            OnReceive();
+            Receive();
         }
         // write
         if (e & EPOLLOUT) {
@@ -889,7 +871,6 @@ namespace xx::Epoll {
             close(fd);
         }
         freeaddrinfo(ai_);
-
         if (!ai) return __LINE__;
 
         // 检测 fd 存储上限
@@ -898,7 +879,6 @@ namespace xx::Epoll {
             return __LINE__;
         }
         assert(!fdMappings[fd]);
-
         return fd;
     }
 
@@ -1082,11 +1062,6 @@ namespace xx::Epoll {
         }
         return "";
     }
-
-    [[maybe_unused]] [[maybe_unused]] inline std::string AddressToString(sockaddr_in const &in) {
-        return AddressToString((sockaddr *) &in);
-    }
-
     inline std::string AddressToString(sockaddr_in6 const &in) {
         return AddressToString((sockaddr *) &in);
     }

@@ -6,7 +6,7 @@ Server &Peer::GetServer() {
     return *(Server *) &*ec;
 }
 
-void Peer::OnReceive() {
+void Peer::Receive() {
     // 取出指针备用
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
@@ -30,9 +30,9 @@ void Peer::OnReceive() {
         buf += sizeof(dataLen);
         {
             if (LIKELY(id)) {
-                OnReceivePackage(buf, dataLen);
+                ReceivePackage(buf, dataLen);
             } else {
-                OnReceiveFirstPackage(buf, dataLen);
+                ReceiveFirstPackage(buf, dataLen);
             }
             // 如果当前类实例已close则退出
             if (!Alive()) return;

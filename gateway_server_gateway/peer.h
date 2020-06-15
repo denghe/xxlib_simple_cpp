@@ -18,14 +18,14 @@ struct Peer : EP::TcpPeer {
     // 拿到 server 上下文引用, 以方便写事件处理代码
     Server &GetServer() const;
 
-    // 收到数据. 切割后进一步调用 OnReceivePackage 和 OnReceiveCommand
-    void OnReceive() override;
+    // 收到数据. 切割后进一步调用 ReceivePackage 和 ReceiveCommand
+    void Receive() override;
 
     // 收到正常包
-    virtual void OnReceivePackage(char* const& buf, size_t const& len) = 0;
+    virtual void ReceivePackage(char* const& buf, size_t const& len) = 0;
 
     // 收到内部指令
-    virtual void OnReceiveCommand(char* const& buf, size_t const& len) = 0;
+    virtual void ReceiveCommand(char* const& buf, size_t const& len) = 0;
 
     // 构造内部指令包. LEN + ADDR + cmd string + args...
     template<typename...Args>

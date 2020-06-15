@@ -6,7 +6,7 @@ Server &Peer::GetServer() const {
     return *(Server *) &*ec;
 }
 
-void Peer::OnReceive() {
+void Peer::Receive() {
     // 如果属于延迟踢人拒收数据状态，直接清数据短路退出
     if (closed) {
         recv.Clear();
@@ -42,10 +42,10 @@ void Peer::OnReceive() {
             // 包类型判断
             if (addr == 0xFFFFFFFFu) {
                 // 内部指令. 传参时跳过 addr 部分
-                OnReceiveCommand(buf + sizeof(addr), dataLen - sizeof(addr));
+                ReceiveCommand(buf + sizeof(addr), dataLen - sizeof(addr));
             } else {
                 // 普通包. id 打头
-                OnReceivePackage(buf, dataLen);
+                ReceivePackage(buf, dataLen);
             }
 
             // 如果当前类实例 fd 已 close 则退出

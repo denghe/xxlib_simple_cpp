@@ -1,11 +1,12 @@
 ﻿#include "peer.h"
 #include "header.h"
 
-void Peer::OnDisconnect(int const &reason) {
+bool Peer::Close(int const &reason) {
+    if (!this->Item::Close(reason)) return false;
+    std::cout << EP::AddressToString(addr) << " Close. reason = " << reason << std::endl;
     // 从 ec->holdItems 延迟移除 以 释放智能指针( 出函数后 )
     DelayUnhold();
-
-    std::cout << EP::AddressToString(addr) << " disconnected. reason = " << reason << std::endl;
+    return true;
 }
 
 int Peer::SendPackage(char const *const &buf, size_t const &len) {
@@ -25,7 +26,7 @@ int Peer::SendPackage(char const *const &buf, size_t const &len) {
     return Send(std::move(d));
 }
 
-void Peer::OnReceive() {
+void Peer::Receive() {
     // 包头容器
     Header h{};
 
@@ -45,7 +46,7 @@ void Peer::OnReceive() {
         offset += sizeof(h);
 
         // 调用处理函数
-        HandleReceive(recv.buf + offset, h.len);
+        ReceivePackage(recv.buf + offset, h.len);
 
         // 如果当前类实例已 Close 则退出
         if (fd == -1) return;
@@ -58,7 +59,7 @@ void Peer::OnReceive() {
     recv.RemoveFront(offset);
 }
 
-void Peer::HandleReceive(char *buf, size_t len) {
+void Peer::ReceivePackage(char *buf, size_t len) {
     // 这里先输出收到的内容
     std::cout << "recv message from client(" << EP::AddressToString(addr) << "): " << std::string_view(buf, len)
               << std::endl;

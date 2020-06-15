@@ -2,14 +2,21 @@
 #include "lpeer.h"
 #include "xx_datareader.h"
 
-void LPeer::OnReceivePackage(char *const &buf, size_t const &len) {
+void LPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // todo
 }
 
-void LPeer::OnReceiveFirstPackage(char *const &buf, size_t const &len) {
+void LPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
     assert(false);
+    // todo
 }
 
-void LPeer::OnDisconnect(int const &reason) {
-    // todo
+bool LPeer::Close(int const &reason) {
+    // 防重入( 同时关闭 fd )
+    if (!this->Item::Close(reason)) return false;
+    // 减持
+    GetServer().lobbyPeer.reset();
+    // 延迟减持
+    DelayUnhold();
+    return true;
 }

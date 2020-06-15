@@ -11,8 +11,8 @@ struct SPeer : Peer {
     bool Close(int const& reason) override;
 
     // 收到正常包
-    void OnReceivePackage(char *const &buf, size_t const &len) override;
+    void ReceivePackage(char *const &buf, size_t const &len) override;
 
     // 收到首包( 拿到 serverId, 放入相应容器 )
-    void OnReceiveFirstPackage(char *const &buf, size_t const &len) override;
+    void ReceiveFirstPackage(char *const &buf, size_t const &len) override;
 };

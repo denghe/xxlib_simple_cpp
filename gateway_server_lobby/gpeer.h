@@ -16,13 +16,10 @@ struct GPeer : Peer {
     bool Close(int const &reason) override;
 
     // 收到正常包
-    void OnReceivePackage(char *const &buf, size_t const &len) override;
+    void ReceivePackage(char *const &buf, size_t const &len) override;
 
     // 收到首包( 拿到 gatewayId, 放入相应容器 )
-    void OnReceiveFirstPackage(char *const &buf, size_t const &len) override;
-
-    // 打印日志
-    void OnDisconnect(int const &reason) override;
+    void ReceiveFirstPackage(char *const &buf, size_t const &len) override;
 
     // 构造内部指令包. LEN + ADDR + cmd string + args...
     template<typename...Args>

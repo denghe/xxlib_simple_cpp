@@ -56,16 +56,16 @@ struct VPeer : EP::Item {
     bool Close(int const &reason) override;
 
     // 收到数据( 进一步解析 serial 并转发到下面几个函数 )
-    void OnReceive(char const *const &buf, size_t const &len);
+    void Receive(char const *const &buf, size_t const &len);
 
     // 收到回应( 自动调用 发送请求时设置的回调函数 )
-    void OnReceiveResponse(uint32_t const &serial, char const *const &buf, size_t const &len);
+    void ReceiveResponse(uint32_t const &serial, char const *const &buf, size_t const &len);
 
     // 收到推送( serial == 0 ), 需要自拟业务逻辑
-    virtual void OnReceivePush(char const *const &buf, size_t const &len);
+    virtual void ReceivePush(char const *const &buf, size_t const &len);
 
     // 收到请求( serial 收到时为负数, 但传递到这里时已反转为正数 ), 需要自拟业务逻辑
-    virtual void OnReceiveRequest(uint32_t const &serial, char const *const &buf, size_t const &len);
+    virtual void ReceiveRequest(uint32_t const &serial, char const *const &buf, size_t const &len);
 
     // 断开事件
     virtual void OnDisconnect(int const &reason);

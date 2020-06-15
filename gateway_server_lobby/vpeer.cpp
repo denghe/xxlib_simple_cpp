@@ -88,7 +88,7 @@ bool VPeer::Close(int const &reason) {
 }
 
 
-void VPeer::OnReceive(char const *const &buf, size_t const &len) {
+void VPeer::Receive(char const *const &buf, size_t const &len) {
     // 试读出序号. 出错直接断开退出
     int serial = 0;
     xx::DataReader dr(buf, len);
@@ -99,16 +99,16 @@ void VPeer::OnReceive(char const *const &buf, size_t const &len) {
 
     // 根据序列号的情况分性质转发
     if (serial == 0) {
-        OnReceivePush(buf + dr.offset, len - dr.offset);
+        ReceivePush(buf + dr.offset, len - dr.offset);
     } else if (serial > 0) {
-        OnReceiveResponse(serial, buf + dr.offset, len - dr.offset);
+        ReceiveResponse(serial, buf + dr.offset, len - dr.offset);
     } else {
         // -serial: 将 serial 转为正数
-        OnReceiveRequest(-serial, buf + dr.offset, len - dr.offset);
+        ReceiveRequest(-serial, buf + dr.offset, len - dr.offset);
     }
 }
 
-void VPeer::OnReceiveResponse(uint32_t const &serial, char const *const &buf, size_t const &len) {
+void VPeer::ReceiveResponse(uint32_t const &serial, char const *const &buf, size_t const &len) {
     // 根据序号定位到 cb. 找不到可能是超时或发错?
     auto &&iter = callbacks.find(serial);
     if (iter == callbacks.end()) return;
@@ -121,7 +121,7 @@ void VPeer::OnReceiveResponse(uint32_t const &serial, char const *const &buf, si
 }
 
 
-void VPeer::OnReceivePush(char const *const &buf, size_t const &len) {
+void VPeer::ReceivePush(char const *const &buf, size_t const &len) {
     // 模拟某协议解包
     std::string txt;
     if (xx::Read(buf, len, txt)) {
@@ -132,7 +132,7 @@ void VPeer::OnReceivePush(char const *const &buf, size_t const &len) {
     // todo
 }
 
-void VPeer::OnReceiveRequest(uint32_t const &serial, char const *const &buf, size_t const &len) {
+void VPeer::ReceiveRequest(uint32_t const &serial, char const *const &buf, size_t const &len) {
     // 模拟某协议解包
     std::string txt;
     if (xx::Read(buf, len, txt)) {

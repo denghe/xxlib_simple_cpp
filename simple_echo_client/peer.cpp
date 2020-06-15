@@ -1,8 +1,15 @@
 ﻿#include "peer.h"
 #include "header.h"
+#include "client.h"
 
-void Peer::OnDisconnect(int const &reason) {
-    std::cout << "OnDisconnect. reason = " << reason << std::endl;
+bool Peer::Close(int const &reason) {
+    if (!this->Item::Close(reason)) return false;
+    std::cout << "Close. reason = " << reason << std::endl;
+    // 立刻减持
+    ((Client*)&*ec)->peer.reset();
+    // 延迟减持
+    DelayUnhold();
+    return true;
 }
 
 int Peer::SendPackage(char const *const &buf, size_t const &len) {
@@ -18,11 +25,11 @@ int Peer::SendPackage(char const *const &buf, size_t const &len) {
     d.WriteBuf((char *) &h, sizeof(h));
     d.WriteBuf(buf, len);
 
-    // 发送
+    // 发送( 移动 d 到发送队列 )
     return Send(std::move(d));
 }
 
-void Peer::OnReceive() {
+void Peer::Receive() {
     // 包头容器
     Header h;
 
@@ -42,7 +49,7 @@ void Peer::OnReceive() {
         offset += sizeof(h);
 
         // 调用处理函数
-        HandleReceive(recv.buf + offset, h.len);
+        ReceivePackage(recv.buf + offset, h.len);
 
         // 如果当前 fd 已关闭 则退出
         if (!Alive()) return;
@@ -55,9 +62,7 @@ void Peer::OnReceive() {
     recv.RemoveFront(offset);
 }
 
-void Peer::HandleReceive(char *buf, size_t len) {
-    // 这里先输出收到的内容
+void Peer::ReceivePackage(char *buf, size_t len) {
+    // 输出收到的内容
     std::cout << "recv message from server: " << std::string_view(buf, len) << std::endl;
-
-    // todo: 内容处理
 }
