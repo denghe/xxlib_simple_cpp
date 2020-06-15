@@ -1,10 +1,51 @@
+/*
+    todo: 测试 thread pool
+*/
+
 #include "xx_sqlite.h"
-#include "xx_mysql.h"
+#include "xx_chrono.h"
+#include <iostream>
+
+namespace XS = xx::SQLite;
 
 int main() {
-    xx::SQLite::Connection L("asdf.db3");
+    //XS::Connection db(":memory:");
+    XS::Connection db("asdf.db3");
+    if (!db) return -1;
+    try {
+        if (!db.TableExists("log")) {
+            db.Execute(R"=-=(
+CREATE TABLE [log](
+    [id] INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE,
+    [time] INTEGER NOT NULL,
+    [desc] TEXT NOT NULL
+);)=-=");
+        } else {
+            db.TruncateTable("log");
+        }
+        XS::Query insertQuery(db, "insert into log (`id`, `time`, `desc`) values (?, ?, ?)");
+        auto ms1 = xx::NowSteadyEpochMS();
+        for (int j = 0; j < 10; ++j) {
+            db.BeginTransaction();
+            for (int i = 0; i < 1000; ++i) {
+                insertQuery.SetParameters(j * 1000 + i, xx::NowEpoch10m(), std::to_string(j * 1000 + i) + " asdfasdf");
+                insertQuery.Execute();
+            }
+            db.Commit();
+        }
+        std::cout << "ms = " << (xx::NowSteadyEpochMS() - ms1) << std::endl;
 
-    xx::MySql::Connection M;
+        //XS::Query selectQuery(db, "select `id`, `time`, `desc` from log");
+//        selectQuery.Execute([](XS::Reader &r) {
+//            auto id = r.ReadInt32(0);
+//            auto time = r.ReadInt64(1);
+//            auto desc = r.ReadString(2);
+//            std::cout << id << ", " << time << ", " << desc << std::endl;
+//        });
+    }
+    catch (const std::exception &e) {
+        std::cout << "catch exception: " << e.what() << std::endl;
+    }
     return 0;
 }
 

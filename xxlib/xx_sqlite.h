@@ -127,6 +127,7 @@ namespace xx::SQLite {
         void SetParameter(int const &parmIdx, char const *const &str, bool const &makeCopy = false);
 
         void SetParameter(int const &parmIdx, std::string const &str, bool const &makeCopy = false);
+        void SetParameter(int const &parmIdx, std::string &&str, bool const &makeCopy = true);
 
         // 二进制类
         void SetParameter(int const &parmIdx, Data const &d, bool const &makeCopy = false);
@@ -140,11 +141,11 @@ namespace xx::SQLite {
 
         // 一次设置多个参数
         template<typename...Parameters>
-        Query &SetParameters(Parameters const &...ps);
+        Query &SetParameters(Parameters &&...ps);
 
     protected:
         template<typename Parameter, typename...Parameters>
-        void SetParametersCore(int &parmIdx, Parameter const &p, Parameters const &...ps);
+        void SetParametersCore(int &parmIdx, Parameter &&p, Parameters &&...ps);
 
         void SetParametersCore(int &parmIdx);
 
@@ -385,7 +386,8 @@ namespace xx::SQLite {
     inline void Connection::ThrowError(int const &errCode, char const *const &errMsg) {
         lastErrorCode = errCode;
         lastErrorMessage = errMsg ? errMsg : sqlite3_errmsg(ctx);
-        throw errCode;
+        throw std::logic_error(std::string("lastErrorCode = ") + std::to_string(lastErrorCode)
+        + ", lastErrorMessage = " + lastErrorMessage);
     }
 
     inline int Connection::GetAffectedRows() {
@@ -443,7 +445,10 @@ namespace xx::SQLite {
                                  int(*selectRowCB)(void *userData, int numCols, char **colValues, char **colNames),
                                  void *const &userData) {
         lastErrorCode = sqlite3_exec(ctx, sql, selectRowCB, userData, (char **) &lastErrorMessage);
-        if (lastErrorCode != SQLITE_OK) throw lastErrorCode;
+        if (lastErrorCode != SQLITE_OK) {
+            throw std::logic_error(std::string("lastErrorCode = ") + std::to_string(lastErrorCode)
+                                   + ", lastErrorMessage = " + lastErrorMessage);
+        };
     }
 
     template<typename T>
@@ -612,6 +617,10 @@ namespace xx::SQLite {
         SetParameter(parmIdx, (char *) str.c_str(), str.size(), makeCopy);
     }
 
+    inline void Query::SetParameter(int const &parmIdx, std::string &&str, bool const &makeCopy) {
+        SetParameter(parmIdx, (char *) str.c_str(), str.size(), makeCopy);
+    }
+
     inline void Query::SetParameter(int const &parmIdx, Data const &d, bool const &makeCopy) {
         SetParameter(parmIdx, d.buf, d.len, makeCopy);
     }
@@ -645,18 +654,18 @@ namespace xx::SQLite {
     }
 
     template<typename...Parameters>
-    Query &Query::SetParameters(Parameters const &...ps) {
+    Query &Query::SetParameters(Parameters &&...ps) {
         assert(stmt);
         int parmIdx = 1;
-        SetParametersCore(parmIdx, ps...);
+        SetParametersCore(parmIdx, std::forward<Parameters>(ps)...);
         return *this;
     }
 
     template<typename Parameter, typename...Parameters>
-    void Query::SetParametersCore(int &parmIdx, Parameter const &p, Parameters const &...ps) {
+    void Query::SetParametersCore(int &parmIdx, Parameter &&p, Parameters &&...ps) {
         assert(stmt);
-        SetParameter(parmIdx, p);
-        SetParametersCore(++parmIdx, ps...);
+        SetParameter(parmIdx, std::forward<Parameter>(p));
+        SetParametersCore(++parmIdx, std::forward<Parameters>(ps)...);
     }
 
     inline void Query::SetParametersCore(int &parmIdx) {
@@ -714,12 +723,12 @@ namespace xx::SQLite {
     }
 
     inline DataTypes Reader::GetColumnDataType(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols);
+        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
         return (DataTypes) sqlite3_column_type(stmt, colIdx);
     }
 
     inline char const *Reader::GetColumnName(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols);
+        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
         return sqlite3_column_name(stmt, colIdx);
     }
 
@@ -737,40 +746,40 @@ namespace xx::SQLite {
 
 
     inline bool Reader::IsDBNull(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols);
+        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
         return GetColumnDataType(colIdx) == DataTypes::Null;
     }
 
     inline char const *Reader::ReadString(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols);
+        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
         if (IsDBNull(colIdx)) return nullptr;
         return (char const *) sqlite3_column_text(stmt, colIdx);
     }
 
     inline int Reader::ReadInt32(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols && !IsDBNull(colIdx));
+        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) throw std::logic_error(std::to_string(__LINE__));
         return sqlite3_column_int(stmt, colIdx);
     }
 
     inline int64_t Reader::ReadInt64(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols && !IsDBNull(colIdx));
+        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) throw std::logic_error(std::to_string(__LINE__));
         return sqlite3_column_int64(stmt, colIdx);
     }
 
     inline double Reader::ReadDouble(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols && !IsDBNull(colIdx));
+        if (colIdx < 0 || colIdx >= numCols || IsDBNull(colIdx)) throw std::logic_error(std::to_string(__LINE__));
         return sqlite3_column_double(stmt, colIdx);
     }
 
     inline std::pair<char const *, int> Reader::ReadText(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols);
+        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
         auto ptr = (char const *) sqlite3_column_text(stmt, colIdx);
         auto len = sqlite3_column_bytes(stmt, colIdx);
         return std::make_pair(ptr, len);
     }
 
     inline std::pair<char const *, int> Reader::ReadBlob(int const &colIdx) {
-        assert(colIdx >= 0 && colIdx < numCols);
+        if (colIdx < 0 || colIdx >= numCols) throw std::logic_error(std::to_string(__LINE__));
         auto ptr = (char const *) sqlite3_column_blob(stmt, colIdx);
         auto len = sqlite3_column_bytes(stmt, colIdx);
         return std::make_pair(ptr, len);
