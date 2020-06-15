@@ -1,7 +1,3 @@
-/*
-    todo: 测试 thread pool
-*/
-
 #include "xx_sqlite.h"
 #include "xx_chrono.h"
 #include <iostream>

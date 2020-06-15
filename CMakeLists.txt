@@ -11,4 +11,5 @@ add_subdirectory(gateway_client_cpp)
 add_subdirectory(gateway_client_lua)
 
 add_subdirectory(test1)
+add_subdirectory(test2)
 
