@@ -1,16 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
-project(test1)
+project(simple_echo_server_with_sqlite)
 
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(../xxlib)
 
-add_executable(test1
+add_executable(simple_echo_server_with_sqlite
         main.cpp
-        ikcp.c
+        server.cpp
+        listener.cpp
+        peer.cpp
         )
 
-target_link_libraries(test1
+target_link_libraries(simple_echo_server_with_sqlite
         pthread
         readline
         sqlite3

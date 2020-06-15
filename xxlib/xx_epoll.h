@@ -71,13 +71,15 @@ namespace xx::Epoll {
     // Timer
     // 带超时的 Item
     struct Timer : Item {
+    protected:
+        friend Context;
         // 位于时间轮的下标
         int timeoutIndex = -1;
         // 指向上一个对象（在时间轮每一格形成一个双链表）
         Timer *timeoutPrev = nullptr;
         // 指向下一个对象（在时间轮每一格形成一个双链表）
         Timer *timeoutNext = nullptr;
-
+    public:
         // 继承构造函数
         using Item::Item;
         // 设置超时( 单位：帧 )
@@ -224,8 +226,6 @@ namespace xx::Epoll {
     struct Context : std::enable_shared_from_this<Context> {
         // 执行标志位。如果要退出，修改它
         bool running = true;
-        // 对于一些返回值非 int 的函数, 具体错误码将存放于此
-        int lastErrorNumber = 0;
         // 公共只读: 每帧开始时更新一下
         int64_t nowMS = 0;
         // Run 时填充, 以便于局部获取并转换时间单位
@@ -547,8 +547,7 @@ namespace xx::Epoll {
         // 接收并得到目标 fd
         int fd = accept(listenFD, (sockaddr *) &addr, &len);
         if (-1 == fd) {
-            ec->lastErrorNumber = errno;
-            if (ec->lastErrorNumber == EAGAIN || ec->lastErrorNumber == EWOULDBLOCK) return 0;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) return 0;
             else return -1;
         }
         // 确保退出时自动关闭 fd
