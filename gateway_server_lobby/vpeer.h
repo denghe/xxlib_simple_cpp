@@ -69,4 +69,7 @@ struct VPeer : EP::Item {
 
     // 断开事件
     virtual void OnDisconnect(int const &reason);
+
+    // 和另一个 vpeer 交换 clientId & mappings
+    void SwapClientId(std::shared_ptr<VPeer> const& o);
 };

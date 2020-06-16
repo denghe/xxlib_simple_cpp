@@ -161,3 +161,22 @@ void VPeer::ReceiveRequest(uint32_t const &serial, char const *const &buf, size_
 void VPeer::OnDisconnect(int const &reason) {
     std::cout << "vpeer: " << clientId << " disconnected. reason: " << reason << std::endl;
 }
+
+
+void VPeer::SwapClientId(std::shared_ptr<VPeer> const& o) {
+    if (!o || clientId == o->clientId || !gatewayPeer) return;
+    if (clientId == 0xFFFFFFFFu) {
+        gatewayPeer->vpeers[o->clientId] = xx::As<VPeer>(shared_from_this());
+        clientId = o->clientId;
+        o->clientId = 0xFFFFFFFFu;
+    }
+    else if(o->clientId == 0xFFFFFFFFu) {
+        gatewayPeer->vpeers[clientId] = o;
+        o->clientId = clientId;
+        clientId = 0xFFFFFFFFu;
+    }
+    else {
+        std::swap(gatewayPeer->vpeers[clientId], gatewayPeer->vpeers[o->clientId]);
+        std::swap(clientId, o->clientId);
+    }
+}

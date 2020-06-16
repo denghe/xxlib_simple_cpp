@@ -108,6 +108,8 @@ namespace xx::Epoll {
         int Send(Data &&data);
         // 判断 peer 是否还活着( 没断 )
         inline bool Alive() { return fd != -1; }
+        // 和另一个 peer 互换 fd 和 mapping
+        void SwapFD(std::shared_ptr<TcpPeer> const& o);
     protected:
         // 是否正在发送( 是：不管 sendQueue 空不空，都不能 write, 只能塞 sendQueue )
         bool writing = false;
@@ -503,6 +505,26 @@ namespace xx::Epoll {
         // 开启对可写状态的监控, 直到队列变空再关闭监控
         return ec->Ctl(fd, EPOLLIN | EPOLLOUT, EPOLL_CTL_MOD);
     }
+
+    // 和另一个 peer 互换 fd 和 mapping
+    inline void TcpPeer::SwapFD(std::shared_ptr<TcpPeer> const& o) {
+        if (!o || fd == o->fd) return;
+        if (fd == -1) {
+            ec->fdMappings[o->fd] = this;
+            fd = o->fd;
+            o->fd = -1;
+        }
+        else if(o->fd == -1) {
+            ec->fdMappings[fd] = &*o;
+            o->fd = fd;
+            fd = -1;
+        }
+        else {
+            std::swap(ec->fdMappings[fd], ec->fdMappings[o->fd]);
+            std::swap(fd, o->fd);
+        }
+    }
+
 
     /***********************************************************************************************************/
     // TcpListener
