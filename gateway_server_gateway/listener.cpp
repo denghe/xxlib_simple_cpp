@@ -9,7 +9,7 @@ Server &Listener::GetServer() {
     return *(Server *) &*ec;
 }
 
-void Listener::OnAccept(std::shared_ptr<CPeer> const &cp) {
+void Listener::Accept(std::shared_ptr<CPeer> const &cp) {
     // 没连上
     if (!cp) return;
 

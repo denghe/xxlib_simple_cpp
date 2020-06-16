@@ -1,7 +1,7 @@
 ﻿#include "dialer.h"
 #include "client.h"
 
-void Dialer::OnConnect(std::shared_ptr<Peer> const &peer) {
+void Dialer::Connect(std::shared_ptr<Peer> const &peer) {
     // 没连上
     if (!peer) return;
 
@@ -14,5 +14,5 @@ void Dialer::OnConnect(std::shared_ptr<Peer> const &peer) {
     // 将 peer 存放到 c 备用( 再次加持 )
     c->peer = peer;
 
-    std::cout << "OnConnect" << std::endl;
+    std::cout << "Connect" << std::endl;
 }

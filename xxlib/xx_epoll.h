@@ -64,7 +64,7 @@ namespace xx::Epoll {
     protected:
         friend Context;
         // epoll 事件处理. 用不上不必实现
-        inline virtual void OnEpollEvent(uint32_t const &e) {}
+        inline virtual void EpollEvent(uint32_t const &e) {}
     };
 
     /***********************************************************************************************************/
@@ -89,7 +89,7 @@ namespace xx::Epoll {
         // 从时间轮和链表中移除
         ~Timer() override;
         // 覆盖以实现超时后的逻辑. 如果要 repeat 效果，则可以函数内再次执行 SetTimeout
-        virtual void OnTimeout() = 0;
+        virtual void Timeout() = 0;
     };
 
     /***********************************************************************************************************/
@@ -116,9 +116,9 @@ namespace xx::Epoll {
         // 发送
         int Write();
         // 超时触发 Close(__LINE__)
-        void OnTimeout() override;
+        void Timeout() override;
         // epoll 事件处理
-        void OnEpollEvent(uint32_t const &e) override;
+        void EpollEvent(uint32_t const &e) override;
     };
 
     /***********************************************************************************************************/
@@ -130,12 +130,12 @@ namespace xx::Epoll {
         // 开始监听. 失败返回非 0
         int Listen(int const& port);
         // 提供为 peer 绑定事件的实现
-        virtual void OnAccept(std::shared_ptr<PeerType> const &peer) = 0;
+        virtual void Accept(std::shared_ptr<PeerType> const &peer) = 0;
     protected:
         // 调用 accept
-        void OnEpollEvent(uint32_t const &e) override;
+        void EpollEvent(uint32_t const &e) override;
         // return fd. <0: error. 0: empty (EAGAIN / EWOULDBLOCK), > 0: fd
-        int Accept(int const &listenFD);
+        int HandleAccept(int const &listenFD);
     };
 
     /***********************************************************************************************************/
@@ -147,12 +147,12 @@ namespace xx::Epoll {
     // TcpDialer 产生的临时 fd 封装类. 连接成功后将 fd 移交给 TcpPeer
     template<typename PeerType, class ENABLED = std::is_base_of<TcpPeer, PeerType>>
     struct TcpConn : Item {
-        // 指向拨号器, 方便调用其 OnConnect 函数
+        // 指向拨号器, 方便调用其 Connect 函数
         std::shared_ptr<TcpDialer<PeerType>> dialer;
         // 继承构造函数
         using Item::Item;
         // 判断是否连接成功
-        void OnEpollEvent(uint32_t const &e) override;
+        void EpollEvent(uint32_t const &e) override;
     };
 
 
@@ -169,8 +169,8 @@ namespace xx::Epoll {
         // 向 addrs 追加地址. 如果地址转换错误将返回非 0
         int AddAddress(std::string const &ip, int const &port);
         // 开始拨号( 超时单位：帧 )。会遍历 addrs 为每个地址创建一个 TcpConn 连接
-        // 保留先连接上的 socket fd, 创建 Peer 并触发 OnConnect 事件.
-        // 如果超时，也触发 OnConnect，参数为 nullptr
+        // 保留先连接上的 socket fd, 创建 Peer 并触发 Connect 事件.
+        // 如果超时，也触发 Connect，参数为 nullptr
         int Dial(int const &timeoutFrames);
         // 开始拨号( 超时单位：秒 )
         int DialSeconds(double const &timeoutSeconds);
@@ -179,14 +179,14 @@ namespace xx::Epoll {
         // 停止拨号 并清理 conns. 保留 addrs.
         void Stop();
         // 连接成功或超时后触发
-        virtual void OnConnect(std::shared_ptr<PeerType> const &peer) = 0;
+        virtual void Connect(std::shared_ptr<PeerType> const &peer) = 0;
     protected:
         // 存个空值备用 以方便返回引用
         std::shared_ptr<PeerType> emptyPeer;
         // 内部连接对象. 拨号完毕后会被清空
         std::vector<std::shared_ptr<TcpConn<PeerType>>> conns;
-        // 超时表明所有连接都没有连上. 触发 OnConnect( nullptr )
-        void OnTimeout() override;
+        // 超时表明所有连接都没有连上. 触发 Connect( nullptr )
+        void Timeout() override;
         // 根据地址创建一个 TcpConn
         int NewTcpConn(sockaddr_in6 const &addr);
     };
@@ -196,7 +196,7 @@ namespace xx::Epoll {
     // 通过 写 pipe 令 epoll_wait 退出( 用于跨线程 dispatch 通知 )
     struct PipeReader : Item {
         using Item::Item;
-        void OnEpollEvent(uint32_t const &e) override;
+        void EpollEvent(uint32_t const &e) override;
     };
     struct PipeWriter : Item {
         using Item::Item;
@@ -214,7 +214,7 @@ namespace xx::Epoll {
         static void ReadLineCallback(char *line);
         static char **CompleteCallback(const char *text, int start, int end);
         static char *CompleteGenerate(const char *text, int state);
-        void OnEpollEvent(uint32_t const &e) override;
+        void EpollEvent(uint32_t const &e) override;
         ~CommandHandler() override;
         // 解析 row 内容并调用 cmd 绑定 handler
         void Exec(char const *const &row, size_t const &len);
@@ -410,11 +410,11 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // TcpPeer
-    inline void TcpPeer::OnTimeout() {
+    inline void TcpPeer::Timeout() {
         Close(__LINE__);
     }
 
-    inline void TcpPeer::OnEpollEvent(uint32_t const &e) {
+    inline void TcpPeer::EpollEvent(uint32_t const &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
             Close(__LINE__);
@@ -447,7 +447,6 @@ namespace xx::Epoll {
             // 设置为可写状态
             writing = false;
             if (int r = Write()) {
-                ec->lastErrorNumber = r;
                 Close(__LINE__);
                 return;
             }
@@ -529,18 +528,18 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
-    inline void TcpListener<PeerType, ENABLED>::OnEpollEvent(uint32_t const &e) {
+    inline void TcpListener<PeerType, ENABLED>::EpollEvent(uint32_t const &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
             Close(__LINE__);
             return;
         }
         // accept 到 没有 或 出错 为止
-        while (Accept(fd) > 0) {};
+        while (HandleAccept(fd) > 0) {};
     }
 
     template<typename PeerType, class ENABLED>
-    inline int TcpListener<PeerType, ENABLED>::Accept(int const &listenFD) {
+    inline int TcpListener<PeerType, ENABLED>::HandleAccept(int const &listenFD) {
         // 开始创建 fd
         sockaddr_in6 addr;
         socklen_t len = sizeof(addr);
@@ -569,7 +568,7 @@ namespace xx::Epoll {
         // 填充 ip
         memcpy(&p->addr, &addr, len);
         // 触发事件
-        OnAccept(p);
+        Accept(p);
         // 返回这个便于 while 判断是否继续
         return fd;
     }
@@ -578,7 +577,7 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
     // TcpConn
     template<typename PeerType, class ENABLED>
-    inline void TcpConn<PeerType, ENABLED>::OnEpollEvent(uint32_t const &e) {
+    inline void TcpConn<PeerType, ENABLED>::EpollEvent(uint32_t const &e) {
         // 如果 error 则 Close
         if (e & EPOLLERR || e & EPOLLHUP) {
             Close(__LINE__);
@@ -608,7 +607,7 @@ namespace xx::Epoll {
         // fill address
         result_len = sizeof(p->addr);
         getpeername(fd, (sockaddr *) &p->addr, &result_len);
-        dialer->OnConnect(p);
+        dialer->Connect(p);
     }
 
     /***********************************************************************************************************/
@@ -656,9 +655,9 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
-    inline void TcpDialer<PeerType, ENABLED>::OnTimeout() {
+    inline void TcpDialer<PeerType, ENABLED>::Timeout() {
         Stop();
-        OnConnect(emptyPeer);
+        Connect(emptyPeer);
     }
 
     template<typename PeerType, class ENABLED>
@@ -695,7 +694,7 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // PipeReader
-    inline void PipeReader::OnEpollEvent(uint32_t const &e) {
+    inline void PipeReader::EpollEvent(uint32_t const &e) {
         char buf[512];
         if (read(fd, buf, sizeof(buf)) <= 0) return;
         ec->HandleActions();
@@ -788,7 +787,7 @@ namespace xx::Epoll {
         return rl_completion_matches(text, (rl_compentry_func_t *) &CompleteGenerate);
     }
 
-    inline void CommandHandler::OnEpollEvent(uint32_t const &e) {
+    inline void CommandHandler::EpollEvent(uint32_t const &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) return;
         rl_callback_read_char();
@@ -907,7 +906,7 @@ namespace xx::Epoll {
             }
             assert(!h->fd || h->fd == fd);
             auto e = events[i].events;
-            h->OnEpollEvent(e);
+            h->EpollEvent(e);
         }
         return 0;
     }
@@ -923,7 +922,7 @@ namespace xx::Epoll {
             p->timeoutPrev = nullptr;
             p->timeoutNext = nullptr;
 
-            p->OnTimeout();
+            p->Timeout();
             p = np;
         };
     }

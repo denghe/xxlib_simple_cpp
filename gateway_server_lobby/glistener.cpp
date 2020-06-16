@@ -1,6 +1,6 @@
 ﻿#include "glistener.h"
 
-void GListener::OnAccept(std::shared_ptr<GPeer> const &p) {
+void GListener::Accept(std::shared_ptr<GPeer> const &p) {
     // 连上了
     if (p) {
         // 设置超时时长( 经验数值 )避免 fd 泄露

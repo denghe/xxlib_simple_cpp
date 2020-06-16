@@ -10,5 +10,5 @@ struct Listener : EP::TcpListener<Peer> {
 	using EP::TcpListener<Peer>::TcpListener;
 
 	// 连接已建立, 搞事
-	void OnAccept(std::shared_ptr<Peer> const& peer) override;
+	void Accept(std::shared_ptr<Peer> const& peer) override;
 };

@@ -7,7 +7,7 @@ VPeerCB::VPeerCB(std::shared_ptr<VPeer> const &vpeer, int const &serial,
     SetTimeoutSeconds(timeoutSeconds);
 }
 
-void VPeerCB::OnTimeout() {
+void VPeerCB::Timeout() {
     // 模拟超时
     func(nullptr, 0);
     // 从容器移除

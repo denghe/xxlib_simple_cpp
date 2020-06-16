@@ -9,5 +9,5 @@ struct Dialer : EP::TcpDialer<Peer> {
     using EP::TcpDialer<Peer>::TcpDialer;
 
     // 连接已建立, 搞事
-    void OnConnect(std::shared_ptr<Peer> const &peer) override;
+    void Connect(std::shared_ptr<Peer> const &peer) override;
 };

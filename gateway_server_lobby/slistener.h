@@ -9,5 +9,5 @@ struct SListener : EP::TcpListener<SPeer> {
     using EP::TcpListener<SPeer>::TcpListener;
 
     // 连接已建立, 搞事
-    void OnAccept(std::shared_ptr<SPeer> const& p) override;
+    void Accept(std::shared_ptr<SPeer> const& p) override;
 };

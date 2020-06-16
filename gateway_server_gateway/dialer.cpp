@@ -7,7 +7,7 @@ Server &Dialer::GetServer() {
     return *(Server *) &*ec;
 }
 
-void Dialer::OnConnect(std::shared_ptr<SPeer> const &peer) {
+void Dialer::Connect(std::shared_ptr<SPeer> const &peer) {
     // 没连上
     if (!peer) return;
 

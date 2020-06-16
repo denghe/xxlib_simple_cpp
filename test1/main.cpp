@@ -20,7 +20,7 @@ namespace xx::Epoll {
     protected:
         friend Context;
         // epoll 事件处理
-        void OnEpollEvent(uint32_t const &e) override;
+        void EpollEvent(uint32_t const &e) override;
     };
 
     //template<typename KcpPeer>
@@ -41,7 +41,7 @@ namespace xx::Epoll {
         friend Context;
         friend ContextEx;
         // 每帧 call cps Update, 清理超时握手数据
-        void OnTimeout() override;
+        void Timeout() override;
         // 关闭 fd, Close & 清除 cps, 延迟减持
         bool Close(int const& reason) override;
         // 判断收到的数据内容, 模拟握手， 最后产生能 KcpPeer
@@ -75,7 +75,7 @@ namespace xx::Epoll {
         // 回收 kcp 对象, 看情况从 ep->kcps 移除
         bool Close(int const& reason) override;
 
-        void OnTimeout() override;
+        void Timeout() override;
 
         virtual int Send(char const* const& buf, size_t const& len);
         virtual int Flush();
@@ -114,7 +114,7 @@ namespace xx::Epoll {
         Close(0);
     }
 
-    inline void KcpPeer::OnTimeout() {
+    inline void KcpPeer::Timeout() {
         Close(__LINE__);
     }
 
@@ -273,7 +273,7 @@ namespace xx::Epoll {
 //            if (!alive) return;
 //
 //            // 触发事件回调
-//            OnAccept(p);
+//            Accept(p);
 //            if (!alive) return;
 //        }
 //        else {
@@ -288,7 +288,7 @@ namespace xx::Epoll {
 //        p->Input(recv.buf, (uint32_t)recv.len);
     }
 
-    inline void KcpListener::OnTimeout() {
+    inline void KcpListener::Timeout() {
         // 更新所有 kcps
         for (auto&& kv : cps) {
             //kv.second->Update();
@@ -321,7 +321,7 @@ namespace xx::Epoll {
         return sendto(fd, buf, len, 0, (sockaddr*)&addr, sizeof(addr));
     }
 
-    inline void UdpPeer::OnEpollEvent(const uint32_t &e) {
+    inline void UdpPeer::EpollEvent(const uint32_t &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
             Close(__LINE__);

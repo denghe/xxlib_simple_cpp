@@ -14,5 +14,5 @@ struct Listener : EP::TcpListener<CPeer> {
     Server &GetServer();
 
     // 连接已建立, 搞事
-    void OnAccept(std::shared_ptr<CPeer> const& peer) override;
+    void Accept(std::shared_ptr<CPeer> const& peer) override;
 };

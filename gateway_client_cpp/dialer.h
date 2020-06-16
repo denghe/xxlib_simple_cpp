@@ -15,5 +15,5 @@ struct Dialer : EP::TcpDialer<Peer> {
     Client &GetClient();
 
     // 连接已建立, 继续与目标服务协商？
-    void OnConnect(std::shared_ptr<Peer> const &peer) override;
+    void Connect(std::shared_ptr<Peer> const &peer) override;
 };

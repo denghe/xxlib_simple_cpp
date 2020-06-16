@@ -1,6 +1,6 @@
 ﻿#include "slistener.h"
 
-void SListener::OnAccept(std::shared_ptr<SPeer> const &p) {
+void SListener::Accept(std::shared_ptr<SPeer> const &p) {
     // 没连上
     if (!p) return;
 

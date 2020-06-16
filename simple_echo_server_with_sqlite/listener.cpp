@@ -1,7 +1,7 @@
 ﻿#include "listener.h"
 #include "peer.h"
 
-void Listener::OnAccept(std::shared_ptr<Peer> const &peer) {
+void Listener::Accept(std::shared_ptr<Peer> const &peer) {
     // 放入 ec->holdItems 以确保 智能指针不自杀
     peer->Hold();
 

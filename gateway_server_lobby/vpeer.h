@@ -21,7 +21,7 @@ struct VPeerCB : EP::Timer {
             , std::function<void(char const *const &buf, size_t const &len)>&& cbfunc, double const &timeoutSeconds);
 
     // 执行 func(0,0) 后 从容器移除, 并延迟 Unhold
-    void OnTimeout() override;
+    void Timeout() override;
 };
 
 // 虚拟 peer
