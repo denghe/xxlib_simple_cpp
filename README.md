@@ -5,7 +5,7 @@
 
 # 开发环境配置教程
 ## ubuntu 20.04 LTS server
-: 可狂选 [Done] [Continue],  记住拿到的 ip 地址, 空格勾 Install OpenSSH server  
+可狂选 [Done] [Continue],  记住拿到的 ip 地址, 空格勾 Install OpenSSH server  
 最后显示 Installation complete! 时 要是下载太慢 可取消更新下载 重启后用代理啥的再说  
 最后移除光盘 / U盘( 可以用 rufus 3.10+ 通过 iso 做 ) 按 "回车" 重启  
 出现一些 [ OK ] 没动静之后 狂按回车出现 login 提示  

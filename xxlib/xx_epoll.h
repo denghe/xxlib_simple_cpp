@@ -426,7 +426,7 @@ namespace xx::Epoll {
         if (e & EPOLLIN) {
             // 如果接收缓存没容量就扩容( 通常发生在首次使用时 )
             if (!recv.cap) {
-                recv.Reserve(65536);
+                recv.Reserve(1024 * 256);
             }
             // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
             if (recv.len == recv.cap) {
@@ -443,6 +443,7 @@ namespace xx::Epoll {
 
             // 调用用户数据处理函数
             Receive();
+            if(!Alive()) return;
         }
         // write
         if (e & EPOLLOUT) {
@@ -470,7 +471,7 @@ namespace xx::Epoll {
         // 数组长度
         int vsLen = 0;
         // 本次预计发送最大字节数
-        size_t bufLen = 65536;
+        size_t bufLen = 1024 * 256;
 
         // 填充 vs, vsLen, bufLen 并返回预期 offset. 每次只发送 bufLen 长度
         auto &&offset = sendQueue.Fill(vs, vsLen, bufLen);
