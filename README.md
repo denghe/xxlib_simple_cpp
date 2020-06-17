@@ -1,10 +1,10 @@
-#针对 linux 服务器 cpp 单线程主体 开发的 .h 库
+# 针对 linux 服务器 cpp 单线程主体 开发的 .h 库
 库代码全是 .h 文件，位于 xxlib 目录（其中也复制了一些常用第三方库在内）  
 别的目录是示例  
 
 
-#开发环境配置教程
-##ubuntu 20.04 LTS server
+# 开发环境配置教程
+## ubuntu 20.04 LTS server
 : 可狂选 [Done] [Continue],  记住拿到的 ip 地址, 空格勾 Install OpenSSH server  
 最后显示 Installation complete! 时 要是下载太慢 可取消更新下载 重启后用代理啥的再说  
 最后移除光盘 / U盘( 可以用 rufus 3.10+ 通过 iso 做 ) 按 "回车" 重启  
@@ -29,7 +29,7 @@ sudo service ssh restart
 
 
 
-##ubuntu 20.04 LTS desktop
+## ubuntu 20.04 LTS desktop
 建议安装 desktop 版本时可选择 中文, 重启之后各种更新补齐可搞定输入法问题.   
 可选择 mini install 并且去掉 检查更新 之类的勾勾 以提升安装速度。  
 在 vmware 里安装注意选择 "使用桥接网络". 配置建议 2核 4g, 虚拟磁盘单个 500g  
@@ -51,7 +51,7 @@ sudo apt install openssh-server net-tools git vim
 vmware 下面的 desktop 版继续安装( 安完注销下 )：  
 sudo apt install open-vm-tools-desktop open-vm-tools  
 
-###如果无法向 vmware 的 ubuntu 拖拽文件入内，则可通过 Bitvist SSH Client, WinSCP 等 SFTP 工具传文件  
+### 如果无法向 vmware 的 ubuntu 拖拽文件入内，则可通过 Bitvist SSH Client, WinSCP 等 SFTP 工具传文件  
 
 
 
@@ -86,7 +86,7 @@ File -- Settings -- Build,Execution,Deployment -- Toolchains -- 可点击 + 添�
 
 
 
-##各种需要安装的东西总结如下: ( 可以按需窜起来一波流 )  
+## 各种需要安装的东西总结如下: ( 可以按需窜起来一波流 )  
 
 gcc g++ gdb gdbserver cmake valgrind  
 llvm-10 llvm-10-dev clang-10 llvm-10-tools  
