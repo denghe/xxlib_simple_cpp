@@ -106,6 +106,8 @@ namespace xx::Epoll {
         virtual void Receive() = 0;
         // Data 对象移进队列并开始发送( 如果 fd == -1 则忽略 )
         int Send(Data &&data);
+        // 会复制数据
+        inline int Send(char const* const& buf, size_t const& len) { return Send({buf, len}); }
         // 判断 peer 是否还活着( 没断 )
         inline bool Alive() { return fd != -1; }
         // 和另一个 peer 互换 fd 和 mapping
@@ -232,6 +234,10 @@ namespace xx::Epoll {
         int64_t nowMS = 0;
         // Run 时填充, 以便于局部获取并转换时间单位
         double frameRate = 1;
+        // 公用 buf( 需要的地方可临时用用 )
+        std::array<char, 256 * 1024> buf;
+        // 公用 data( 需要的地方可临时用用 )
+        xx::Data data;
         // 映射通过 stdin 进来的指令的处理函数. 去空格 去 tab 后第一个单词作为 key. 剩余部分作为 args
         std::unordered_map<std::string, std::function<void(std::vector<std::string> const &args)>> cmds;
 
@@ -254,18 +260,9 @@ namespace xx::Epoll {
         int EnableCommandLine();
         // 关闭命令行输入控制( 减持 Context 的引用计数 )
         void DisableCommandLine();
-    protected:
-        friend Item;
-        friend Timer;
-        friend TcpPeer;
-        template<typename PeerType, class ENABLED>
-        friend struct TcpListener;
-        template<typename PeerType, class ENABLED>
-        friend struct TcpDialer;
-        friend PipeReader;
-        friend CommandHandler;
-        template<typename PeerType, class ENABLED>
-        friend struct TcpConn;
+
+        /************************************************************************/
+        // 下面的东西内部使用，别乱搞
 
         // fd 到 处理类* 的 映射
         std::array<Item*, 40000> fdMappings;

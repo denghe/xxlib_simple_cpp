@@ -12,6 +12,16 @@ int main() {
     luaL_openlibs(L);
     auto&& r = luaL_dostring(L, R"-(
 
+__int64__ = 0LL
+__uint64__ = 0ULL
+
+function i64()
+    return 0LL
+end
+function u64()
+    return 0ULL
+end
+
 x = 12345678901234567ULL
 x = x * 1.5 * 100LL
 print(x)
@@ -39,6 +49,22 @@ print(x)
     lua_pop(L, 1);
 
     std::cout << lua_gettop(L) << std::endl;
+
+
+    luaL_dostring(L, "return 0LL");
+    p = lua_topointer(L, -1);
+    *(int64_t*)p = 1;
+    lua_setglobal(L, "a");
+
+    r = luaL_dostring(L, R"-(
+print(a)
+local b = a
+a = a + 1
+print(a, b)
+)-");
+    if(r) {
+        std::cout << "luaL_dostring r = " << r << ", str = " << lua_tostring(L, -1) << std::endl;
+    }
 
     lua_close(L);
 

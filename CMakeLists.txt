@@ -3,13 +3,12 @@ project(all)
 
 add_subdirectory(simple_echo_client)
 add_subdirectory(simple_echo_server)
+add_subdirectory(simple_echo_server_with_sqlite)
 
 add_subdirectory(gateway_server_game)
 add_subdirectory(gateway_server_gateway)
+add_subdirectory(gateway_server_gateway_kcp)
 add_subdirectory(gateway_server_lobby)
+
 add_subdirectory(gateway_client_cpp)
 add_subdirectory(gateway_client_lua)
-
-add_subdirectory(test1)
-add_subdirectory(simple_echo_server_with_sqlite)
-
