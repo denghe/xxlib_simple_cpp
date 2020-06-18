@@ -9,7 +9,7 @@ struct Server;
 
 // 继承 默认 连接覆盖收包函数
 struct KPeer : EP::KcpPeer {
-    // 是否已关闭. true: 拒收数据, 且断线时不再次执行 Dispose  ( 主用于 延迟掐线 )   // todo: 用 shutdown 语句令 fd 只写
+    // 是否已关闭. true: 拒收数据, 且断线时不再次执行 Dispose  ( 主用于 延迟掐线 )
     bool closed = false;
 
     // 继承构造函数

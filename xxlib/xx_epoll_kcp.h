@@ -272,26 +272,22 @@ namespace xx::Epoll {
 
             // 从握手信息移除
             shakes.erase(iter);
-
             // 创建 peer
             auto &&peer = xx::Make<PeerType>(xx::As<KcpBase>(shared_from_this()), conv);
-
             // 放入容器
             cps[conv] = peer;
-
+            // 加持
+            peer->Hold();
             // 触发事件回调
             Accept(peer);
-
             // 如果已 Close 就短路出去
             if (!peer->Alive()) return;
-
             // 指针传递到外面方便继续 input
             p = &*peer;
         }
 
         // 更新地址信息
         memcpy(&p->addr, &addr, sizeof(addr));
-
         // 将数据灌入 kcp. 进而可能触发 peer->Receive 进而 Close
         p->Input(buf, len);
     }

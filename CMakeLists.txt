@@ -12,3 +12,6 @@ add_subdirectory(gateway_server_lobby)
 
 add_subdirectory(gateway_client_cpp)
 add_subdirectory(gateway_client_lua)
+
+
+add_subdirectory(test1)
