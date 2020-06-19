@@ -7,8 +7,11 @@ include_directories(../xxlib)
 
 add_executable(test1
         main.cpp
+        client.cpp
+        coro.cpp
+        coromain.cpp
         ../xxlib/ikcp.c
-        )
+        resolver.cpp resolver.h)
 
 target_link_libraries(test1
         pthread

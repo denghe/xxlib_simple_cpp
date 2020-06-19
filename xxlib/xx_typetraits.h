@@ -174,4 +174,14 @@ namespace xx {
             return std::unique_ptr<T>();
         }
     }
+
+
+    /************************************************************************************/
+    // malloc 系列
+
+    template<typename T>
+    T*& MallocTo(T*& v) {
+        v = (T*)malloc(sizeof(T));
+        return v;
+    }
 }
