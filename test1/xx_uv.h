@@ -55,7 +55,7 @@ namespace xx::Uv {
     struct Resolver : Timer {
         // 在 uv 所需正常请求包内存后方附加 this 指针方便在回调中使用
         struct uv_getaddrinfo_t_ex : uv_getaddrinfo_t {
-            Resolver* resolver;
+            Resolver* thiz;
         };
         // 类生命周期需确保大于 req 的
         uv_getaddrinfo_t_ex* req = nullptr;
@@ -78,6 +78,50 @@ namespace xx::Uv {
         static void UvCallback(uv_getaddrinfo_t *req_, int status, struct addrinfo *ai);
         // Stop + Finish(__LINE__)
         void Timeout() override;
+    };
+
+    struct Peer : Timer {
+        xx::Data recv;
+
+        using Timer::Timer;
+        virtual int Init() = 0;
+        inline virtual void Update() { }
+        virtual bool Close(int const& reason) = 0;
+        virtual bool Closed() const = 0;
+        virtual bool Alive() const = 0;
+
+        inline virtual bool IsKcp() const { return false; };
+        virtual std::string GetIP() const = 0;
+
+        virtual int Send(char const* const& buf, size_t const& len) = 0;
+        virtual int Send(xx::Data&& data) = 0;
+        inline virtual void Flush() {}
+
+        virtual void Receive() = 0;
+    };
+
+    struct uv_write_t_ex : uv_write_t {
+        uv_buf_t buf;
+    };
+
+    struct TcpPeer : Peer {
+        struct uv_tcp_t_ex : uv_tcp_t {
+            TcpPeer* thiz;
+        };
+        uv_tcp_t_ex *uvTcp = nullptr;
+        std::string ip;
+
+        using Peer::Peer;
+        int Init() override;
+        bool Close(int const& reason) override;
+        bool Closed() const override;
+        bool Alive() const override;
+
+        bool IsKcp() const override;
+        std::string GetIP() const override;
+
+        int Send(char const* const& buf, size_t const& len) override;
+        int Send(xx::Data&& data) override;
     };
 
     struct Context : std::enable_shared_from_this<Context> {
@@ -120,6 +164,10 @@ namespace xx::Uv {
         void UpdateTimeoutWheel();
         // 将秒转为帧数
         [[nodiscard]] inline int SecondsToFrames(double const &sec) const { return (int) (frameRate * sec); }
+
+        template<typename T>
+        static void HandleCloseAndFree(T *&tar);
+        static void AllocCB(uv_handle_t *h, std::size_t suggested_size, uv_buf_t *buf);
     };
 
 
@@ -300,6 +348,24 @@ namespace xx::Uv {
         return 0;
     }
 
+    template<typename T>
+    inline void Context::HandleCloseAndFree(T *&tar) {
+        if (!tar) return;
+        auto h = (uv_handle_t *) tar;
+        tar = nullptr;
+        assert(!uv_is_closing(h));
+        uv_close(h, [](uv_handle_t *handle) {
+            free(handle);
+        });
+    }
+
+
+    inline void Context::AllocCB(uv_handle_t *h, std::size_t suggested_size, uv_buf_t *buf) {
+        buf->base = (char *) ::malloc(suggested_size);
+        buf->len = decltype(uv_buf_t::len)(suggested_size);
+    }
+
+
 
 
     inline void Resolver::Timeout() {
@@ -313,7 +379,7 @@ namespace xx::Uv {
         // cancel 之后也会回调
         uv_cancel((uv_req_t*)req);
         // 解绑
-        req->resolver = nullptr;
+        req->thiz = nullptr;
         // 清理
         req = nullptr;
         SetTimeout(0);
@@ -330,7 +396,7 @@ namespace xx::Uv {
 #endif
         SetTimeoutSeconds(timeoutSeconds);
         // 申请内存并关联. 在回调中释放内存并脱钩
-        xx::MallocTo(req)->resolver = this;
+        xx::MallocTo(req)->thiz = this;
         if (int r = uv_getaddrinfo(&uc->uvLoop, (uv_getaddrinfo_t *)req, UvCallback, domainName.c_str(), nullptr,
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
                 (const addrinfo*) & hints
@@ -355,7 +421,7 @@ namespace xx::Uv {
             }
         });
         // 定位到 this
-        auto thiz = req->resolver;
+        auto thiz = req->thiz;
         // cleanup 以便再次发起
         if (thiz) {
             thiz->req = nullptr;
@@ -393,5 +459,79 @@ namespace xx::Uv {
         } while (ai);
         // 产生成功回调
         thiz->Finish(0);
+    }
+
+
+
+
+
+    inline int TcpPeer::Init() {
+        xx::MallocTo(uvTcp)->thiz = this;
+        if (int r = uv_tcp_init(&uc->uvLoop, uvTcp)) {
+            free(uvTcp);
+            uvTcp = nullptr;
+            return r;
+        }
+        return uv_read_start((uv_stream_t *) uvTcp, Context::AllocCB, [](uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
+            auto thiz = (*(uv_tcp_t_ex*)(stream)).thiz;
+            xx::ScopeGuard sg([&]{
+                if (!thiz) {
+                    // todo: close stream
+                }
+                if (buf) {
+                    free(buf->base);
+                }
+            });
+            if (!thiz) return;
+            auto&& recv = thiz->recv;
+
+            // 如果接收缓存没容量就扩容( 通常发生在首次使用时 )
+            if (!recv.cap) {
+                recv.Reserve(1024 * 256);
+            }
+            // 如果有数据
+            if (nread > 0) {
+                ((uint8_t *) buf->base, (uint32_t) nread);
+                //nread = thiz->Receive()
+                //auto &&len = read(fd, recv.buf + recv.len, recv.cap - recv.len);
+                //recv.len += len;
+            }
+            // 如果出错
+            if (nread < 0) {
+                thiz->Close(__LINE__);
+                thiz = nullptr;                   // todo: 已关闭？不再需要关闭？
+            }
+        });
+    }
+    inline bool TcpPeer::Close(int const& reason) {
+        if (!uvTcp) return false;
+        uvTcp->thiz = nullptr;
+        uc->HandleCloseAndFree(uvTcp);
+        return true;
+    }
+    inline bool TcpPeer::Closed() const { return !uvTcp; }
+    inline bool TcpPeer::Alive() const { return uvTcp != nullptr; }
+
+    inline bool TcpPeer::IsKcp() const { return false; }
+    inline std::string TcpPeer::GetIP() const { return ip; }
+
+    inline int TcpPeer::Send(char const* const& buf, size_t const& len) {
+        // 在结构体内存块后面直接附带数据
+        auto req = (uv_write_t_ex *)malloc(sizeof(uv_write_t_ex) + len);
+        req->buf.base = (char *) req + sizeof(uv_write_t_ex);
+        req->buf.len = decltype(uv_buf_t::len)(len);
+        ::memcpy(req->buf.base, buf, len);
+        // 立刻检测到发送失败就关闭并返回错误码
+        if (int r = uv_write(req, (uv_stream_t *) uvTcp, &req->buf, 1
+                , [](uv_write_t *req, int status) {
+                    free(req);
+                })) {
+            Close(__LINE__);
+            return r;
+        }
+        return 0;
+    }
+    inline int TcpPeer::Send(xx::Data&& data) {
+        return this->Send(data.buf, data.len);
     }
 }
