@@ -1,6 +1,7 @@
 #pragma once
 #include "coro.h"
 #include "resolver.h"
+#include "listener.h"
 struct CoroMain : Coro {
     // 透传继承构造函数
     using Coro::Coro;
@@ -12,4 +13,5 @@ struct CoroMain : Coro {
     double nowSecs = 0;
 
     std::shared_ptr<Resolver> resolver;
+    std::shared_ptr<Listener> listener;
 };

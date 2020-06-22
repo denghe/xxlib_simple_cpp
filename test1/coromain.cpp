@@ -6,6 +6,7 @@ int CoroMain::Update() {
     COR_BEGIN
             // 初始化 域名解析器
             xx::MakeTo(resolver, c.shared_from_this());
+            xx::MakeTo(listener, c.shared_from_this());
         LabResolve:
         COR_YIELD
             // 停掉域名解析
@@ -33,12 +34,23 @@ int CoroMain::Update() {
             if (resolver->ips.empty()) {
                 std::cout << "Resolve timeout" << std::endl;
                 goto LabResolve;
-            }
-            else {
+            } else {
                 std::cout << "Resolve success!" << std::endl;
                 for (auto &&ip : resolver->ips) {
                     std::cout << ip << std::endl;
                 }
             }
+
+            if (int r = listener->Listen("0.0.0.0", 10000)) {
+                std::cout << "Listen 10000 failed! r = " << r << std::endl;
+                COR_EXIT
+            }
+
+            std::cout << "10000 Listening......." << std::endl;
+            while(listener->Alive()) {
+                COR_YIELD
+            }
+
+            std::cout << "end" << std::endl;
     COR_END
 }

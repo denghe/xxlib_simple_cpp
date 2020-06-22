@@ -180,6 +180,11 @@ namespace xx {
     // malloc 系列
 
     template<typename T>
+    T* Malloc() {
+        return (T*)malloc(sizeof(T));
+    }
+    
+    template<typename T>
     T*& MallocTo(T*& v) {
         v = (T*)malloc(sizeof(T));
         return v;
