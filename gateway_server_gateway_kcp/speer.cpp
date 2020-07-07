@@ -95,10 +95,10 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
         if (delayMS) {
             // 下发一个 close 指令以便 client 收到后直接主动断开, 响应会比较快速
             cp->SendCommand("close", (uint32_t)0);
-            // 利用超时来 Close. 会立即 OnDisconnect 并从 cps 移除并向白名单 serverIds 对应 peer 广播断开通知
+            // 会立即从 cps 移除并向白名单 serverIds 对应 peer 广播断开通知. 这之后不再处理收到的消息, 直到超时自杀
             cp->DelayClose((double) delayMS / 1000);
         } else {
-            // 立刻踢下线，触发 OnDisconnect
+            // 立刻踢下线
             cp->Close(__LINE__);
         }
     } else {                                    // 未知指令

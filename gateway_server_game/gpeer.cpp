@@ -2,7 +2,7 @@
 #include "gpeer.h"
 
 bool GPeer::Close(int const &reason) {
-    // close fd 解绑 并触发 OnDisconnect
+    // close fd 解绑 并注册延迟减持( 通常会导致自杀 )
     if (this->Peer::Close(reason)) {
         // 从容器移除( 如果有放入的话 )
         if (id) {

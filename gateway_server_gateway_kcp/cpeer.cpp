@@ -31,6 +31,15 @@ void CPeer::DelayClose(double const& delaySeconds) {
     GetServer().cps.erase(clientId);
 }
 
+void CPeer::PartialClose() {
+    // 群发断开通知
+    for (auto &&sid : serverIds) {
+        GetServer().dps[sid].second->SendCommand("disconnect", clientId);
+    }
+    // 从容器移除( 减持 )
+    GetServer().cps.erase(clientId);
+}
+
 void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 取出 serverId
     auto sid = *(uint32_t *) buf;

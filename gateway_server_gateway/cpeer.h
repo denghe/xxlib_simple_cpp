@@ -12,11 +12,14 @@ struct CPeer : Peer {
     // 继承构造函数
     using Peer::Peer;
 
-    // 向 serverIds 对应的 server peer 群发断开指令, 延迟自杀
+    // 群发断开指令, 从容器移除变野,  DelayUnhold 自杀
     bool Close(int const& reason) override;
 
-    // 延迟关闭( 设置 closed = true, 立即触发 OnDisconnect, 设置超时, 从容器移除并 hold. 令 clientId = 0xFFFFFFFFu )
+    // 延迟关闭( 设置 closed = true, 群发断开指令, 从容器移除变野, 靠超时自杀 )
     void DelayClose(double const& delaySeconds);
+
+    // Close & DelayClose 的公共部分。群发断开指令 并从容器移除
+    void PartialClose();
 
     // 收到正常包
     void ReceivePackage(char* const& buf, size_t const& len) override;
