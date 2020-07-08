@@ -269,6 +269,8 @@ namespace xx::Epoll {
 
         // 找到就灌入数据
         if (peerIter != cps.end()) {
+            // 更新地址信息
+            memcpy(&peerIter->second->addr, &addr, sizeof(addr));
             // 将数据灌入 kcp. 进而可能触发 peer->Receive 进而 Close
             peerIter->second->Input(buf, len);
         }
@@ -283,13 +285,13 @@ namespace xx::Epoll {
             // 创建 peer
             auto &&peer = xx::Make<PeerType>(xx::As<KcpBase>(shared_from_this()), conv);
             // 放入容器( 这个容器不会加持 )
-            cps[conv] = peer;
+            cps[conv] = &*peer;
             // 更新地址信息
             memcpy(&peer->addr, &addr, sizeof(addr));
             // 触发事件回调
             Accept(peer);
-            // 如果已 Close 就短路出去
-            if (!peer->Alive() || peer->use_count() == 1) return;
+            // 如果 已Close 或 未持有 就短路出去
+            if (!peer->Alive() || peer.use_count() == 1) return;
             // 将数据灌入 kcp ( 可能继续触发 Receive 啥的 )
             peer->Input(buf, len);
         }
