@@ -29,7 +29,7 @@ namespace xx::Epoll {
         // 自增生成连接id
         uint32_t convId = 0;
         // kcp conv 值与 peer 的映射。KcpPeer Close 时从该字典移除 key
-        std::unordered_map<uint32_t, std::shared_ptr<KcpPeer>> cps;
+        std::unordered_map<uint32_t, KcpPeer*> cps;
         // 带超时的握手信息字典 key: ip:port   value: conv, nowMS
         std::unordered_map<std::string, std::pair<uint32_t, int64_t>> shakes;
 
@@ -98,7 +98,7 @@ namespace xx::Epoll {
 
 
     inline bool KcpPeer::Alive() {
-        return kcp != nullptr && !owner;
+        return kcp != nullptr && owner;
     }
 
     inline KcpPeer::KcpPeer(std::shared_ptr<KcpBase> const &owner, uint32_t const &conv) : Timer(owner->ec, -1) {
@@ -182,6 +182,12 @@ namespace xx::Epoll {
             if (len <= 0) break;
             recv.len += len;
 
+            // 如果是 5 字节 accept 首包，则忽略
+            if (recv.len >= 5 && *(uint32_t*)recv.buf == 1 && recv.buf[4] == 0) {
+                recv.RemoveFront(5);
+                if (!recv.len) continue;
+            }
+
             // 调用用户数据处理函数
             Receive();
             // 如果用户那边已 Close 就直接退出
@@ -243,7 +249,7 @@ namespace xx::Epoll {
             if (iter == shakes.end()) {
                 shakes.emplace(ip_port, std::make_pair(++convId, ec->nowMS + 3000));
             }
-            // 回发 serial + convId
+            // 回发 serial + convId。客户端在收到回发数据后，会通过 kcp 发送 01 00 00 00 00 这样的 5 字节数据，以触发服务器 accept
             char tmp[8];
             memcpy(tmp, buf, 4);
             memcpy(tmp + 4, &convId, 4);
@@ -258,14 +264,16 @@ namespace xx::Epoll {
         uint32_t conv;
         memcpy(&conv, buf, sizeof(conv));
 
-        // 准备创建或找回 KcpPeer
-        KcpPeer *p = nullptr;
-
         // 根据 conv 试定位到 peer
         auto &&peerIter = cps.find(conv);
 
-        // 如果不存在 就在 shakes 中按 ip:port 找
-        if (peerIter == cps.end()) {
+        // 找到就灌入数据
+        if (peerIter != cps.end()) {
+            // 将数据灌入 kcp. 进而可能触发 peer->Receive 进而 Close
+            peerIter->second->Input(buf, len);
+        }
+        else {
+            // 如果不存在 就在 shakes 中按 ip:port 找
             auto &&iter = shakes.find(ip_port);
             // 未找到或 conv 对不上: 忽略
             if (iter == shakes.end() || iter->second.first != conv) return;
@@ -274,22 +282,17 @@ namespace xx::Epoll {
             shakes.erase(iter);
             // 创建 peer
             auto &&peer = xx::Make<PeerType>(xx::As<KcpBase>(shared_from_this()), conv);
-            // 放入容器
+            // 放入容器( 这个容器不会加持 )
             cps[conv] = peer;
-            // 加持
-            peer->Hold();
+            // 更新地址信息
+            memcpy(&peer->addr, &addr, sizeof(addr));
             // 触发事件回调
             Accept(peer);
             // 如果已 Close 就短路出去
-            if (!peer->Alive()) return;
-            // 指针传递到外面方便继续 input
-            p = &*peer;
+            if (!peer->Alive() || peer->use_count() == 1) return;
+            // 将数据灌入 kcp ( 可能继续触发 Receive 啥的 )
+            peer->Input(buf, len);
         }
-
-        // 更新地址信息
-        memcpy(&p->addr, &addr, sizeof(addr));
-        // 将数据灌入 kcp. 进而可能触发 peer->Receive 进而 Close
-        p->Input(buf, len);
     }
 
     inline void KcpBase::Timeout() {
