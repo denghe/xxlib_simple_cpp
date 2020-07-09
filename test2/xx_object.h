@@ -36,18 +36,25 @@ namespace xx {
     template<typename T, typename ENABLED = void>
     struct ObjectFuncs {
         static void Write(ObjectWriter &writer, T const &in);
-
         static int Read(ObjectReader &reader, T &out);
     };
 
     struct ObjectWriter : DataWriter {
         using DataWriter::DataWriter;
+        // offset值写入修正
+        size_t offsetRoot = 0;
+        // key: pointer   value: offset
+        std::unordered_map<void*, size_t> ptrs;
+
         template<typename T>
         void WritePtr(std::shared_ptr<T> const&);
     };
 
     struct ObjectReader : DataReader {
         using DataReader::DataReader;
+        // key: offset   value: pointer
+        std::unordered_map<size_t, std::shared_ptr<Object>> objIdxs;
+
         template<typename T>
         void ReadPtr(std::shared_ptr<T>&);
     };
@@ -55,12 +62,12 @@ namespace xx {
     // 适配基本数据类型，转发到 DataFuncs 模板
     template<typename T, typename ENABLED>
     inline void ObjectFuncs<T, ENABLED>::Write(ObjectWriter &writer, T const &in) {
-        DataFuncs<T>(writer.data, in);
+        DataFuncs<T>::Write(writer, in);
     }
 
     template<typename T, typename ENABLED>
-    inline int Read(ObjectReader &reader, T &out) {
-        return DataFuncs(reader, out);
+    inline int ObjectFuncs<T, ENABLED>::Read(ObjectReader &reader, T &out) {
+        return DataFuncs<T>::Read(reader, out);
     }
 
     // 适配 std::shared_ptr<T>

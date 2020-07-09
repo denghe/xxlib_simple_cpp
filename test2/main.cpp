@@ -10,7 +10,7 @@ int main() {
     xx::Data d;
     xx::DataWriter dw(d);
     dw.Write(1, 2.3, "asdf", intss);
-
+    xx::CoutN(d);
 
     return 0;
 }

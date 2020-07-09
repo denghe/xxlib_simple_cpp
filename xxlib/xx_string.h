@@ -9,6 +9,7 @@
 #include <iostream>
 #include <ctime>  // std::tm
 #include <iomanip>  // std::put_time
+#include "xx_data.h"
 namespace xx {
     // 各种 std::string 辅助函数
 
@@ -126,6 +127,25 @@ namespace xx {
                 s += ", ";
             }
             if (in.size()) {
+                s.resize(s.size() - 2);
+                s += " ]";
+            }
+            else {
+                s[s.size() - 1] = ']';
+            }
+        }
+    };
+
+    // 适配 Data
+    template<>
+    struct StringFuncs<Data, void> {
+        static inline void Append(std::string& s, Data const& in) noexcept {
+            s += "[ ";
+            for(size_t i = 0; i < in.len; ++i) {
+                StringFuncs<int>::Append(s, in.buf[i]);
+                s += ", ";
+            }
+            if (in.len) {
                 s.resize(s.size() - 2);
                 s += " ]";
             }

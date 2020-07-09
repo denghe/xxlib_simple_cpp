@@ -77,7 +77,7 @@ namespace xx {
 
 		// 读指定长度 buf 到 tar. 返回非 0 则读取失败
 		int ReadBuf(char* const& tar, size_t const& siz) {
-			if (offset + siz > len) return -1;
+			if (offset + siz > len) return __LINE__;
 			memcpy(tar, buf + offset, siz);
 			offset += siz;
 			return 0;
@@ -95,7 +95,7 @@ namespace xx {
 			using UT = std::make_unsigned_t<T>;
 			UT u(0);
 			for (size_t shift = 0; shift < sizeof(T) * 8; shift += 7) {
-				if (offset == len) return -9;
+				if (offset == len) return __LINE__;
 				auto b = (UT)buf[offset++];
 				u |= UT((b & 0x7Fu) << shift);
 				if ((b & 0x80) == 0) {
@@ -108,7 +108,7 @@ namespace xx {
 					return 0;
 				}
 			}
-			return -10;
+			return __LINE__;
 		}
 
 		// 读出并填充到变量. 可同时填充多个. 返回非 0 则读取失败
@@ -139,8 +139,8 @@ namespace xx {
 		int ReadLimitCore(std::string& out) {
 			size_t siz = 0;
 			if (auto r = ReadVarInteger(siz)) return r;
-			if (limit && siz > limit) return -1;
-			if (offset + siz > len) return -2;
+			if (limit && siz > limit) return __LINE__;
+			if (offset + siz > len) return __LINE__;
 			out.assign((char*)buf + offset, siz);
 			offset += siz;
 			return 0;
@@ -151,8 +151,8 @@ namespace xx {
 		int ReadLimitCore(Data& out) {
 			size_t siz = 0;
 			if (auto r = ReadVarInteger(siz)) return r;
-			if (limit && siz > limit) return -1;
-			if (offset + siz > len) return -2;
+			if (limit && siz > limit) return __LINE__;
+			if (offset + siz > len) return __LINE__;
 			out.Clear();
 			out.WriteBuf(buf + offset, siz);
 			offset += siz;
@@ -164,8 +164,8 @@ namespace xx {
 		int ReadLimitCore(std::vector<T>& out) {
 			size_t siz = 0;
 			if (auto rtv = ReadVarInteger(siz)) return rtv;
-			if (limit != 0 && siz > limit) return -1;
-			if (offset + siz > len) return -2;
+			if (limit != 0 && siz > limit) return __LINE__;
+			if (offset + siz > len) return __LINE__;
 			out.resize(siz);
 			if (siz == 0) return 0;
 			auto outBuf = out.data();
@@ -321,7 +321,7 @@ namespace xx {
 			}
 		}
 		static inline int Read(DataReader& d, double& out) {
-			if (d.offset >= d.len) return -13;	// 确保还有 1 字节可读
+			if (d.offset >= d.len) return __LINE__;	// 确保还有 1 字节可读
 			switch (d.buf[d.offset++]) {			// 跳过 1 字节
 			case 0:
 				out = 0;
@@ -342,13 +342,13 @@ namespace xx {
 				return 0;
 			}
 			case 5: {
-				if (d.len < d.offset + sizeof(double)) return -14;
+				if (d.len < d.offset + sizeof(double)) return __LINE__;
 				memcpy(&out, d.buf + d.offset, sizeof(double));
 				d.offset += sizeof(double);
 				return 0;
 			}
 			default:
-				return -15;							// failed
+				return __LINE__;							// failed
 			}
 		}
 	};
@@ -363,8 +363,8 @@ namespace xx {
 		static inline int Read(DataReader& d, char(&out)[len]) {
 			size_t readLen = 0;
 			if (auto r = d.Read(readLen)) return r;
-			if (d.offset + readLen > d.len) return -19;
-			if (readLen >= len) return -20;
+			if (d.offset + readLen > d.len) return __LINE__;
+			if (readLen >= len) return __LINE__;
 			memcpy(out, d.buf + d.offset, readLen);
 			out[readLen] = 0;
 			d.offset += readLen;
@@ -430,7 +430,7 @@ namespace xx {
 		static inline int Read(DataReader& d, std::vector<T>& out) {
 			size_t siz = 0;
 			if (auto rtv = d.Read(siz)) return rtv;
-			if (d.offset + siz > d.len) return -2;
+			if (d.offset + siz > d.len) return __LINE__;
 			out.resize(siz);
 			if (siz == 0) return 0;
 			auto buf = out.data();
