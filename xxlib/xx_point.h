@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "xx_datareader.h"
+#include "xx_data_rw.h"
 
 namespace xx
 {

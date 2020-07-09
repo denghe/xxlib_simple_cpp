@@ -27,7 +27,8 @@ struct GPeer : Peer {
         xx::Data d(32);
         d.len = sizeof(uint32_t);
         d.WriteFixed(id);
-        xx::Write(d, cmdAndArgs...);
+        xx::DataWriter dw(d);
+        dw.Write(cmdAndArgs...);
         *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
         this->Send(std::move(d));
     }

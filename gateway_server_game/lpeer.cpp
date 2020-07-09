@@ -1,6 +1,6 @@
 ﻿#include "server.h"
 #include "lpeer.h"
-#include "xx_datareader.h"
+#include "xx_data_rw.h"
 
 void LPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // todo

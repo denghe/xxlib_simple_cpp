@@ -189,4 +189,16 @@ namespace xx {
         v = (T*)malloc(sizeof(T));
         return v;
     }
+
+
+
+    /************************************************************************************/
+    // TypeId 映射
+    template<typename T>
+    struct TypeId {
+        static const uint16_t value = 0;
+    };
+
+    template<typename T>
+    constexpr uint16_t TypeId_v = TypeId<T>::value;
 }

@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "xx_epoll_kcp.h"
-#include "xx_datareader.h"
+#include "xx_data_rw.h"
 #include <unordered_set>
 namespace EP = xx::Epoll;
 
@@ -34,7 +34,8 @@ struct KPeer : EP::KcpPeer {
         d.Reserve(32);
         d.len = sizeof(uint32_t);
         d.WriteFixed(0xFFFFFFFFu);
-        xx::Write(d, cmdAndArgs...);
+        xx::DataWriter dw(d);
+        dw.Write(cmdAndArgs...);
         *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
         this->Send(d.buf, d.len);
     }

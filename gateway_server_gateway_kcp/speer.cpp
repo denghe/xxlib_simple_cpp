@@ -1,7 +1,7 @@
 ﻿#include "speer.h"
 #include "server.h"
 #include "cpeer.h"
-#include "xx_datareader.h"
+#include "xx_data_rw.h"
 
 bool SPeer::Close(int const& reason) {
     // 防重入( 同时关闭 fd )

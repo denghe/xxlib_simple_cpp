@@ -83,7 +83,8 @@ void Peer::ReceiveCommand(char *const &buf, size_t const &len) {
     uint32_t serverId = 0;
 
     // 读取失败直接断开
-    if (int r = xx::Read(buf, len, cmd, serverId)) {
+    xx::DataReader dr(buf, len);
+    if (int r = dr.Read(cmd, serverId)) {
         Close(__LINE__);
         return;
     }

@@ -25,7 +25,8 @@ void Dialer::Connect(std::shared_ptr<LPeer> const &sp) {
     xx::Data d;
     d.Reserve(32);
     d.len = sizeof(uint32_t);
-    xx::Write(d, "serverId", config.serverId);
+    xx::DataWriter dw(d);
+    dw.Write("serverId", config.serverId);
     *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
     sp->Send(std::move(d));
 }

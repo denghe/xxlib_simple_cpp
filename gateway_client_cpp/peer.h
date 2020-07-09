@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "xx_epoll.h"
-#include "xx_datareader.h"
+#include "xx_data_rw.h"
 #include "package.h"
 #include <deque>
 
@@ -43,7 +43,8 @@ struct Peer : EP::TcpPeer {
         d.Reserve(1024);
         d.len = sizeof(uint32_t);
         d.WriteFixed(serverId);
-        xx::Write(d, args...);
+        xx::DataWriter dw(d);
+        dw.Write(args...);
         *(uint32_t *) d.buf = (uint32_t) (d.len - sizeof(uint32_t));
         this->Send(std::move(d));
     }

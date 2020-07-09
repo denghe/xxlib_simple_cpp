@@ -47,7 +47,8 @@ int CoroLobby::Update() {
                         std::string txt;
 
                         // 如果解包错误: 重新拨号
-                        if (int rtv = xx::Read(pkg.data, txt)) {
+                        xx::DataReader dr(pkg.data);
+                        if (int rtv = dr.Read(txt)) {
                             std::cout << "Read cmd from d error. rtv = " << rtv << std::endl;
                             goto LabBegin;
                         }
@@ -85,7 +86,8 @@ int CoroLobby::Update() {
 
                         // 模拟处理 pkg
                         std::string txt;
-                        if (int rtv = xx::Read(pkg.data, txt)) {
+                        xx::DataReader dr(pkg.data);
+                        if (int rtv = dr.Read(txt)) {
                             std::cout << "recv pkg from lobby. read error rtv = " << rtv << std::endl;
                         } else {
                             std::cout << "recv pkg from lobby. serverId = " << pkg.serverId << ", serial = "

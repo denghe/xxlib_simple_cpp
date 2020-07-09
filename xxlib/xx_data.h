@@ -135,8 +135,8 @@ namespace xx {
 		}
 
 		// 追加写入整数( 7bit 变长格式 )
-		template<typename T, bool needReserve = true>
-		inline void WriteVarIntger(T const& v) {
+		template<typename T, bool needReserve = true, typename ENABLED = std::enable_if_t<std::is_integral_v<T>>>
+		void WriteVarIntger(T const& v) {
 			using UT = std::make_unsigned_t<T>;
 			UT u(v);
 			if constexpr (std::is_signed_v<T>) {
@@ -151,7 +151,6 @@ namespace xx {
 			};
 			buf[len++] = char(u);
 		}
-		
 
 		// 设置为只读模式, 并初始化引用计数( 开启只读引用计数模式. 没数据不允许开启 )
 		inline void SetReadonlyMode() {

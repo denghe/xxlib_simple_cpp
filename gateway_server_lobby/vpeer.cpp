@@ -124,7 +124,8 @@ void VPeer::ReceiveResponse(uint32_t const &serial, char const *const &buf, size
 void VPeer::ReceivePush(char const *const &buf, size_t const &len) {
     // 模拟某协议解包
     std::string txt;
-    if (xx::Read(buf, len, txt)) {
+    xx::DataReader dr(buf, len);
+    if (dr.Read(txt)) {
         Close(__LINE__);
         return;
     }
@@ -135,7 +136,8 @@ void VPeer::ReceivePush(char const *const &buf, size_t const &len) {
 void VPeer::ReceiveRequest(uint32_t const &serial, char const *const &buf, size_t const &len) {
     // 模拟某协议解包
     std::string txt;
-    if (xx::Read(buf, len, txt)) {
+    xx::DataReader dr(buf, len);
+    if (dr.Read(txt)) {
         Close(__LINE__);
         return;
     }
@@ -144,13 +146,15 @@ void VPeer::ReceiveRequest(uint32_t const &serial, char const *const &buf, size_
     if (txt == "auth") {
         // 模拟构造回包: 服务类型 + serverId
         xx::Data d;
-        xx::Write(d, "lobby", (uint32_t) 0);
+        xx::DataWriter dw(d);
+        dw.Write("lobby", (uint32_t) 0);
         SendResponse(serial, d.buf, d.len);
         // 通知 gateway open 指定 serverId?
     } else if (txt == "info") {
         // 模拟构造回包
         xx::Data d;
-        xx::Write(d, "username:xxxxx coin:123123123");
+        xx::DataWriter dw(d);
+        dw.Write("username:xxxxx coin:123123123");
         SendResponse(serial, d.buf, d.len);
     } else {
         // 未知包?

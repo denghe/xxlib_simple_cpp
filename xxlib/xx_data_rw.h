@@ -6,28 +6,16 @@
 #include <cmath>
 
 namespace xx {
-	
-	/************************************************************************************/
-	// TypeId 映射
-	template<typename T>
-	struct TypeId {
-		static const uint16_t value = 0;
-	};
-
-	template<typename T>
-	constexpr uint16_t TypeId_v = TypeId<T>::value;
-
-
-
 	/************************************************************************************/
 	// Data 序列化 / 反序列化 基础适配模板
 	
 	struct DataReader;
+	struct DataWriter;
 
 	template<typename T, typename ENABLED = void>
 	struct DataFuncs {
 		// 整数变长写( 1字节除外 ), double 看情况, float 拷贝内存, 容器先变长写长度
-		static inline void Write(Data& d, T const& in) noexcept {
+		static inline void Write(DataWriter& d, T const& in) noexcept {
 			assert(false);
 		}
 		
@@ -40,23 +28,8 @@ namespace xx {
 		}
 	};
 
-
-	template<typename T>
-	void WriteCore(Data& d, T const& in) {
-		DataFuncs<T>::Write(d, in);
-	}
-
-	// 便于向 Data 追加内容的工具函数
-	template<typename ...Args>
-	void Write(Data& d, Args const& ... args) {
-		std::initializer_list<int> n{ ((WriteCore(d, args)), 0)... };
-		(void)(n);
-	}
-
-
-	
 	/************************************************************************************/
-	// Data 查看器 / 反序列化器. 内存为引用模式, 不持有
+	// Data 读取器 / 反序列化器. 引用模式, 不持有 data
 	
 	struct DataReader {
 		// 引用到内存地址
@@ -138,25 +111,30 @@ namespace xx {
 			return -10;
 		}
 
-
-		template<typename T, typename ...TS>
-		int ReadCore(T& v, TS&...vs) {
-			if (auto r = DataFuncs<T>::Read(*this, v)) return r;
-			return ReadCore(vs...);
-		}
-		template<typename T>
-		int ReadCore(T& v) {
-			return DataFuncs<T>::Read(*this, v);
-		}
-
 		// 读出并填充到变量. 可同时填充多个. 返回非 0 则读取失败
 		template<typename ...TS>
 		int Read(TS&...vs) {
 			return ReadCore(vs...);
 		}
 
+        // 读出容器并做长度限制检查
+        template<size_t...limits, typename T, typename ENABLED = std::enable_if_t<xx::DeepLevel_v<T> == sizeof...(limits)>>
+        int ReadLimit(T& out) {
+            return ReadLimitCore<limits...>(out);
+        }
 
-		// 读 string 同时检查长度限制
+    protected:
+        template<typename T, typename ...TS>
+        int ReadCore(T& v, TS&...vs) {
+            if (auto r = DataFuncs<T>::Read(*this, v)) return r;
+            return ReadCore(vs...);
+        }
+        template<typename T>
+        int ReadCore(T& v) {
+            return DataFuncs<T>::Read(*this, v);
+        }
+
+        // 读 string 同时检查长度限制
 		template<size_t limit, size_t ...limits>
 		int ReadLimitCore(std::string& out) {
 			size_t siz = 0;
@@ -221,34 +199,45 @@ namespace xx {
 			}
 			return ReadLimitCore<limits...>(out.value());
 		}
-
-		// 读出容器并做长度限制检查
-		template<size_t...limits, typename T, typename ENABLED = std::enable_if_t<xx::DeepLevel_v<T> == sizeof...(limits)>>
-		int ReadLimit(T& out) {
-			return ReadLimitCore<limits...>(out);
-		}
 	};
 
 	// 标识内存可移动
 	template<>
 	struct IsPod<DataReader, void> : std::true_type {};
 
+    /************************************************************************************/
+    // Data 写入器 / 序列化器. 引用模式, 不持有 data
 
+	struct DataWriter {
+	    Data& data;
+        explicit DataWriter(Data &data) : data(data) {}
+        DataWriter(DataWriter const&) = delete;
+        DataWriter& operator=(DataWriter const&) = delete;
 
-	// 便于从 Data 读出内容的工具函数
-	template<typename ...Args>
-	int Read(Data& d, Args& ... args) {
-		DataReader dv(d);
-		return dv.Read(args...);
-	}
+        // 下面几个直接转发到 data
+        inline void WriteBuf(void const* const& ptr, size_t const& siz) {
+            data.WriteBuf(ptr, siz);
+        }
+        template<typename T>
+        void WriteFixed(T const& v) {
+            data.WriteFixed(v);
+        }
+        template<typename T>
+        void WriteVarIntger(T const& v) {
+            data.WriteVarIntger(v);
+        }
 
-	// 便于从 buf + len 读出内容的工具函数( 无法中途 ReadLimit, 只适合简单场景 )
-	template<typename ...Args>
-	int Read(char const* const& buf, size_t const& len, Args& ... args) {
-		DataReader dr(buf, len);
-		return dr.Read(args...);
-	}
+        // 支持同时写入多个值
+        template<typename ...TS>
+        void Write(TS const& ...vs) {
+            std::initializer_list<int> n{ (DataFuncs<TS>::Write(*this, vs), 0)... };
+            (void)n;
+        }
+	};
 
+    // 标识内存可移动
+    template<>
+    struct IsPod<DataWriter, void> : std::true_type {};
 
 
 	/**********************************************************************************************************************/
@@ -257,8 +246,7 @@ namespace xx {
 	// 适配 Data
 	template<>
 	struct DataFuncs<Data, void> {
-		static inline void Write(Data& d, Data const& in) {
-			assert(&in != &d);
+		static inline void Write(DataWriter& d, Data const& in) {
 			d.WriteVarIntger(in.len);
 			d.WriteBuf(in.buf, in.len);
 		}
@@ -270,23 +258,18 @@ namespace xx {
 	// 适配 1 字节长度的 数值 或 float( 这些类型直接 memcpy )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t< (std::is_arithmetic_v<T> && sizeof(T) == 1) || (std::is_floating_point_v<T> && sizeof(T) == 4) >> {
-		static inline void Write(Data& d, T const& in) {
-			d.Reserve(d.len + sizeof(T));
-			memcpy(d.buf + d.len, &in, sizeof(T));
-			d.len += sizeof(T);
+		static inline void Write(DataWriter& d, T const& in) {
+		    d.WriteFixed(in);
 		}
 		static inline int Read(DataReader& d, T& out) {
-			if (d.offset + sizeof(T) > d.len) return -12;
-			memcpy(&out, d.buf + d.offset, sizeof(T));
-			d.offset += sizeof(T);
-			return 0;
+		    return d.ReadFixed(out);
 		}
 	};
 
 	// 适配 2+ 字节整数( 变长读写 )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_integral_v<T> && sizeof(T) >= 2>> {
-		static inline void Write(Data& d, T const& in) {
+		static inline void Write(DataWriter& d, T const& in) {
 			d.WriteVarIntger(in);
 		}
 		static inline int Read(DataReader& d, T& out) {
@@ -298,7 +281,7 @@ namespace xx {
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_enum_v<T>>> {
 		typedef std::underlying_type_t<T> UT;
-		static inline void Write(Data& d, T const& in) {
+		static inline void Write(DataWriter& d, T const& in) {
 			DataFuncs<UT>(d, (UT const&)in);
 		}
 		static inline int Read(DataReader& d, T& out) {
@@ -309,7 +292,8 @@ namespace xx {
 	// 适配 double
 	template<>
 	struct DataFuncs<double, void> {
-		static inline void Write(Data& d, double const& in) {
+		static inline void Write(DataWriter& dw, double const& in) {
+		    auto&& d = dw.data;
 			d.Reserve(d.len + sizeof(double) + 1);
 			if (in == 0) {
 				d.buf[d.len++] = 0;
@@ -369,11 +353,10 @@ namespace xx {
 		}
 	};
 
-
 	// 适配 literal char[len] string  ( 写入 变长长度-1 + 内容. 不写入末尾 0 )
 	template<size_t len>
 	struct DataFuncs<char[len], void> {
-		static inline void Write(Data& d, char const(&in)[len]) {
+		static inline void Write(DataWriter& d, char const(&in)[len]) {
 			d.WriteVarIntger((size_t)(len - 1));
 			d.WriteBuf((char*)in, len - 1);
 		}
@@ -392,7 +375,7 @@ namespace xx {
 	// 适配 std::string ( 写入 变长长度 + 内容 )
 	template<>
 	struct DataFuncs<std::string, void> {
-		static inline void Write(Data& d, std::string const& in) {
+		static inline void Write(DataWriter& d, std::string const& in) {
 			d.WriteVarIntger(in.size());
 			d.WriteBuf((char*)in.data(), in.size());
 		}
@@ -401,17 +384,15 @@ namespace xx {
 		}
 	};
 
-
-
 	// 适配 std::optional<T>
 	template<typename T>
 	struct DataFuncs<std::optional<T>, void> {
-		static inline void Write(Data& d, std::optional<T> const& in) {
+		static inline void Write(DataWriter& d, std::optional<T> const& in) {
 			if (in.has_value()) {
-				::xx::Write(d, (char)1, in.value());
+                d.Write((char)1, in.value());
 			}
 			else {
-				::xx::Write(d, (char)0);
+                d.Write((char)0);
 			}
 		}
 		static inline int Read(DataReader& d, std::optional<T>& out) {
@@ -428,9 +409,10 @@ namespace xx {
 	// 适配 std::vector<T>
 	template<typename T>
 	struct DataFuncs<std::vector<T>, void> {
-		static inline void Write(Data& d, std::vector<T> const& in) {
+		static inline void Write(DataWriter& dw, std::vector<T> const& in) {
 			auto buf = in.data();
 			auto len = in.size();
+            auto&& d = dw.data;
 			d.Reserve(d.len + 5 + len * sizeof(T));
 			d.WriteVarIntger(len);
 			if (!len) return;
@@ -440,7 +422,7 @@ namespace xx {
 			}
 			else {
 				for (size_t i = 0; i < len; ++i) {
-					DataFuncs<T>::Write(d, buf[i]);
+					DataFuncs<T>::Write(dw, buf[i]);
 				}
 			}
 		}
@@ -462,8 +444,6 @@ namespace xx {
 				}
 			}
 			return 0;
-
 		}
 	};
-	
 }
