@@ -12,9 +12,9 @@ void Server::Log(std::string &&txt) {
     });
 }
 
-int Server::Run(double const &frameRate) {
-    // 建立回收手段
-    xx::ScopeGuard sgListener([&] {
+int Server::Run() {
+    // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
+    xx::ScopeGuard sg([&] {
         // 清理监听器( 消除对 Context 的引用计数的影响 )
         listener.reset();
         DisableCommandLine();
@@ -62,5 +62,5 @@ CREATE TABLE [log](
     });
 
     // 进入循环
-    return this->EP::Context::Run(frameRate);
+    return this->EP::Context::Run();
 }

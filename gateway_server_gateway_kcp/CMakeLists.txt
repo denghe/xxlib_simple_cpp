@@ -8,12 +8,12 @@ include_directories(../xxlib)
 add_executable(gateway_server_gateway_kcp
         main.cpp
         server.cpp
-        kpeer.cpp
-        tpeer.cpp
+        peer.cpp
         listener.cpp
         dialer.cpp
         cpeer.cpp
         speer.cpp
+		kpeer.cpp
         ../xxlib/ikcp.c
         )
 

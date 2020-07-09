@@ -1,7 +1,6 @@
 ﻿#include "client.h"
 #include "dialer.h"
 #include "config.h"
-#include "peer.h"
 #include "xx_chrono.h"
 #include "coromain.h"
 
@@ -9,14 +8,12 @@ bool Client::ExistsCoroName(std::string const& name) {
     return coroNames.find(name) != coroNames.end();
 }
 
-int Client::Run(double const &frameRate) {
-    // 创建回收器
-    xx::ScopeGuard sgCmdLine([&] {
-        // 反注册交互指令( 消除对 Context 的引用计数的影响 )
-        DisableCommandLine();
-        // 清理成员变量( 消除对 Context 的引用计数的影响 )
+int Client::Run() {
+    // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
+    xx::ScopeGuard sg([&] {
         dialer.reset();
         peer.reset();
+        DisableCommandLine();
     });
     // 创建默认协程
     CreateCoro<CoroMain>();
@@ -30,7 +27,7 @@ int Client::Run(double const &frameRate) {
     cmds["exit"] = cmds["quit"];
 
     // 开始循环
-    return this->EP::Context::Run(frameRate);
+    return this->EP::Context::Run();
 }
 
 int Client::FrameUpdate() {

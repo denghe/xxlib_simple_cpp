@@ -3,6 +3,7 @@
 
 // 客户端 连进来产生的 peer
 struct CPeer : KPeer {
+	using BaseType = KPeer;
     // 自增编号, accept 时填充
     uint32_t clientId = 0xFFFFFFFFu;
 
@@ -10,7 +11,7 @@ struct CPeer : KPeer {
     std::unordered_set<uint32_t> serverIds;
 
     // 继承构造函数
-    using KPeer::KPeer;
+    using BaseType::BaseType;
 
     // 群发断开指令, 从容器移除变野,  DelayUnhold 自杀
     bool Close(int const& reason) override;

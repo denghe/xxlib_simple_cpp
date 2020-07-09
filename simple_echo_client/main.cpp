@@ -9,5 +9,5 @@ int main() {
     auto &&c = xx::Make<Client>();
 
 	// 开始运行
-	return c->Run(10);
+	return c->Run();
 }

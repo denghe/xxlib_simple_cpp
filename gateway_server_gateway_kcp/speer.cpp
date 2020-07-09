@@ -5,7 +5,7 @@
 
 bool SPeer::Close(int const& reason) {
     // 防重入( 同时关闭 fd )
-    if (!this->TPeer::Close(reason)) return false;
+    if (!this->Peer::Close(reason)) return false;
     std::cout << "SPeer Close. serverId = "<< serverId <<", reason = " << reason << std::endl;
     // 从所有 client peers 里的白名单中移除
     for (auto &&kv : GetServer().cps) {

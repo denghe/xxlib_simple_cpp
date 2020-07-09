@@ -5,11 +5,13 @@
 #include "config.h"
 #include "glistener.h"
 
-int Server::Run(double const &frameRate) {
-    // 初始化回收sg
+int Server::Run() {
+    // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
     xx::ScopeGuard sg1([&]{
-        gatewayListener.reset();
+        lobbyPeer.reset();
         lobbyDialer.reset();
+        gps.clear();
+        gatewayListener.reset();
         DisableCommandLine();
     });
     // 创建监听器
@@ -49,7 +51,7 @@ int Server::Run(double const &frameRate) {
     cmds["exit"] = this->cmds["quit"];
 
     // 进入循环
-    return this->EP::Context::Run(frameRate);
+    return this->EP::Context::Run();
 }
 
 int Server::FrameUpdate() {

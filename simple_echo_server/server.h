@@ -12,7 +12,7 @@ struct Server : EP::Context {
     using EP::Context::Context;
 
     // run 前创建 listener 啥的. run 后清除
-    int Run(double const &frameRate) override;
+    int Run() override;
 
 	// 监听器
 	std::shared_ptr<Listener> listener;

@@ -5,9 +5,9 @@
 
 bool CPeer::Close(int const& reason) {
     // 防重入( 同时关闭 fd )
-    if (!this->KPeer::Close(reason)) return false;
-    // 群发断开通知并解除 client id 映射, 从容器移除 减持
-    DelayClose(0);
+    if (!this->BaseType::Close(reason)) return false;
+    // 群发断开指令 并从容器移除
+    PartialClose();
     // 延迟减持
     DelayUnhold();
     return true;
@@ -18,17 +18,10 @@ void CPeer::DelayClose(double const& delaySeconds) {
     if (closed || !Alive()) return;
     // 标记为延迟自杀
     closed = true;
-    // 兼容 Close 直接关闭
-    if (delaySeconds > 0) {
-        // 利用超时来 Close
-        SetTimeoutSeconds(delaySeconds);
-    }
-    // 群发断开通知
-    for (auto &&sid : serverIds) {
-        GetServer().dps[sid].second->SendCommand("disconnect", clientId);
-    }
-    // 从容器移除( 减持 )
-    GetServer().cps.erase(clientId);
+    // 利用超时来 Close
+    SetTimeoutSeconds(delaySeconds <= 0 ? 3 : delaySeconds);
+    // 群发断开指令 并从容器移除
+    PartialClose();
 }
 
 void CPeer::PartialClose() {

@@ -2,10 +2,9 @@
 #include "listener.h"
 #include "config.h"
 
-int Server::Run(double const &frameRate) {
-    // 建立回收手段
-    xx::ScopeGuard sgListener([&]{
-        // 清理监听器( 消除对 Context 的引用计数的影响 )
+int Server::Run() {
+    // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
+    xx::ScopeGuard sg([&]{
         listener.reset();
     });
     // 按配置的端口创建监听器
@@ -15,5 +14,5 @@ int Server::Run(double const &frameRate) {
         return __LINE__;
     }
     // 进入循环
-    return this->EP::Context::Run(frameRate);
+    return this->EP::Context::Run();
 }

@@ -13,7 +13,7 @@ struct Client : EP::Context {
     using EP::Context::Context;
 
     // 进入时初始化下面的类成员( 构造函数里做不了, 因为无法 shared_from_this ). 退出时清理这些类成员( 去除引用计数 )
-    int Run(double const &frameRate) override;
+    int Run() override;
 
     // 在帧逻辑里自动拨号到服务器
     int FrameUpdate() override;

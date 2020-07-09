@@ -15,4 +15,7 @@ add_executable(gateway_server_gateway
         speer.cpp
         )
 
-target_link_libraries(gateway_server_gateway pthread readline)
+target_link_libraries(gateway_server_gateway
+        pthread
+        readline
+        )

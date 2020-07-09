@@ -30,7 +30,7 @@ struct Server : EP::Context {
     using EP::Context::Context;
 
     // 根据 config 进一步初始化各种成员. 并于退出时清理
-    int Run(double const &frameRate) override;
+    int Run() override;
 
     // 帧逻辑
     int FrameUpdate() override;

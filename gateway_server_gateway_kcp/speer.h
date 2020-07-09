@@ -1,16 +1,16 @@
 ﻿#pragma once
-#include "tpeer.h"
+#include "peer.h"
 namespace EP = xx::Epoll;
 
 struct CPeer;
 
 // 拨号到服务器 产生的 peer
-struct SPeer : TPeer {
+struct SPeer : Peer {
     // 内部服务编号, 从配置填充
     uint32_t serverId = 0xFFFFFFFFu;
 
     // 继承构造函数
-    using TPeer::TPeer;
+    using Peer::Peer;
 
     // 关闭 fd, 从所有 client peers 里的白名单中移除 并下发相应 close. 注册延迟自杀函数( 直接析构并不会触发这个 Close )
     bool Close(int const& reason) override;

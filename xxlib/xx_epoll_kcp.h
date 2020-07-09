@@ -69,7 +69,7 @@ namespace xx::Epoll {
         // 被 ep 调用. 受帧循环驱动. 帧率越高, kcp 工作效果越好. 典型的频率为 100 fps
         void UpdateKcpLogic();
         // 被 owner 调用. 塞数据到 kcp
-        void Input(char const *const &buf, size_t const &len);
+        void Input(char const *const &buf, size_t const &len, bool isFirst = false);
         // 回收 kcp 对象, 看情况从 ep->kcps 移除
         bool Close(int const &reason) override;
         // Close
@@ -159,7 +159,7 @@ namespace xx::Epoll {
         nextUpdateMS = ikcp_check(kcp, currentMS);
     }
 
-    inline void KcpPeer::Input(char const *const &buf, size_t const &len_) {
+    inline void KcpPeer::Input(char const *const &buf, size_t const &len_, bool isFirst) {
         // 将底层数据灌入 kcp
         if (ikcp_input(kcp, buf, len_)) {
             Close(__LINE__);
@@ -183,7 +183,7 @@ namespace xx::Epoll {
             recv.len += len;
 
             // 如果是 5 字节 accept 首包，则忽略
-            if (recv.len >= 5 && *(uint32_t*)recv.buf == 1 && recv.buf[4] == 0) {
+            if (isFirst && recv.len >= 5 && *(uint32_t *) recv.buf == 1 && recv.buf[4] == 0) {
                 recv.RemoveFront(5);
                 if (!recv.len) continue;
             }
@@ -293,7 +293,7 @@ namespace xx::Epoll {
             // 如果 已Close 或 未持有 就短路出去
             if (!peer->Alive() || peer.use_count() == 1) return;
             // 将数据灌入 kcp ( 可能继续触发 Receive 啥的 )
-            peer->Input(buf, len);
+            peer->Input(buf, len, true);
         }
     }
 

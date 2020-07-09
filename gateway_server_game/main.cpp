@@ -62,5 +62,5 @@ int main() {
     auto&& s = xx::Make<Server>();
 
     // 开始运行
-    return s->Run(10);
+    return s->Run();
 }

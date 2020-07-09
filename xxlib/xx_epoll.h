@@ -233,7 +233,9 @@ namespace xx::Epoll {
         // 公共只读: 每帧开始时更新一下
         int64_t nowMS = 0;
         // Run 时填充, 以便于局部获取并转换时间单位
-        double frameRate = 1;
+        double frameRate = 10;
+        // 帧时间间隔
+        double ticksPerFrame = 1.0 / frameRate;
         // 公用 buf( 需要的地方可临时用用 )
         std::array<char, 256 * 1024> buf;
         // 公用 data( 需要的地方可临时用用 )
@@ -249,8 +251,10 @@ namespace xx::Epoll {
 
         // 帧逻辑可以覆盖这个函数. 返回非 0 将令 Run 退出
         inline virtual int FrameUpdate() { return 0; }
+        // 初始化 Run 帧率
+        virtual int SetFrameRate(double const &frameRate);
         // 开始运行并尽量维持在指定帧率. 临时拖慢将补帧
-        virtual int Run(double const &frameRate);
+        virtual int Run();
         // 封送函数到 epoll 线程执行( 线程安全 ). 可能会阻塞.
         int Dispatch(std::function<void()>&& action);
         // 延迟执行一个函数( Wait 之后 )
@@ -961,10 +965,17 @@ namespace xx::Epoll {
         return 0;
     }
 
-    inline int Context::Run(double const &frameRate_) {
+    inline int Context::SetFrameRate(const double &frameRate_) {
         // 参数检查
-        if(frameRate_ <= 0) return __LINE__;
+        if (frameRate_ <= 0) return __LINE__;
+        // 保存帧率
+        frameRate = frameRate_;
+        // 计算帧时间间隔
+        ticksPerFrame = 10000000.0 / frameRate_;
+        return 0;
+    }
 
+    inline int Context::Run() {
         // 创建 pipe fd. 失败返回编号
         int actionsPipes[2];
         if (int r = pipe(actionsPipes)) return __LINE__;
@@ -983,14 +994,10 @@ namespace xx::Epoll {
             pipeWriter.reset();
         });
 
-        // 保存帧率
-        this->frameRate = frameRate_;
         // 稳定帧回调用的时间池
         double ticksPool = 0;
         // 本次要 Wait 的超时时长
         int waitMS = 0;
-        // 计算帧时间间隔
-        auto ticksPerFrame = 10000000.0 / frameRate_;
         // 取当前时间
         auto lastTicks = xx::NowEpoch10m();
         // 更新一下逻辑可能用到的时间戳

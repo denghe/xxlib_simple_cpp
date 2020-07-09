@@ -1,12 +1,12 @@
-﻿#include "tpeer.h"
+﻿#include "peer.h"
 #include "server.h"
 
-Server &TPeer::GetServer() const {
+Server &Peer::GetServer() const {
     // 拿到服务上下文
     return *(Server *) &*ec;
 }
 
-void TPeer::Receive() {
+void Peer::Receive() {
     // 如果属于延迟踢人拒收数据状态，直接清数据短路退出
     if (closed) {
         recv.Clear();

@@ -22,7 +22,7 @@ struct Client : EP::Context {
     using EP::Context::Context;
 
     // 根据 config 进一步初始化. 创建主线协程
-    int Run(double const &frameRate) override;
+    int Run() override;
 
     // 模拟客户端帧逻辑. 每一帧驱动协程
     int FrameUpdate() override;

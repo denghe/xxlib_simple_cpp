@@ -37,5 +37,6 @@ int main() {
     auto&& c = xx::Make<Client>();
 
     // 开始运行( 每秒 60 帧 )
-    return c->Run(60);
+    c->SetFrameRate(60);
+    return c->Run();
 }
