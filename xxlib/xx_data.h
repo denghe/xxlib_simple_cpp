@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "xx_typetraits.h"
+#include "xx_typehelpers.h"
 #include "xx_math.h"
 #include <cstring>
 
@@ -21,7 +21,7 @@ namespace xx {
 		explicit Data(size_t const& newCap) {
 			if (newCap) {
 				auto siz = Round2n(recvLen + cap);
-				buf = (char*)::malloc(siz) + recvLen;
+				buf = ((char*)::malloc(siz)) + recvLen;
 				cap = siz - recvLen;
 			}
 		}

@@ -15,14 +15,11 @@ namespace xx {
 	template<typename T, typename ENABLED = void>
 	struct DataFuncs {
 		// 整数变长写( 1字节除外 ), double 看情况, float 拷贝内存, 容器先变长写长度
-		static inline void Write(DataWriter& d, T const& in) noexcept {
+		static inline void Write(DataWriter& dw, T const& in) {
 			assert(false);
 		}
-		
-		// limits 针对 容器类型，提供创建时的长度限制检查
 		// 返回非 0 表示操作失败
-		template<size_t ...limits>
-		static inline int Read(DataReader& d, T& out) noexcept {
+		static inline int Read(DataReader& dr, T& out) {
 			assert(false);
 			return 0;
 		}
@@ -117,12 +114,6 @@ namespace xx {
 			return ReadCore(vs...);
 		}
 
-        // 读出容器并做长度限制检查
-        template<size_t...limits, typename T, typename ENABLED = std::enable_if_t<xx::DeepLevel_v<T> == sizeof...(limits)>>
-        int ReadLimit(T& out) {
-            return ReadLimitCore<limits...>(out);
-        }
-
     protected:
         template<typename T, typename ...TS>
         int ReadCore(T& v, TS&...vs) {
@@ -133,72 +124,6 @@ namespace xx {
         int ReadCore(T& v) {
             return DataFuncs<T>::Read(*this, v);
         }
-
-        // 读 string 同时检查长度限制
-		template<size_t limit, size_t ...limits>
-		int ReadLimitCore(std::string& out) {
-			size_t siz = 0;
-			if (auto r = ReadVarInteger(siz)) return r;
-			if (limit && siz > limit) return __LINE__;
-			if (offset + siz > len) return __LINE__;
-			out.assign((char*)buf + offset, siz);
-			offset += siz;
-			return 0;
-		}
-
-		// 读 Data 同时检查长度限制
-		template<size_t limit, size_t ...limits>
-		int ReadLimitCore(Data& out) {
-			size_t siz = 0;
-			if (auto r = ReadVarInteger(siz)) return r;
-			if (limit && siz > limit) return __LINE__;
-			if (offset + siz > len) return __LINE__;
-			out.Clear();
-			out.WriteBuf(buf + offset, siz);
-			offset += siz;
-			return 0;
-		}
-
-		// 读 vector 同时检查长度限制
-		template<size_t limit, size_t ...limits, typename T>
-		int ReadLimitCore(std::vector<T>& out) {
-			size_t siz = 0;
-			if (auto rtv = ReadVarInteger(siz)) return rtv;
-			if (limit != 0 && siz > limit) return __LINE__;
-			if (offset + siz > len) return __LINE__;
-			out.resize(siz);
-			if (siz == 0) return 0;
-			auto outBuf = out.data();
-			if constexpr (sizeof...(limits)) {
-				for (size_t i = 0; i < siz; ++i) {
-					if (int r = ReadLimitCore<limits...>(outBuf[i])) return r;
-				}
-			}
-			else {
-				if constexpr (sizeof(T) == 1 || std::is_same_v<float, T>) {
-					::memcpy(outBuf, buf + offset, siz * sizeof(T));
-					offset += siz * sizeof(T);
-				}
-				else {
-					for (size_t i = 0; i < siz; ++i) {
-						if (int r = Read(outBuf[i])) return r;
-					}
-				}
-			}
-			return 0;
-		}
-
-		// 读 optional<容器> 传递长度限制到下一级
-		template<size_t ...limits, typename T>
-		int ReadLimitCore(std::optional<T>& out) {
-			char hasValue = 0;
-			if (int r = Read(hasValue)) return r;
-			if (!hasValue) return 0;
-			if (!out.has_value()) {
-				out.emplace();
-			}
-			return ReadLimitCore<limits...>(out.value());
-		}
 	};
 
 	// 标识内存可移动
@@ -246,34 +171,40 @@ namespace xx {
 	// 适配 Data
 	template<>
 	struct DataFuncs<Data, void> {
-		static inline void Write(DataWriter& d, Data const& in) {
-			d.WriteVarIntger(in.len);
-			d.WriteBuf(in.buf, in.len);
+		static inline void Write(DataWriter& dw, Data const& in) {
+			dw.WriteVarIntger(in.len);
+			dw.WriteBuf(in.buf, in.len);
 		}
-		static inline int Read(DataReader& d, Data& out) {
-			return d.ReadLimit<0>(out);
+		static inline int Read(DataReader& dr, Data& out) {
+            size_t siz = 0;
+            if (int r = dr.ReadVarInteger(siz)) return r;
+            if (dr.offset + siz > dr.len) return __LINE__;
+            out.Clear();
+            out.WriteBuf(dr.buf + dr.offset, siz);
+            dr.offset += siz;
+            return 0;
 		}
 	};
 
 	// 适配 1 字节长度的 数值 或 float( 这些类型直接 memcpy )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t< (std::is_arithmetic_v<T> && sizeof(T) == 1) || (std::is_floating_point_v<T> && sizeof(T) == 4) >> {
-		static inline void Write(DataWriter& d, T const& in) {
-		    d.WriteFixed(in);
+		static inline void Write(DataWriter& dw, T const& in) {
+		    dw.WriteFixed(in);
 		}
-		static inline int Read(DataReader& d, T& out) {
-		    return d.ReadFixed(out);
+		static inline int Read(DataReader& dr, T& out) {
+		    return dr.ReadFixed(out);
 		}
 	};
 
 	// 适配 2+ 字节整数( 变长读写 )
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_integral_v<T> && sizeof(T) >= 2>> {
-		static inline void Write(DataWriter& d, T const& in) {
-			d.WriteVarIntger(in);
+		static inline void Write(DataWriter& dw, T const& in) {
+			dw.WriteVarIntger(in);
 		}
-		static inline int Read(DataReader& d, T& out) {
-			return d.ReadVarInteger(out);
+		static inline int Read(DataReader& dr, T& out) {
+			return dr.ReadVarInteger(out);
 		}
 	};
 
@@ -281,11 +212,11 @@ namespace xx {
 	template<typename T>
 	struct DataFuncs<T, std::enable_if_t<std::is_enum_v<T>>> {
 		typedef std::underlying_type_t<T> UT;
-		static inline void Write(DataWriter& d, T const& in) {
-			DataFuncs<UT>(d, (UT const&)in);
+		static inline void Write(DataWriter& dw, T const& in) {
+			dw.Write((UT const&)in);
 		}
-		static inline int Read(DataReader& d, T& out) {
-			return d.Read((UT&)out);
+		static inline int Read(DataReader& dr, T& out) {
+			return dr.Read((UT&)out);
 		}
 	};
 
@@ -320,9 +251,9 @@ namespace xx {
 				}
 			}
 		}
-		static inline int Read(DataReader& d, double& out) {
-			if (d.offset >= d.len) return __LINE__;	// 确保还有 1 字节可读
-			switch (d.buf[d.offset++]) {			// 跳过 1 字节
+		static inline int Read(DataReader& dr, double& out) {
+			if (dr.offset >= dr.len) return __LINE__;	// 确保还有 1 字节可读
+			switch (dr.buf[dr.offset++]) {			// 跳过 1 字节
 			case 0:
 				out = 0;
 				return 0;
@@ -337,14 +268,14 @@ namespace xx {
 				return 0;
 			case 4: {
 				int32_t i = 0;
-				if (auto rtv = DataFuncs<int32_t>::Read(d, i)) return rtv;
+				if (auto rtv = DataFuncs<int32_t>::Read(dr, i)) return rtv;
 				out = i;
 				return 0;
 			}
 			case 5: {
-				if (d.len < d.offset + sizeof(double)) return __LINE__;
-				memcpy(&out, d.buf + d.offset, sizeof(double));
-				d.offset += sizeof(double);
+				if (dr.len < dr.offset + sizeof(double)) return __LINE__;
+				memcpy(&out, dr.buf + dr.offset, sizeof(double));
+                dr.offset += sizeof(double);
 				return 0;
 			}
 			default:
@@ -356,18 +287,18 @@ namespace xx {
 	// 适配 literal char[len] string  ( 写入 变长长度-1 + 内容. 不写入末尾 0 )
 	template<size_t len>
 	struct DataFuncs<char[len], void> {
-		static inline void Write(DataWriter& d, char const(&in)[len]) {
-			d.WriteVarIntger((size_t)(len - 1));
-			d.WriteBuf((char*)in, len - 1);
+		static inline void Write(DataWriter& dw, char const(&in)[len]) {
+			dw.WriteVarIntger((size_t)(len - 1));
+			dw.WriteBuf((char*)in, len - 1);
 		}
-		static inline int Read(DataReader& d, char(&out)[len]) {
+		static inline int Read(DataReader& dr, char(&out)[len]) {
 			size_t readLen = 0;
-			if (auto r = d.Read(readLen)) return r;
-			if (d.offset + readLen > d.len) return __LINE__;
+			if (auto r = dr.Read(readLen)) return r;
+			if (dr.offset + readLen > dr.len) return __LINE__;
 			if (readLen >= len) return __LINE__;
-			memcpy(out, d.buf + d.offset, readLen);
+			memcpy(out, dr.buf + dr.offset, readLen);
 			out[readLen] = 0;
-			d.offset += readLen;
+            dr.offset += readLen;
 			return 0;
 		}
 	};
@@ -375,34 +306,39 @@ namespace xx {
 	// 适配 std::string ( 写入 变长长度 + 内容 )
 	template<>
 	struct DataFuncs<std::string, void> {
-		static inline void Write(DataWriter& d, std::string const& in) {
-			d.WriteVarIntger(in.size());
-			d.WriteBuf((char*)in.data(), in.size());
+		static inline void Write(DataWriter& dw, std::string const& in) {
+			dw.WriteVarIntger(in.size());
+			dw.WriteBuf((char*)in.data(), in.size());
 		}
-		static inline int Read(DataReader& d, std::string& out) {
-			return d.ReadLimit<0>(out);
+		static inline int Read(DataReader& dr, std::string& out) {
+            size_t siz = 0;
+            if (auto r = dr.ReadVarInteger(siz)) return r;
+            if (dr.offset + siz > dr.len) return __LINE__;
+            out.assign((char*)dr.buf + dr.offset, siz);
+            dr.offset += siz;
+            return 0;
 		}
 	};
 
 	// 适配 std::optional<T>
 	template<typename T>
 	struct DataFuncs<std::optional<T>, void> {
-		static inline void Write(DataWriter& d, std::optional<T> const& in) {
+		static inline void Write(DataWriter& dw, std::optional<T> const& in) {
 			if (in.has_value()) {
-                d.Write((char)1, in.value());
+                dw.Write((char)1, in.value());
 			}
 			else {
-                d.Write((char)0);
+                dw.Write((char)0);
 			}
 		}
-		static inline int Read(DataReader& d, std::optional<T>& out) {
+		static inline int Read(DataReader& dr, std::optional<T>& out) {
 			char hasValue = 0;
-			if (int r = d.Read(hasValue)) return r;
+			if (int r = dr.Read(hasValue)) return r;
 			if (!hasValue) return 0;
 			if (!out.has_value()) {
 				out.emplace();
 			}
-			return d.Read(out.value());
+			return dr.Read(out.value());
 		}
 	};
 
@@ -422,25 +358,25 @@ namespace xx {
 			}
 			else {
 				for (size_t i = 0; i < len; ++i) {
-					DataFuncs<T>::Write(dw, buf[i]);
+                    dw.Write(buf[i]);
 				}
 			}
 		}
 		// 内容为 ReadLimit 的精简版
-		static inline int Read(DataReader& d, std::vector<T>& out) {
+		static inline int Read(DataReader& dr, std::vector<T>& out) {
 			size_t siz = 0;
-			if (auto rtv = d.Read(siz)) return rtv;
-			if (d.offset + siz > d.len) return __LINE__;
+			if (auto rtv = dr.Read(siz)) return rtv;
+			if (dr.offset + siz > dr.len) return __LINE__;
 			out.resize(siz);
 			if (siz == 0) return 0;
 			auto buf = out.data();
 			if constexpr (sizeof(T) == 1 || std::is_same_v<float, T>) {
-				::memcpy(buf, d.buf + d.offset, siz * sizeof(T));
-				d.offset += siz * sizeof(T);
+				::memcpy(buf, dr.buf + dr.offset, siz * sizeof(T));
+                dr.offset += siz * sizeof(T);
 			}
 			else {
 				for (size_t i = 0; i < siz; ++i) {
-					if (int r = d.Read(buf[i])) return r;
+					if (int r = dr.Read(buf[i])) return r;
 				}
 			}
 			return 0;

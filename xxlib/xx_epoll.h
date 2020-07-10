@@ -32,7 +32,7 @@
 #include <deque>
 #include <mutex>
 
-#include "xx_typetraits.h"
+#include "xx_typehelpers.h"
 #include "xx_chrono.h"
 #include "xx_data_queue.h"
 #include "xx_scopeguard.h"

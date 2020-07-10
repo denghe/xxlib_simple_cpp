@@ -24,6 +24,26 @@ namespace xx {
         }
     };
 
+
+
+    /************************************************************************************/
+    // Append
+    /************************************************************************************/
+
+    namespace Core {
+        template<typename T>
+        void Append(std::string &s, T const &v) {
+            ::xx::StringFuncs<T>::Append(s, v);
+        }
+    }
+
+    template<typename ...Args>
+    void Append(std::string& s, Args const& ... args) {
+        std::initializer_list<int> n{ ((::xx::Core::Append(s, args)), 0)... };
+        (void)(n);
+    }
+
+
     // 适配 char const* \0 结尾 字串
     template<>
     struct StringFuncs<char const*, void> {
@@ -48,7 +68,7 @@ namespace xx {
         }
     };
 
-    // 适配 std::string
+    // 适配 std::string( 前后加引号 )
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string, T>>> {
         static inline void Append(std::string& s, T const& in) noexcept {
@@ -66,7 +86,7 @@ namespace xx {
                 s.append(in ? "true" : "false");
             }
             else if constexpr (std::is_same_v<char, T>) {
-                s.append(std::to_string((int)in));
+                s.push_back(in);
             }
             else if constexpr (std::is_floating_point_v<T>) {
                 char buf[32];
@@ -109,7 +129,7 @@ namespace xx {
     struct StringFuncs<std::optional<T>, void> {
         static inline void Append(std::string& s, std::optional<T> const& in) noexcept {
             if (in.has_value()) {
-                StringFuncs<T>::Append(s, in.value());
+                ::xx::Append(s, in.value());
             }
             else {
                 s.append("nil");
@@ -121,17 +141,16 @@ namespace xx {
     template<typename T>
     struct StringFuncs<std::vector<T>, void> {
         static inline void Append(std::string& s, std::vector<T> const& in) noexcept {
-            s += "[ ";
-            for (auto&& o : in) {
-                StringFuncs<T>::Append(s, o);
-                s += ", ";
-            }
-            if (in.size()) {
-                s.resize(s.size() - 2);
-                s += " ]";
+            s.push_back('[');
+            if (auto inLen = in.size()) {
+                for(size_t i = 0; i < inLen; ++i) {
+                    ::xx::Append(s, in[i]);
+                    s.push_back(',');
+                }
+                s[s.size() - 1] = ']';
             }
             else {
-                s[s.size() - 1] = ']';
+                s.push_back(']');
             }
         }
     };
@@ -140,37 +159,40 @@ namespace xx {
     template<>
     struct StringFuncs<Data, void> {
         static inline void Append(std::string& s, Data const& in) noexcept {
-            s += "[ ";
-            for(size_t i = 0; i < in.len; ++i) {
-                StringFuncs<int>::Append(s, in.buf[i]);
-                s += ", ";
-            }
-            if (in.len) {
-                s.resize(s.size() - 2);
-                s += " ]";
+            s.push_back('[');
+            if (auto inLen = in.len) {
+                for(size_t i = 0; i < inLen; ++i) {
+                    ::xx::Append(s, (uint8_t)in[i]);
+                    s.push_back(',');
+                }
+                s[s.size() - 1] = ']';
             }
             else {
-                s[s.size() - 1] = ']';
+                s.push_back(']');
             }
         }
     };
 
-    /************************************************************************************/
-    // Append
-    /************************************************************************************/
-
-    namespace Core {
-        template<typename T>
-        void Append(std::string &s, T const &v) {
-            ::xx::StringFuncs<T>::Append(s, v);
+    // 适配 std::shared_ptr<T>
+    template<typename T>
+    struct StringFuncs<std::shared_ptr<T>> {
+        static inline void Append(std::string& s, std::shared_ptr<T> const& in) noexcept {
+            if (in) {
+                in->ToString(s);
+            }
+            else {
+                s.append("nil");
+            }
         }
-    }
+    };
 
-    template<typename ...Args>
-    void Append(std::string& s, Args const& ... args) {
-        std::initializer_list<int> n{ ((::xx::Core::Append(s, args)), 0)... };
-        (void)(n);
-    }
+    // 适配 std::weak_ptr<T>
+    template<typename T>
+    struct StringFuncs<std::weak_ptr<T>> {
+        static inline void Append(std::string& s, std::weak_ptr<T> const& in) noexcept {
+            ::xx::Append(in.lock());
+        }
+    };
 
 
     /************************************************************************************/

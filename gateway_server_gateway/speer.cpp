@@ -46,7 +46,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
 
     // 试读取 cmd 字串. 失败直接断开
     std::string cmd;
-    if (int r = dr.ReadLimit<64>(cmd)) {
+    if (int r = dr.Read(cmd)) {
         Close(__LINE__);
         return;
     }

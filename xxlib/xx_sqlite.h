@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "xx_typetraits.h"
+#include "xx_typehelpers.h"
 #include "xx_data.h"
 #include <memory>
 #include "sqlite3.h"
