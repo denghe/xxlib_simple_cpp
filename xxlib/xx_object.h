@@ -16,10 +16,10 @@ namespace xx {
 
     template<typename T, typename ENABLED = void>
     struct DataFuncsEx {
-        static inline void Write(DataWriter& dw, T const& in) {
+        static inline void Write(DataWriterEx& dw, T const& in) {
             DataFuncs<T>::Write(dw, in);
         }
-        static inline int Read(DataReader& dr, T& out) {
+        static inline int Read(DataReaderEx& dr, T& out) {
             return DataFuncs<T>::Read(dr, out);
         }
     };
@@ -28,6 +28,8 @@ namespace xx {
     // Object 主要用于满足 无脑智能指针堆业务逻辑 的建模与序列化需求
 
     struct Object {
+        bool toStringFlag = false;
+
         Object() = default;
 
         virtual ~Object() = default;
@@ -50,8 +52,8 @@ namespace xx {
         // 输出 json 长相时用于输出外包围 {  } 部分
         inline virtual void ToString(std::string &s) const { };
 
-        // 输出 json 长相时用于输出花括号内部的成员拼接. 如果没有改变 s 则返回 false
-        inline virtual bool ToStringCore(std::string &s) const { return false; };
+        // 输出 json 长相时用于输出花括号内部的成员拼接
+        inline virtual void ToStringCore(std::string &s) const { };
     };
 
     // 反序列化需要这个用以提供相应的 typeId 的创建函数
@@ -311,7 +313,34 @@ uint16_t GetTypeId() const override; \
 void Serialize(xx::DataWriterEx &dw) const override; \
 int Deserialize(xx::DataReaderEx &dr) override; \
 void ToString(std::string &s) const override; \
-bool ToStringCore(std::string &s) const override;
+void ToStringCore(std::string &s) const override;
+
+#define XX_OBJECT_COPYASSIGN_H(T) \
+T() = default; \
+T(T const&) = default; \
+T& operator=(T const&) = default; \
+T(T&& o); \
+T& operator=(T&& o);
+
+#define XX_GENCODE_OBJECT_H(T, BT) \
+using BaseType = BT; \
+T() = default; \
+T(T const&) = default; \
+T& operator=(T const&) = default; \
+T(T&& o); \
+T& operator=(T&& o); \
+uint16_t GetTypeId() const override; \
+void Serialize(xx::DataWriterEx &dw) const override; \
+int Deserialize(xx::DataReaderEx &dr) override; \
+void ToString(std::string &s) const override; \
+void ToStringCore(std::string &s) const override;
+
+#define XX_GENCODE_STRUCT_H(T) \
+T() = default; \
+T(T const&) = default; \
+T& operator=(T const&) = default; \
+T(T&& o); \
+T& operator=(T&& o);
 
 /*
 
