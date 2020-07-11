@@ -19,7 +19,10 @@ namespace xx {
 
     template<typename T, typename ENABLED = void>
     struct StringFuncs {
-        static inline void Append(std::string& s, T const& in) noexcept {
+        static inline void Append(std::string& s, T const& in) {
+            assert(false);
+        }
+        static inline void AppendCore(std::string& s, T const& in) {
             assert(false);
         }
     };
@@ -48,7 +51,7 @@ namespace xx {
     template<>
     struct StringFuncs<char const*, void> {
         static inline void Append(std::string& s, char const* const& in) noexcept {
-            s.append(in ? "nil" : in);
+            s.append(in ? "null" : in);
         }
     };
 
@@ -56,7 +59,7 @@ namespace xx {
     template<>
     struct StringFuncs<char*, void> {
         static inline void Append(std::string& s, char* const& in) noexcept {
-            s.append(in ? "nil" : in);
+            s.append(in ? "null" : in);
         }
     };
 
@@ -132,7 +135,7 @@ namespace xx {
                 ::xx::Append(s, in.value());
             }
             else {
-                s.append("nil");
+                s.append("null");
             }
         }
     };
@@ -170,27 +173,6 @@ namespace xx {
             else {
                 s.push_back(']');
             }
-        }
-    };
-
-    // 适配 std::shared_ptr<T>
-    template<typename T>
-    struct StringFuncs<std::shared_ptr<T>> {
-        static inline void Append(std::string& s, std::shared_ptr<T> const& in) noexcept {
-            if (in) {
-                in->ToString(s);
-            }
-            else {
-                s.append("nil");
-            }
-        }
-    };
-
-    // 适配 std::weak_ptr<T>
-    template<typename T>
-    struct StringFuncs<std::weak_ptr<T>> {
-        static inline void Append(std::string& s, std::weak_ptr<T> const& in) noexcept {
-            ::xx::Append(in.lock());
         }
     };
 

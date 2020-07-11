@@ -58,13 +58,16 @@ namespace xx {
 
     // 反序列化需要这个用以提供相应的 typeId 的创建函数
     struct ObjectCreators {
+        ObjectCreators() = default;
+        ObjectCreators(ObjectCreators const&) = default;
+        ObjectCreators& operator=(ObjectCreators const&) = default;
 
         // 创建函数容器
-        typename Object::CreateFuncs createFuncs;
+        typename Object::CreateFuncs createFuncs {};
 
         // 创建相应 typeId 的创建函数( 通常调用该函数的函数体位于序列化生成物 )
         template<typename T, typename ENABLED = std::enable_if_t<std::is_base_of_v<Object, T>>>
-        void Register(uint16_t const &typeId) {
+        void Register(uint16_t const &typeId = TypeId_v<T>) {
             createFuncs[typeId] = []() -> std::shared_ptr<Object> {
                 try {
                     return std::make_shared<T>();
@@ -104,7 +107,7 @@ namespace xx {
         template<typename T>
         void WritePtr(std::shared_ptr<T> const &v) {
             // 写入 typeId. 空值 typeId 为 0
-            auto &&typeId = v ? v->GetTypeId() : 0;
+            auto &&typeId = v ? v->GetTypeId() : (uint16_t)0;
             Write(typeId);
             if (!typeId) return;
 
@@ -129,8 +132,6 @@ namespace xx {
     };
 
     struct DataReaderEx : DataReader {
-        using DataReader::DataReader;
-
         // ReadOnce 时备份 offset 值，用于计算相对 offset
         size_t offsetBak = 0;
 
@@ -138,7 +139,16 @@ namespace xx {
         std::unordered_map<size_t, std::shared_ptr<Object>> objIdxs;
 
         // 创建函数集. 创建 Reader 之后需设置.
-        typename Object::CreateFuncs *creators = nullptr;
+        typename Object::CreateFuncs *creators;
+
+        DataReaderEx(char const* const& buf, size_t const& len, ObjectCreators& oc)
+            : DataReader(buf, len)
+            , creators(&oc.createFuncs) {
+        }
+        DataReaderEx(Data const& d, ObjectCreators& oc)
+                : DataReader(d.buf, d.len)
+                , creators(&oc.createFuncs) {
+        }
 
         // 读出并填充到变量. 可同时填充多个. 返回非 0 则读取失败
         template<typename ...TS>
@@ -183,12 +193,15 @@ namespace xx {
             // 简单检查 创建函数 的 有效性( 防止忘记注册 )
             if (!(*creators)[typeId]) return __LINE__;
 
+            // 计算 当前相对偏移量
+            auto currOffs = offset - offsetBak;
+
             // 读出 相对偏移量
             size_t offs;
             if (auto r = Read(offs)) return r;
 
             // 如果等于 当前相对偏移量，则表明是第一次写入，后面会跟随 内容序列化数据
-            if (offs == offset - offsetBak) {
+            if (offs == currOffs) {
 
                 // 用创建函数创建出目标实例. 如果创建失败则退出( 防止注册到无效的创建函数或创建时内存不足构造失败啥的 )
                 auto &&o = (*creators)[typeId]();
@@ -230,6 +243,17 @@ namespace xx {
             return dr.ReadPtr(out);
         }
     };
+    template<typename T>
+    struct StringFuncs<std::shared_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
+        static inline void Append(std::string& s, std::shared_ptr<T> const& in) noexcept {
+            if (in) {
+                in->ToString(s);
+            }
+            else {
+                s.append("null");
+            }
+        }
+    };
 
     // 适配 std::weak_ptr<T>
     template<typename T>
@@ -243,6 +267,17 @@ namespace xx {
             if (int r = dr.ReadPtr(ptr)) return r;
             out = ptr;
             return 0;
+        }
+    };
+    template<typename T>
+    struct StringFuncs<std::weak_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
+        static inline void Append(std::string& s, std::weak_ptr<T> const& in) noexcept {
+            if (auto&& p = in.lock()) {
+                p->ToString(s);
+            }
+            else {
+                s.append("null");
+            }
         }
     };
 
@@ -264,6 +299,8 @@ namespace xx {
             in.ToString(s);
         }
     };
+
+
 
     // 适配 std::vector
     template<typename T>
@@ -327,8 +364,8 @@ using BaseType = BT; \
 T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
-T(T&& o); \
-T& operator=(T&& o); \
+T(T&& o) noexcept; \
+T& operator=(T&& o) noexcept; \
 uint16_t GetTypeId() const override; \
 void Serialize(xx::DataWriterEx &dw) const override; \
 int Deserialize(xx::DataReaderEx &dr) override; \
@@ -339,8 +376,8 @@ void ToStringCore(std::string &s) const override;
 T() = default; \
 T(T const&) = default; \
 T& operator=(T const&) = default; \
-T(T&& o); \
-T& operator=(T&& o);
+T(T&& o) noexcept; \
+T& operator=(T&& o) noexcept;
 
 /*
 

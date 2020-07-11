@@ -7,4 +7,5 @@ include_directories(../xxlib)
 
 add_executable(test2
         main.cpp
+        PKG_class_lite.cpp
         )

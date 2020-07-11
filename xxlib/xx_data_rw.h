@@ -38,10 +38,9 @@ namespace xx {
 		// 读指针偏移量
 		size_t offset = 0;
 
-		DataReader(char const* const& buf, size_t const& len, size_t const& offset = 0)
+		DataReader(char const* const& buf, size_t const& len)
 			: buf(buf)
 			, len(len)
-			, offset(offset)
 		{
 		}
 
