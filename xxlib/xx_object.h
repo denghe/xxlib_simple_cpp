@@ -6,7 +6,7 @@
 namespace xx {
     // 在 DataFuncs 对原生数据类型的支持的基础上，继续扩展对 std::shared_ptr  std::weak_ptr 的 Object 基类 序列化支持
     // 读写器 继承并扩展 针对智能指针的读写函数
-    // 示例在本代码文件最下方, 可供手写代码复制小改
+    // 示例参考 代码生成物
 
     /************************************************************************************/
     // Data 序列化 / 反序列化 基础适配模板 for Object, std::shared_ptr, std::weak_ptr
@@ -56,6 +56,7 @@ namespace xx {
         inline virtual void ToStringCore(std::string &s) const { };
     };
 
+    /************************************************************************************/
     // 反序列化需要这个用以提供相应的 typeId 的创建函数
     struct ObjectCreators {
         ObjectCreators() = default;
@@ -79,6 +80,8 @@ namespace xx {
         }
     };
 
+    /************************************************************************************/
+    // 序列化器
     struct DataWriterEx : DataWriter {
         using DataWriter::DataWriter;
 
@@ -95,7 +98,7 @@ namespace xx {
             (void)n;
         }
 
-        // 一次完整的写入。会记录从什么地方
+        // 一次完整的写入。会备份长度（方便计算相对偏移量）和初始化指针字典
         template<typename T>
         void WriteOnce(T const &v) {
             lenBak = data.len;
@@ -131,6 +134,8 @@ namespace xx {
         }
     };
 
+    /************************************************************************************/
+    // 反序列化器
     struct DataReaderEx : DataReader {
         // ReadOnce 时备份 offset 值，用于计算相对 offset
         size_t offsetBak = 0;
@@ -231,6 +236,9 @@ namespace xx {
             return 0;
         }
     };
+
+    /************************************************************************************/
+    // 各种适配
 
     // 适配 std::shared_ptr<T>
     template<typename T>
@@ -344,20 +352,8 @@ namespace xx {
     };
 }
 
-
-#define XX_OBJECT_OVERRIDES_H \
-uint16_t GetTypeId() const override; \
-void Serialize(xx::DataWriterEx &dw) const override; \
-int Deserialize(xx::DataReaderEx &dr) override; \
-void ToString(std::string &s) const override; \
-void ToStringCore(std::string &s) const override;
-
-#define XX_OBJECT_COPYASSIGN_H(T) \
-T() = default; \
-T(T const&) = default; \
-T& operator=(T const&) = default; \
-T(T&& o); \
-T& operator=(T&& o);
+/************************************************************************************/
+// 各种宏
 
 #define XX_GENCODE_OBJECT_H(T, BT) \
 using BaseType = BT; \
@@ -378,85 +374,3 @@ T(T const&) = default; \
 T& operator=(T const&) = default; \
 T(T&& o) noexcept; \
 T& operator=(T&& o) noexcept;
-
-/*
-
-struct Foo : xx::Object {
-    using BaseType = xx::Object;
-
-    XX_OBJECT_OVERRIDES_H
-
-    int i = 1;
-    std::string name = "asdf";
-};
-
-struct Bar : Foo {
-    using BaseType = Foo;
-
-    XX_OBJECT_OVERRIDES_H
-
-    float x = 1.2, y = 3.4;
-};
-
-namespace xx {
-    template<>
-    struct TypeId<Foo> {
-        static const uint16_t value = 1;
-    };
-    template<>
-    struct TypeId<Bar> {
-        static const uint16_t value = 2;
-    };
-}
-
-uint16_t Foo::GetTypeId() const { return xx::TypeId_v<Foo>; }
-
-void Foo::Serialize(xx::DataWriterEx &dw) const {
-    this->BaseType::Serialize(dw);
-    dw.Write(i, name);
-}
-
-int Foo::Deserialize(xx::DataReaderEx &dr) {
-    if (int r = this->BaseType::Deserialize(dr)) return r;
-    return dr.Read(i, name);
-}
-
-void Foo::ToString(std::string &s) const {
-    xx::Append(s, "{\"typeId\":", GetTypeId());
-    this->BaseType::ToStringCore(s);
-    ToStringCore(s);
-    s.push_back('}');
-}
-
-bool Foo::ToStringCore(std::string &s) const {
-    ::xx::Append(s, ",\"i\":", i);
-    ::xx::Append(s, ",\"name\":", name);
-    return true;
-}
-
-uint16_t Bar::GetTypeId() const { return xx::TypeId_v<Bar>; }
-
-void Bar::Serialize(xx::DataWriterEx &dw) const {
-    this->BaseType::Serialize(dw);
-    dw.Write(x, y);
-}
-
-int Bar::Deserialize(xx::DataReaderEx &dr) {
-    if (int r = this->BaseType::Deserialize(dr)) return r;
-    return dr.Read(x, y);
-}
-
-void Bar::ToString(std::string &s) const {
-    xx::Append(s, "{\"typeId\":", GetTypeId());
-    this->BaseType::ToStringCore(s);
-    ToStringCore(s);
-    s.push_back('}');
-}
-
-bool Bar::ToStringCore(std::string &s) const {
-    ::xx::Append(s, ",\"x\":", x);
-    ::xx::Append(s, ",\"y\":", y);
-    return true;
-}
-
-*/

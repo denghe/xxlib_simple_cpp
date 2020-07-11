@@ -30,30 +30,31 @@ int main() {
         assert(!r);
         xx::CoutN(o);
     }
-//    {
-//        auto&& d = std::make_shared<PKG::D>();
-//        d->name = "d";
-//        d->a.x = 1;
-//        d->a.y = 1;
-//        d->a.c = d;
-//        d->b.x = 3;
-//        d->b.y = 4;
-//        d->b.z = 5;
-//        d->b.c = d;
-//        d->b.wc = d;
-//
-//        xx::DataWriterEx dw(data);
-//        dw.WriteOnce(d);
-//    }
-//    xx::CoutN(data);
-//    {
-//        xx::ObjectCreators oc;
-//        PKG::PkgGenTypes::RegisterTo(oc);
-//        xx::DataReaderEx dr(data, oc);
-//
-//        std::shared_ptr<xx::Object> o;
-//        int r = dr.ReadOnce(o);
-//        assert(!r);
-//        xx::CoutN(o);
-//    }
+    data.Clear();
+    {
+        auto&& d = std::make_shared<PKG::D>();
+        d->name = "d";
+        d->a.x = 1;
+        d->a.y = 1;
+        d->a.c = d;
+        d->b.x = 3;
+        d->b.y = 4;
+        d->b.z = 5;
+        d->b.c = d;
+        d->b.wc = d;
+
+        xx::DataWriterEx dw(data);
+        dw.WriteOnce(d);
+    }
+    xx::CoutN(data);
+    {
+        xx::ObjectCreators oc;
+        PKG::PkgGenTypes::RegisterTo(oc);
+        xx::DataReaderEx dr(data, oc);
+
+        std::shared_ptr<xx::Object> o;
+        int r = dr.ReadOnce(o);
+        assert(!r);
+        xx::CoutN(o);
+    }
 }
