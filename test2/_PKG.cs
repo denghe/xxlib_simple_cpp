@@ -22,6 +22,7 @@ class C {
 [TypeId(34)]
 class D : C {
     string name;
+    Nullable<string> desc;
 }
 
 [TypeId(56)]

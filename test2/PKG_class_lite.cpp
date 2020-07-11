@@ -166,6 +166,7 @@ namespace PKG {
     D& D::operator=(D&& o) noexcept {
         this->PKG::C::operator=(std::move(o));
         std::swap(this->name, o.name);
+        std::swap(this->desc, o.desc);
         return *this;
     }
     uint16_t D::GetTypeId() const {
@@ -174,10 +175,12 @@ namespace PKG {
     void D::Serialize(xx::DataWriterEx& dw) const {
         this->BaseType::Serialize(dw);
         dw.Write(this->name);
+        dw.Write(this->desc);
     }
     int D::Deserialize(xx::DataReaderEx& dr) {
         if (int r = this->BaseType::Deserialize(dr)) return r;
         if (int r = dr.Read(this->name)) return r;
+        if (int r = dr.Read(this->desc)) return r;
         return 0;
     }
     void D::ToString(std::string& s) const {
@@ -196,6 +199,7 @@ namespace PKG {
     void D::ToStringCore(std::string& s) const {
         this->BaseType::ToStringCore(s);
         xx::Append(s, ",\"name\":", this->name);
+        xx::Append(s, ",\"desc\":", this->desc);
     }
     Scene::Scene(Scene&& o) noexcept {
         this->operator=(std::move(o));

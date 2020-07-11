@@ -3,7 +3,7 @@
 #include "PKG_class_lite.h.inc"  // user create it for extend include files
 namespace PKG {
 	struct PkgGenMd5 {
-		inline static const std::string value = "#*MD5<03b90734596cc8486fd2a848e9c7e13b>*#";
+		inline static const std::string value = "#*MD5<33623561c5d23cf0ca641d811b683406>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(xx::ObjectCreators& oc);
@@ -37,6 +37,7 @@ namespace PKG {
     struct D : PKG::C {
         XX_GENCODE_OBJECT_H(D, PKG::C)
         std::string name;
+        std::optional<std::string> desc;
     };
     struct Scene : PKG::Node {
         XX_GENCODE_OBJECT_H(Scene, PKG::Node)

@@ -34,8 +34,9 @@ int main() {
     {
         auto&& d = std::make_shared<PKG::D>();
         d->name = "d";
+        d->desc = "nullable";
         d->a.x = 1;
-        d->a.y = 1;
+        d->a.y = 2;
         d->a.c = d;
         d->b.x = 3;
         d->b.y = 4;
