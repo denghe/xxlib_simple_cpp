@@ -62,9 +62,9 @@ namespace xx {
 		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	}
 
-    // 得到当前 steady 时间点的 epoch (精度为 seconds. 精确到小数点后 6 位)
+    // 得到当前 steady 时间点的 epoch 秒
     inline double NowSteadyEpochSeconds() noexcept {
-        return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000.0;
+        return (double)std::chrono::duration_cast<duration_10m>(std::chrono::steady_clock::now().time_since_epoch()).count() / 10000000.0;
     }
 
 
