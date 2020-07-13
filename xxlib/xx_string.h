@@ -60,7 +60,7 @@ namespace xx {
     // 适配 char const* \0 结尾 字串
     template<>
     struct StringFuncs<char const*, void> {
-        static inline void Append(std::string& s, char const* const& in) noexcept {
+        static inline void Append(std::string& s, char const* const& in) {
             s.append(in ? in : "null");
         }
     };
@@ -68,7 +68,7 @@ namespace xx {
     // 适配 char* \0 结尾 字串
     template<>
     struct StringFuncs<char*, void> {
-        static inline void Append(std::string& s, char* const& in) noexcept {
+        static inline void Append(std::string& s, char* const& in) {
             s.append(in ? in: "null");
         }
     };
@@ -76,7 +76,7 @@ namespace xx {
     // 适配 literal char[len] string
     template<size_t len>
     struct StringFuncs<char[len], void> {
-        static inline void Append(std::string& s, char const(&in)[len]) noexcept {
+        static inline void Append(std::string& s, char const(&in)[len]) {
             s.append(in);
         }
     };
@@ -84,7 +84,7 @@ namespace xx {
     // 适配 std::string( 前后加引号 )
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string, T>>> {
-        static inline void Append(std::string& s, T const& in) noexcept {
+        static inline void Append(std::string& s, T const& in) {
             s.push_back('\"');
             s.append(in);
             s.push_back('\"');
@@ -94,7 +94,7 @@ namespace xx {
     // 适配所有数字
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
-        static inline void Append(std::string& s, T const& in) noexcept {
+        static inline void Append(std::string& s, T const& in) {
             if constexpr (std::is_same_v<bool, T>) {
                 s.append(in ? "true" : "false");
             }
@@ -115,7 +115,7 @@ namespace xx {
     // 适配 enum( 根据原始数据类型调上面的适配 )
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_enum_v<T>>> {
-        static inline void Append(std::string& s, T const& in) noexcept {
+        static inline void Append(std::string& s, T const& in) {
             s.append(std::to_string((std::underlying_type_t<T>)in));
         }
     };
@@ -123,7 +123,7 @@ namespace xx {
     // 适配 enum( 根据原始数据类型调上面的适配 )
     template<typename C, typename D>
     struct StringFuncs<std::chrono::time_point<C, D>, void> {
-        static inline void Append(std::string& s, std::chrono::time_point<C, D> const& in) noexcept {
+        static inline void Append(std::string& s, std::chrono::time_point<C, D> const& in) {
             auto&& t = std::chrono::system_clock::to_time_t(in);
             std::tm tm{};
 #ifdef _WIN32
@@ -140,7 +140,7 @@ namespace xx {
     // 适配 std::optional<T>
     template<typename T>
     struct StringFuncs<std::optional<T>, void> {
-        static inline void Append(std::string& s, std::optional<T> const& in) noexcept {
+        static inline void Append(std::string& s, std::optional<T> const& in) {
             if (in.has_value()) {
                 ::xx::Append(s, in.value());
             }
@@ -153,7 +153,7 @@ namespace xx {
     // 适配 std::vector<T>
     template<typename T>
     struct StringFuncs<std::vector<T>, void> {
-        static inline void Append(std::string& s, std::vector<T> const& in) noexcept {
+        static inline void Append(std::string& s, std::vector<T> const& in) {
             s.push_back('[');
             if (auto inLen = in.size()) {
                 for(size_t i = 0; i < inLen; ++i) {
@@ -171,7 +171,7 @@ namespace xx {
     // 适配 Data
     template<>
     struct StringFuncs<Data, void> {
-        static inline void Append(std::string& s, Data const& in) noexcept {
+        static inline void Append(std::string& s, Data const& in) {
             s.push_back('[');
             if (auto inLen = in.len) {
                 for(size_t i = 0; i < inLen; ++i) {
@@ -224,7 +224,7 @@ namespace xx {
         // todo: more
     }
 
-    inline int FromHex(uint8_t const& c) noexcept {
+    inline int FromHex(uint8_t const& c) {
         if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
         else if (c >= 'a' && c <= 'z') return c - 'a' + 10;
         else if (c >= '0' && c <= '9') return c - '0';

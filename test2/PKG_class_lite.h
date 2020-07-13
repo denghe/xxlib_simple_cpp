@@ -3,10 +3,10 @@
 #include "PKG_class_lite.h.inc"  // user create it for extend include files
 namespace PKG {
 	struct PkgGenMd5 {
-		inline static const std::string value = "#*MD5<33623561c5d23cf0ca641d811b683406>*#";
+		inline static const std::string value = "#*MD5<59ecf4737e166177cee1d8f24fa147cc>*#";
     };
 	struct PkgGenTypes {
-        static void RegisterTo(xx::ObjectCreators& oc);
+        static void RegisterTo(xx::ObjectHelper& oh);
     };
 
     struct C;
@@ -45,9 +45,9 @@ namespace PKG {
 }
 namespace xx {
 	template<>
-	struct StringFuncs<PKG::A, void> {
-		static void Append(std::string& s, PKG::A const& in);
-		static void AppendCore(std::string& s, PKG::A const& in);
+	struct StringFuncsEx<PKG::A, void> {
+		static void Append(ObjectHelper &oh, PKG::A const& in);
+		static void AppendCore(ObjectHelper &oh, PKG::A const& in);
     };
 	template<>
 	struct DataFuncsEx<PKG::A, void> {
@@ -55,9 +55,9 @@ namespace xx {
 		static int Read(DataReaderEx& dr, PKG::A& out);
 	};
 	template<>
-	struct StringFuncs<PKG::B, void> {
-		static void Append(std::string& s, PKG::B const& in);
-		static void AppendCore(std::string& s, PKG::B const& in);
+	struct StringFuncsEx<PKG::B, void> {
+		static void Append(ObjectHelper &oh, PKG::B const& in);
+		static void AppendCore(ObjectHelper &oh, PKG::B const& in);
     };
 	template<>
 	struct DataFuncsEx<PKG::B, void> {

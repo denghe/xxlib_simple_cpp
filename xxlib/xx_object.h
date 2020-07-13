@@ -15,26 +15,36 @@ namespace xx {
 
     struct DataReaderEx;
     struct DataWriterEx;
+    struct ObjectHelper;
+    struct Object;
 
     template<typename T, typename ENABLED = void>
     struct DataFuncsEx {
-        static inline void Write(DataWriterEx& dw, T const& in) {
+        static inline void Write(DataWriterEx &dw, T const &in) {
             DataFuncs<T>::Write(dw, in);
         }
-        static inline int Read(DataReaderEx& dr, T& out) {
+
+        static inline int Read(DataReaderEx &dr, T &out) {
             return DataFuncs<T>::Read(dr, out);
         }
     };
 
+    // 默认调用 xx::Append(oh.s, in)
+    template<typename T, typename ENABLED = void>
+    struct StringFuncsEx {
+        static void Append(ObjectHelper &oh, T const &in);
+    };
+
+
     /************************************************************************************/
-    // Object 主要用于满足 无脑智能指针堆业务逻辑 的建模与序列化需求
+    // 为 Object 序列化 克隆 值相等判定 转字符串 功能 提供上下文支撑( 主要是类创建，字典防递归 )
 
-    struct Object {
-        bool toStringFlag = false;
+    struct ObjectHelper {
+        ObjectHelper() = default;
 
-        Object() = default;
+        ObjectHelper(ObjectHelper const &) = default;
 
-        virtual ~Object() = default;
+        ObjectHelper &operator=(ObjectHelper const &) = default;
 
         // 反序列化时的创建函数 类型
         typedef std::shared_ptr<Object>(*CreateFunc)();
@@ -42,31 +52,8 @@ namespace xx {
         // 创建函数数组 类型
         typedef std::array<CreateFunc, 1u << (sizeof(uint16_t) * 8)> CreateFuncs;
 
-        // 序列化时获取 typeId( 如果 Object 以值类型方式使用则无需获取 typeId )
-        inline virtual uint16_t GetTypeId() const { return 0; };
-
-        // 序列化正文
-        inline virtual void Serialize(DataWriterEx &) const { };
-
-        // 反序列化( 填充正文 )
-        inline virtual int Deserialize(DataReaderEx &) { return 0; };
-
-        // 输出 json 长相时用于输出外包围 {  } 部分
-        inline virtual void ToString(std::string &s) const { };
-
-        // 输出 json 长相时用于输出花括号内部的成员拼接
-        inline virtual void ToStringCore(std::string &s) const { };
-    };
-
-    /************************************************************************************/
-    // 反序列化需要这个用以提供相应的 typeId 的创建函数
-    struct ObjectCreators {
-        ObjectCreators() = default;
-        ObjectCreators(ObjectCreators const&) = default;
-        ObjectCreators& operator=(ObjectCreators const&) = default;
-
         // 创建函数容器
-        typename Object::CreateFuncs createFuncs {};
+        CreateFuncs createFuncs{};
 
         // 创建相应 typeId 的创建函数( 通常调用该函数的函数体位于序列化生成物 )
         template<typename T, typename ENABLED = std::enable_if_t<std::is_base_of_v<Object, T>>>
@@ -80,31 +67,158 @@ namespace xx {
                 }
             };
         }
+
+        // 通过 offset 定位 obj
+        std::unordered_map<size_t, std::shared_ptr<Object>> offsetObjs;
+
+        // 通过 obj 定位 offset
+        std::unordered_map<void *, size_t> ptrOffsets;
+
+        // ToString 填充用 $
+        std::string s;
+        std::string s1;
+        std::string s2;
+        xx::Data d;
+
+        // len / offset backup
+        int bak = 0;
+
+        // 对于一些本来返回 int 的函数但是改变了返回值，那就将那个 int 存放到此备查
+        int lastRtv = 0;
+
+        // 啥都清( 理论上讲用不到 )
+        inline void Cleanup() {
+            s.clear();
+            s1.clear();
+            s2.clear();
+            d.Clear();
+            bak = 0;
+            ptrOffsets.clear();
+            offsetObjs.clear();
+        }
+
+        template<typename T>
+        void WriteTo(Data& d, T const& v);
+
+        template<typename T>
+        int ReadFrom(Data& d, T& v);
+
+        std::shared_ptr<Object> ReadObjectFrom(Data& d);
+
+        // 利用 ToString( 存到 s1, s2 ) 来比较两个数据是否相同. 返回 (size_t)-1 表示相同, 否则为不同之处的起始下标
+        template<typename T>
+        size_t EqualsTo(T const&a, T const& b);
+
+        // 利用序列化来造出新数据. 返回 0 表示成功( 理论上讲应该永远成功, 除非内存不足或构造函数崩 )
+        template<typename T>
+        int Clone(T const&in, T& out);
+
+        template<typename...Args>
+        std::string const& ToString(Args const& ...args) {
+            s.clear();
+            ptrOffsets.clear();
+            AppendEx(*this, args...);
+            return s;
+        }
+
+        // 替代 std::cout. 支持实现了 StringFuncsEx 模板适配的类型
+        template<typename...Args>
+        inline void Cout(Args const& ...args) {
+            ToString(args...);
+            for (auto&& c : s) {
+                if (!c) c = '^';
+            }
+            std::cout << s;
+        }
+
+        // 在 Cout 基础上添加了换行
+        template<typename...Args>
+        inline void CoutN(Args const& ...args) {
+            Cout(args...);
+            std::cout << std::endl;
+        }
+
+        // 在 CoutN 基础上于头部添加了时间
+        template<typename...Args>
+        inline void CoutTN(Args const& ...args) {
+            CoutN("[", std::chrono::system_clock::now(), "] ", args...);
+        }
+    };
+
+    template<typename T, typename ENABLED>
+    inline void StringFuncsEx<T, ENABLED>::Append(ObjectHelper &oh, T const &in) {
+        xx::Append(oh.s, in);
+    };
+
+    /************************************************************************************/
+    // Append / ToString
+    /************************************************************************************/
+
+    namespace Core {
+        template<typename T>
+        void AppendEx(ObjectHelper &oh, T const &v) {
+            ::xx::StringFuncsEx<T>::Append(oh, v);
+        }
+    }
+
+    template<typename ...Args>
+    void AppendEx(ObjectHelper &oh, Args const& ... args) {
+        std::initializer_list<int> n{ ((::xx::Core::AppendEx(oh, args)), 0)... };
+        (void)(n);
+    }
+
+    template<typename ...Args>
+    std::string const& ToStringEx(ObjectHelper &oh, Args const& ... args) {
+        AppendEx(oh, args...);
+        return oh.s;
+    }
+
+    /************************************************************************************/
+    // Object 主要用于满足 无脑智能指针堆业务逻辑 的建模与序列化需求
+
+    struct Object {
+        Object() = default;
+
+        virtual ~Object() = default;
+
+        // 序列化时获取 typeId( 如果 Object 以值类型方式使用则无需获取 typeId )
+        inline virtual uint16_t GetTypeId() const { return 0; };
+
+        // 序列化正文
+        inline virtual void Serialize(DataWriterEx &dw) const {};
+
+        // 反序列化( 填充正文 )
+        inline virtual int Deserialize(DataReaderEx &dr) { return 0; };
+
+        // 输出 json 长相时用于输出外包围 {  } 部分
+        inline virtual void ToString(ObjectHelper &oh) const {};
+
+        // 输出 json 长相时用于输出花括号内部的成员拼接
+        inline virtual void ToStringCore(ObjectHelper &oh) const {};
     };
 
     /************************************************************************************/
     // 序列化器
     struct DataWriterEx : DataWriter {
-        using DataWriter::DataWriter;
+        // 引用到 Object 功能辅助器
+        ObjectHelper &oh;
 
-        // WriteOnce 时备份 len 值，用于计算相对 offset
-        size_t lenBak = 0;
-
-        // key: pointer   value: offset
-        std::unordered_map<void *, size_t> ptrs;
+        DataWriterEx(Data &data, ObjectHelper &oh)
+                : DataWriter(data), oh(oh) {
+        }
 
         // 支持同时写入多个值. 覆盖基类的实现，以确保走 DataFuncsEx 适配模板
         template<typename ...TS>
-        void Write(TS const& ...vs) {
-            std::initializer_list<int> n{ (DataFuncsEx<TS>::Write(*this, vs), 0)... };
-            (void)n;
+        void Write(TS const &...vs) {
+            std::initializer_list<int> n{(DataFuncsEx<TS>::Write(*this, vs), 0)...};
+            (void) n;
         }
 
         // 一次完整的写入。会备份长度（方便计算相对偏移量）和初始化指针字典
         template<typename T>
         void WriteOnce(T const &v) {
-            lenBak = data.len;
-            ptrs.clear();
+            oh.bak = data.len;
+            oh.ptrOffsets.clear();
             Write(v);
         }
 
@@ -112,16 +226,16 @@ namespace xx {
         template<typename T>
         void WritePtr(std::shared_ptr<T> const &v) {
             // 写入 typeId. 空值 typeId 为 0
-            auto &&typeId = v ? v->GetTypeId() : (uint16_t)0;
+            auto &&typeId = v ? v->GetTypeId() : (uint16_t) 0;
             Write(typeId);
             if (!typeId) return;
 
             // 计算 相对偏移量. 第一次出现则 计算相对偏移量. 否则用 从字典找到的
-            auto &&iter = ptrs.find((void *) &*v);
+            auto &&iter = oh.ptrOffsets.find((void *) &*v);
             size_t offs;
-            if (iter == ptrs.end()) {
-                offs = data.len - lenBak;
-                ptrs[(void *) &*v] = offs;
+            if (iter == oh.ptrOffsets.end()) {
+                offs = data.len - oh.bak;
+                oh.ptrOffsets[(void *) &*v] = offs;
             } else {
                 offs = iter->second;
             }
@@ -130,7 +244,7 @@ namespace xx {
             Write(offs);
 
             // 第一次出现则 继续写入 内容序列化数据
-            if (iter == ptrs.end()) {
+            if (iter == oh.ptrOffsets.end()) {
                 v->Serialize(*this);
             }
         }
@@ -139,46 +253,41 @@ namespace xx {
     /************************************************************************************/
     // 反序列化器
     struct DataReaderEx : DataReader {
-        // ReadOnce 时备份 offset 值，用于计算相对 offset
-        size_t offsetBak = 0;
+        // 引用到 Object 功能辅助器
+        ObjectHelper &oh;
 
-        // key: offset   value: pointer
-        std::unordered_map<size_t, std::shared_ptr<Object>> objIdxs;
-
-        // 创建函数集. 创建 Reader 之后需设置.
-        typename Object::CreateFuncs *creators;
-
-        DataReaderEx(char const* const& buf, size_t const& len, ObjectCreators& oc)
-            : DataReader(buf, len)
-            , creators(&oc.createFuncs) {
+        DataReaderEx(char const *const &buf, size_t const &len, ObjectHelper &oh)
+                : DataReader(buf, len), oh(oh) {
         }
-        DataReaderEx(Data const& d, ObjectCreators& oc)
-                : DataReader(d.buf, d.len)
-                , creators(&oc.createFuncs) {
+
+        DataReaderEx(Data const &d, ObjectHelper &oh)
+                : DataReader(d.buf, d.len), oh(oh) {
         }
 
         // 读出并填充到变量. 可同时填充多个. 返回非 0 则读取失败
         template<typename ...TS>
-        int Read(TS&...vs) {
+        int Read(TS &...vs) {
             return ReadCore(vs...);
         }
 
     protected:
         template<typename T, typename ...TS>
-        int ReadCore(T& v, TS&...vs) {
+        int ReadCore(T &v, TS &...vs) {
             if (auto r = DataFuncsEx<T>::Read(*this, v)) return r;
             return ReadCore(vs...);
         }
+
         template<typename T>
-        int ReadCore(T& v) {
+        int ReadCore(T &v) {
             return DataFuncsEx<T>::Read(*this, v);
         }
+
     public:
 
         template<typename T>
         int ReadOnce(T &v) {
-            offsetBak = offset;
-            objIdxs.clear();
+            oh.bak = offset;
+            oh.offsetObjs.clear();
             return Read(v);
         }
 
@@ -186,9 +295,6 @@ namespace xx {
         int ReadPtr(std::shared_ptr<T> &v) {
             // 防御性清理数据内容
             v.reset();
-
-            // 该函数依赖 creators 被赋值. 通常程序会有一段注册有相关类型构造的函数数组
-            if (!creators) return __LINE__;
 
             // 先读 typeId. 如果为 0 则 清空 入参 并退出
             uint16_t typeId;
@@ -198,10 +304,10 @@ namespace xx {
             }
 
             // 简单检查 创建函数 的 有效性( 防止忘记注册 )
-            if (!(*creators)[typeId]) return __LINE__;
+            if (!oh.createFuncs[typeId]) return __LINE__;
 
             // 计算 当前相对偏移量
-            auto currOffs = offset - offsetBak;
+            auto currOffs = offset - oh.bak;
 
             // 读出 相对偏移量
             size_t offs;
@@ -211,7 +317,7 @@ namespace xx {
             if (offs == currOffs) {
 
                 // 用创建函数创建出目标实例. 如果创建失败则退出( 防止注册到无效的创建函数或创建时内存不足构造失败啥的 )
-                auto &&o = (*creators)[typeId]();
+                auto &&o = oh.createFuncs[typeId]();
                 if (!o) return __LINE__;
 
                 // 将 o 写入 v. 利用动态转换检查数据类型兼容性。如果转换失败则退出( 防止数据与类型对应不上 )
@@ -219,15 +325,15 @@ namespace xx {
                 if (!v) return __LINE__;
 
                 // 建立 相对偏移量 到 智能指针 的映射, 以便下次遇到这个 相对偏移量 从而直接读出
-                objIdxs[offs] = o;
+                oh.offsetObjs[offs] = o;
 
                 // 继续读出类实例内容。如果失败则退出
                 if (auto &&r = v->Deserialize(*this)) return r;
             } else {
 
                 // 从字典查找 读出的 相对偏移量 对应的 智能指针。找不到 或 类型对应不上则退出
-                auto iter = objIdxs.find(offs);
-                if (iter == objIdxs.end()) return __LINE__;
+                auto iter = oh.offsetObjs.find(offs);
+                if (iter == oh.offsetObjs.end()) return __LINE__;
                 if (iter->second->GetTypeId() != typeId) return __LINE__;
 
                 // 填充 入参。如果类型转换失败则退出( 防止数据与类型对应不上 )
@@ -253,14 +359,14 @@ namespace xx {
             return dr.ReadPtr(out);
         }
     };
+
     template<typename T>
-    struct StringFuncs<std::shared_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
-        static inline void Append(std::string& s, std::shared_ptr<T> const& in) noexcept {
+    struct StringFuncsEx<std::shared_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
+        static inline void Append(ObjectHelper &oh, std::shared_ptr<T> const &in) {
             if (in) {
-                in->ToString(s);
-            }
-            else {
-                s.append("null");
+                in->ToString(oh);
+            } else {
+                oh.s.append("null");
             }
         }
     };
@@ -279,14 +385,14 @@ namespace xx {
             return 0;
         }
     };
+
     template<typename T>
-    struct StringFuncs<std::weak_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
-        static inline void Append(std::string& s, std::weak_ptr<T> const& in) noexcept {
-            if (auto&& p = in.lock()) {
-                p->ToString(s);
-            }
-            else {
-                s.append("null");
+    struct StringFuncsEx<std::weak_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
+        static inline void Append(ObjectHelper &oh, std::weak_ptr<T> const &in) {
+            if (auto &&p = in.lock()) {
+                p->ToString(oh);
+            } else {
+                oh.s.append("null");
             }
         }
     };
@@ -304,12 +410,11 @@ namespace xx {
     };
 
     template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<Object, T>>> {
-        static inline void Append(std::string &s, T const &in) {
-            in.ToString(s);
+    struct StringFuncsEx<T, std::enable_if_t<std::is_base_of_v<Object, T>>> {
+        static inline void Append(ObjectHelper &oh, T const &in) {
+            in.ToString(oh);
         }
     };
-
 
 
     // 适配 std::vector
@@ -318,15 +423,14 @@ namespace xx {
         static inline void Write(DataWriterEx &dw, std::vector<T> const &in) {
             auto buf = in.data();
             auto len = in.size();
-            auto&& d = dw.data;
+            auto &&d = dw.data;
             d.Reserve(d.len + 5 + len * sizeof(T));
             d.WriteVarIntger(len);
             if (!len) return;
             if constexpr (sizeof(T) == 1 || std::is_same_v<float, T>) {
                 ::memcpy(d.buf + d.len, buf, len * sizeof(T));
                 d.len += len * sizeof(T);
-            }
-            else {
+            } else {
                 for (size_t i = 0; i < len; ++i) {
                     dw.Write(buf[i]);
                 }
@@ -343,8 +447,7 @@ namespace xx {
             if constexpr (sizeof(T) == 1 || std::is_same_v<float, T>) {
                 ::memcpy(buf, dr.buf + dr.offset, siz * sizeof(T));
                 dr.offset += siz * sizeof(T);
-            }
-            else {
+            } else {
                 for (size_t i = 0; i < siz; ++i) {
                     if (int r = dr.Read(buf[i])) return r;
                 }
@@ -352,6 +455,68 @@ namespace xx {
             return 0;
         }
     };
+
+    template<typename T>
+    struct StringFuncsEx<std::vector<T>, void> {
+        static inline void Append(ObjectHelper& oh, std::vector<T> const& in) {
+            oh.s.push_back('[');
+            if (auto inLen = in.size()) {
+                for(size_t i = 0; i < inLen; ++i) {
+                    ::xx::AppendEx(oh, in[i]);
+                    oh.s.push_back(',');
+                }
+                oh.s[oh.s.size() - 1] = ']';
+            }
+            else {
+                oh.s.push_back(']');
+            }
+        }
+    };
+
+    /************************************************************************************/
+    // ObjectHelper 的各种实现
+
+    template<typename T>
+    void ObjectHelper::WriteTo(Data& d, T const& v) {
+        DataWriterEx dw(d, *this);
+        dw.WriteOnce(v);
+    }
+
+    template<typename T>
+    int ObjectHelper::ReadFrom(Data& d, T& v) {
+        DataReaderEx dr(d, *this);
+        return dr.ReadOnce(v);
+    }
+
+    inline std::shared_ptr<Object> ObjectHelper::ReadObjectFrom(Data& d) {
+        DataReaderEx dr(d, *this);
+        std::shared_ptr<Object> o;
+        lastRtv = dr.ReadOnce(o);
+        return o;
+    }
+
+    template<typename T>
+    size_t ObjectHelper::EqualsTo(T const&a, T const& b) {
+        s1 = ToString(a);
+        s2 = ToString(b);
+        size_t len = s2.size();
+        if (len > s1.size()) {
+            len = s1.size();
+        }
+        for (size_t i = 0; i < len; ++i) {
+            if (s1[i] != s2[i]) return i;
+        }
+        return s1.size() == s2.size() ? (size_t)-1 : len;
+    }
+
+    template<typename T>
+    int ObjectHelper::Clone(T const&in, T& out) {
+        d.Clear();
+        DataWriterEx dw(d, *this);
+        dw.WriteOnce(in);
+        DataReaderEx dr(d, *this);
+        return dr.ReadOnce(out);
+    }
 }
 
 /************************************************************************************/
@@ -367,8 +532,9 @@ T& operator=(T&& o) noexcept; \
 uint16_t GetTypeId() const override; \
 void Serialize(xx::DataWriterEx &dw) const override; \
 int Deserialize(xx::DataReaderEx &dr) override; \
-void ToString(std::string &s) const override; \
-void ToStringCore(std::string &s) const override;
+void ToString(xx::ObjectHelper &oh) const override; \
+void ToStringCore(xx::ObjectHelper &oh) const override;
+
 
 #define XX_GENCODE_STRUCT_H(T) \
 T() = default; \

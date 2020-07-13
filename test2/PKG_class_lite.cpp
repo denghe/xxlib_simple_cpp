@@ -7,11 +7,11 @@ namespace xx {
     template<> struct TypeId<PKG::Scene> { static const uint16_t value = 56; };
 }
 namespace PKG {
-	void PkgGenTypes::RegisterTo(xx::ObjectCreators& oc) {
-	    oc.Register<PKG::C>(12);
-	    oc.Register<PKG::D>(34);
-	    oc.Register<PKG::Node>(78);
-	    oc.Register<PKG::Scene>(56);
+	void PkgGenTypes::RegisterTo(xx::ObjectHelper& oh) {
+	    oh.Register<PKG::C>();
+	    oh.Register<PKG::D>();
+	    oh.Register<PKG::Node>();
+	    oh.Register<PKG::Scene>();
 	}
 }
 
@@ -27,19 +27,19 @@ namespace xx {
         if (int r = d.Read(out.c)) return r;
         return 0;
     }
-	void StringFuncs<PKG::A, void>::Append(std::string& s, PKG::A const& in) {
-        s.push_back('{');
-        AppendCore(s, in);
-        s.push_back('}');
+	void StringFuncsEx<PKG::A, void>::Append(ObjectHelper &oh, PKG::A const& in) {
+        oh.s.push_back('{');
+        AppendCore(oh, in);
+        oh.s.push_back('}');
     }
-	void StringFuncs<PKG::A, void>::AppendCore(std::string& s, PKG::A const& in) {
-        auto sizeBak = s.size();
-        if (sizeBak == s.size()) {
-            s.push_back(',');
+	void StringFuncsEx<PKG::A, void>::AppendCore(ObjectHelper &oh, PKG::A const& in) {
+        auto sizeBak = oh.s.size();
+        if (sizeBak == oh.s.size()) {
+            oh.s.push_back(',');
         }
-        xx::Append(s, "\"x\":", in.x); 
-        xx::Append(s, ",\"y\":", in.y);
-        xx::Append(s, ",\"c\":", in.c);
+        xx::AppendEx(oh, "\"x\":", in.x); 
+        xx::AppendEx(oh, ",\"y\":", in.y);
+        xx::AppendEx(oh, ",\"c\":", in.c);
     }
 	void DataFuncsEx<PKG::B, void>::Write(DataWriterEx& dw, PKG::B const& in) {
         DataFuncsEx<PKG::A>::Write(dw, in);
@@ -52,19 +52,19 @@ namespace xx {
         if (int r = d.Read(out.wc)) return r;
         return 0;
     }
-	void StringFuncs<PKG::B, void>::Append(std::string& s, PKG::B const& in) {
-        s.push_back('{');
-        AppendCore(s, in);
-        s.push_back('}');
+	void StringFuncsEx<PKG::B, void>::Append(ObjectHelper &oh, PKG::B const& in) {
+        oh.s.push_back('{');
+        AppendCore(oh, in);
+        oh.s.push_back('}');
     }
-	void StringFuncs<PKG::B, void>::AppendCore(std::string& s, PKG::B const& in) {
-        auto sizeBak = s.size();
-        StringFuncs<PKG::A>::AppendCore(s, in);
-        if (sizeBak == s.size()) {
-            s.push_back(',');
+	void StringFuncsEx<PKG::B, void>::AppendCore(ObjectHelper &oh, PKG::B const& in) {
+        auto sizeBak = oh.s.size();
+        StringFuncsEx<PKG::A>::AppendCore(oh, in);
+        if (sizeBak == oh.s.size()) {
+            oh.s.push_back(',');
         }
-        xx::Append(s, "\"z\":", in.z); 
-        xx::Append(s, ",\"wc\":", in.wc);
+        xx::AppendEx(oh, "\"z\":", in.z); 
+        xx::AppendEx(oh, ",\"wc\":", in.wc);
     }
 }
 namespace PKG {
@@ -106,22 +106,22 @@ namespace PKG {
         if (int r = dr.Read(this->b)) return r;
         return 0;
     }
-    void C::ToString(std::string& s) const {
-        if (this->toStringFlag) {
-        	xx::Append(s, "{}");
+    void C::ToString(xx::ObjectHelper &oh) const {
+        auto&& iter = oh.ptrOffsets.find((void*)this);
+        if (iter != oh.ptrOffsets.end()) {
+        	xx::AppendEx(oh, iter->second);
         	return;
         }
         else {
-            ((C*)this)->toStringFlag = true;
+            oh.ptrOffsets[(void*)this] = oh.s.size();
         }
-        xx::Append(s, "{\"#\":", GetTypeId());
-        ToStringCore(s);
-        s.push_back('}');
-        ((C*)this)->toStringFlag = false;
+        xx::AppendEx(oh, "{\"#\":", GetTypeId());
+        ToStringCore(oh);
+        oh.s.push_back('}');
     }
-    void C::ToStringCore(std::string& s) const {
-        xx::Append(s, ",\"a\":", this->a);
-        xx::Append(s, ",\"b\":", this->b);
+    void C::ToStringCore(xx::ObjectHelper &oh) const {
+        xx::AppendEx(oh, ",\"a\":", this->a);
+        xx::AppendEx(oh, ",\"b\":", this->b);
     }
     Node::Node(Node&& o) noexcept {
         this->operator=(std::move(o));
@@ -143,28 +143,28 @@ namespace PKG {
         if (int r = dr.Read(this->childs)) return r;
         return 0;
     }
-    void Node::ToString(std::string& s) const {
-        if (this->toStringFlag) {
-        	xx::Append(s, "{}");
+    void Node::ToString(xx::ObjectHelper &oh) const {
+        auto&& iter = oh.ptrOffsets.find((void*)this);
+        if (iter != oh.ptrOffsets.end()) {
+        	xx::AppendEx(oh, iter->second);
         	return;
         }
         else {
-            ((Node*)this)->toStringFlag = true;
+            oh.ptrOffsets[(void*)this] = oh.s.size();
         }
-        xx::Append(s, "{\"#\":", GetTypeId());
-        ToStringCore(s);
-        s.push_back('}');
-        ((Node*)this)->toStringFlag = false;
+        xx::AppendEx(oh, "{\"#\":", GetTypeId());
+        ToStringCore(oh);
+        oh.s.push_back('}');
     }
-    void Node::ToStringCore(std::string& s) const {
-        xx::Append(s, ",\"parent\":", this->parent);
-        xx::Append(s, ",\"childs\":", this->childs);
+    void Node::ToStringCore(xx::ObjectHelper &oh) const {
+        xx::AppendEx(oh, ",\"parent\":", this->parent);
+        xx::AppendEx(oh, ",\"childs\":", this->childs);
     }
     D::D(D&& o) noexcept {
         this->operator=(std::move(o));
     }
     D& D::operator=(D&& o) noexcept {
-        this->PKG::C::operator=(std::move(o));
+        this->BaseType::operator=(std::move(o));
         std::swap(this->name, o.name);
         std::swap(this->desc, o.desc);
         return *this;
@@ -183,29 +183,29 @@ namespace PKG {
         if (int r = dr.Read(this->desc)) return r;
         return 0;
     }
-    void D::ToString(std::string& s) const {
-        if (this->toStringFlag) {
-        	xx::Append(s, "{}");
+    void D::ToString(xx::ObjectHelper &oh) const {
+        auto&& iter = oh.ptrOffsets.find((void*)this);
+        if (iter != oh.ptrOffsets.end()) {
+        	xx::AppendEx(oh, iter->second);
         	return;
         }
         else {
-            ((D*)this)->toStringFlag = true;
+            oh.ptrOffsets[(void*)this] = oh.s.size();
         }
-        xx::Append(s, "{\"#\":", GetTypeId());
-        ToStringCore(s);
-        s.push_back('}');
-        ((D*)this)->toStringFlag = false;
+        xx::AppendEx(oh, "{\"#\":", GetTypeId());
+        ToStringCore(oh);
+        oh.s.push_back('}');
     }
-    void D::ToStringCore(std::string& s) const {
-        this->BaseType::ToStringCore(s);
-        xx::Append(s, ",\"name\":", this->name);
-        xx::Append(s, ",\"desc\":", this->desc);
+    void D::ToStringCore(xx::ObjectHelper &oh) const {
+        this->BaseType::ToStringCore(oh);
+        xx::AppendEx(oh, ",\"name\":", this->name);
+        xx::AppendEx(oh, ",\"desc\":", this->desc);
     }
     Scene::Scene(Scene&& o) noexcept {
         this->operator=(std::move(o));
     }
     Scene& Scene::operator=(Scene&& o) noexcept {
-        this->PKG::Node::operator=(std::move(o));
+        this->BaseType::operator=(std::move(o));
         return *this;
     }
     uint16_t Scene::GetTypeId() const {
@@ -218,20 +218,20 @@ namespace PKG {
         if (int r = this->BaseType::Deserialize(dr)) return r;
         return 0;
     }
-    void Scene::ToString(std::string& s) const {
-        if (this->toStringFlag) {
-        	xx::Append(s, "{}");
+    void Scene::ToString(xx::ObjectHelper &oh) const {
+        auto&& iter = oh.ptrOffsets.find((void*)this);
+        if (iter != oh.ptrOffsets.end()) {
+        	xx::AppendEx(oh, iter->second);
         	return;
         }
         else {
-            ((Scene*)this)->toStringFlag = true;
+            oh.ptrOffsets[(void*)this] = oh.s.size();
         }
-        xx::Append(s, "{\"#\":", GetTypeId());
-        ToStringCore(s);
-        s.push_back('}');
-        ((Scene*)this)->toStringFlag = false;
+        xx::AppendEx(oh, "{\"#\":", GetTypeId());
+        ToStringCore(oh);
+        oh.s.push_back('}');
     }
-    void Scene::ToStringCore(std::string& s) const {
-        this->BaseType::ToStringCore(s);
+    void Scene::ToStringCore(xx::ObjectHelper &oh) const {
+        this->BaseType::ToStringCore(oh);
     }
 }

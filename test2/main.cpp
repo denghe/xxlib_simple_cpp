@@ -1,6 +1,8 @@
 ﻿#include "xx_object.h"
 #include "PKG_class_lite.h"
 int main() {
+    xx::ObjectHelper oh;
+    PKG::PkgGenTypes::RegisterTo(oh);
     xx::Data data;
     {
         auto&& scene = std::make_shared<PKG::Scene>();
@@ -16,20 +18,19 @@ int main() {
         node1->childs.push_back(node1_2);
         node1_2->parent = node1;
 
-        xx::DataWriterEx dw(data);
-        dw.WriteOnce(scene);
-    }
-    xx::CoutN(data);
-    {
-        xx::ObjectCreators oc;
-        PKG::PkgGenTypes::RegisterTo(oc);
-        xx::DataReaderEx dr(data, oc);
+        oh.WriteTo(data, scene);
 
-        std::shared_ptr<xx::Object> o;
-        int r = dr.ReadOnce(o);
+        std::shared_ptr<PKG::Scene> scene2;
+        int r = oh.Clone(scene, scene2);
         assert(!r);
-        xx::CoutN(o);
+        auto i = oh.EqualsTo(scene, scene2);
+        assert(i == -1);
     }
+    oh.CoutN(data);
+    {
+        oh.CoutN(oh.ReadObjectFrom(data));
+    }
+
     data.Clear();
     {
         auto&& d = std::make_shared<PKG::D>();
@@ -44,18 +45,10 @@ int main() {
         d->b.c = d;
         d->b.wc = d;
 
-        xx::DataWriterEx dw(data);
-        dw.WriteOnce(d);
+        oh.WriteTo(data, d);
     }
-    xx::CoutN(data);
+    oh.CoutN(data);
     {
-        xx::ObjectCreators oc;
-        PKG::PkgGenTypes::RegisterTo(oc);
-        xx::DataReaderEx dr(data, oc);
-
-        std::shared_ptr<xx::Object> o;
-        int r = dr.ReadOnce(o);
-        assert(!r);
-        xx::CoutN(o);
+        oh.CoutN(oh.ReadObjectFrom(data));
     }
 }
