@@ -1,7 +1,9 @@
-#pragma once
+﻿#pragma once
 
 #include "xx_data_rw.h"
 #include "xx_string.h"
+#include <unordered_map>
+#include <array>
 
 namespace xx {
     // 在 DataFuncs 对原生数据类型的支持的基础上，继续扩展对 std::shared_ptr  std::weak_ptr 的 Object 基类 序列化支持

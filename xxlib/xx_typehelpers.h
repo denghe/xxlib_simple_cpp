@@ -126,6 +126,11 @@ namespace xx {
         return std::dynamic_pointer_cast<T>(v);
     }
 
+    template<typename T, typename U>
+    bool Is(std::shared_ptr<U> const& v) noexcept {
+        return std::dynamic_pointer_cast<T>(v) != nullptr;
+    }
+
     /************************************************************************************/
     // weak_ptr 系列
 
