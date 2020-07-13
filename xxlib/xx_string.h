@@ -61,7 +61,7 @@ namespace xx {
     template<>
     struct StringFuncs<char const*, void> {
         static inline void Append(std::string& s, char const* const& in) noexcept {
-            s.append(in ? "null" : in);
+            s.append(in ? in : "null");
         }
     };
 
@@ -69,7 +69,7 @@ namespace xx {
     template<>
     struct StringFuncs<char*, void> {
         static inline void Append(std::string& s, char* const& in) noexcept {
-            s.append(in ? "null" : in);
+            s.append(in ? in: "null");
         }
     };
 
