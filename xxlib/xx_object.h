@@ -105,9 +105,12 @@ namespace xx {
 
         std::shared_ptr<Object> ReadObjectFrom(Data& d);
 
-        // 利用 ToString( 存到 s1, s2 ) 来比较两个数据是否相同. 返回 (size_t)-1 表示相同, 否则为不同之处的起始下标
+        // s1 = a.ToString(), s2 = b.ToString(), return memcmp(s1, s2)
         template<typename T>
-        size_t EqualsTo(T const&a, T const& b);
+        int Compare(T const&a, T const& b);
+
+        // 简单输出 s1, s2 的不同之处
+        void CoutCompareResult();
 
         // 利用序列化来造出新数据. 返回 0 表示成功( 理论上讲应该永远成功, 除非内存不足或构造函数崩 )
         template<typename T>
@@ -496,17 +499,27 @@ namespace xx {
     }
 
     template<typename T>
-    size_t ObjectHelper::EqualsTo(T const&a, T const& b) {
+    int ObjectHelper::Compare(T const&a, T const& b) {
         s1 = ToString(a);
         s2 = ToString(b);
-        size_t len = s2.size();
-        if (len > s1.size()) {
-            len = s1.size();
+        auto &&s1Siz = s1.size();
+        auto &&s2Siz = s1.size();
+        if (s1Siz != s2Siz) return -1;
+        return memcmp(s1.data(), s2.data(), s1Siz);
+    }
+
+    inline void ObjectHelper::CoutCompareResult() {
+        size_t len = s1.size();
+        if (len > s2.size()) {
+            len = s2.size();
         }
-        for (size_t i = 0; i < len; ++i) {
-            if (s1[i] != s2[i]) return i;
+        size_t i = 0;
+        for (; i < len; ++i) {
+            if (s1[i] != s2[i]) break;
         }
-        return s1.size() == s2.size() ? (size_t)-1 : len;
+        std::cout << s1 << std::endl;
+        std::cout << std::string(i, ' ') << '|' << std::endl;
+        std::cout << s2 << std::endl;
     }
 
     template<typename T>
