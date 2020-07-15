@@ -68,17 +68,25 @@ namespace xx {
             };
         }
 
+        // 根据 typeId 来创建对象
+        inline std::shared_ptr<Object> CreateByTypeId(uint16_t const& typeId) {
+            if (!createFuncs[typeId]) return nullptr;
+            return createFuncs[typeId]();
+        }
+
         // 通过 offset 定位 obj
         std::unordered_map<size_t, std::shared_ptr<Object>> offsetObjs;
 
         // 通过 obj 定位 offset
-        std::unordered_map<void *, size_t> ptrOffsets;
+        std::unordered_map<void *, size_t> objOffsets;
 
         // ToString 填充用 $
         std::string s;
         std::string s1;
         std::string s2;
-        xx::Data d;
+
+        // Clone 用 data
+        xx::Data tmp;
 
         // len / offset backup
         int bak = 0;
@@ -91,15 +99,17 @@ namespace xx {
             s.clear();
             s1.clear();
             s2.clear();
-            d.Clear();
+            tmp.Clear();
             bak = 0;
-            ptrOffsets.clear();
+            objOffsets.clear();
             offsetObjs.clear();
         }
 
+        // 将一个东西写入 data
         template<typename T>
         void WriteTo(Data& d, T const& v);
 
+        // 从 data 读出一个东西
         template<typename T>
         int ReadFrom(Data& d, T& v);
 
@@ -116,10 +126,13 @@ namespace xx {
         template<typename T>
         int Clone(T const&in, T& out);
 
+        template<typename T>
+        T Clone(T const& in);
+
         template<typename...Args>
         std::string const& ToString(Args const& ...args) {
             s.clear();
-            ptrOffsets.clear();
+            objOffsets.clear();
             AppendEx(*this, args...);
             return s;
         }
@@ -221,7 +234,7 @@ namespace xx {
         template<typename T>
         void WriteOnce(T const &v) {
             oh.bak = data.len;
-            oh.ptrOffsets.clear();
+            oh.objOffsets.clear();
             Write(v);
         }
 
@@ -234,11 +247,11 @@ namespace xx {
             if (!typeId) return;
 
             // 计算 相对偏移量. 第一次出现则 计算相对偏移量. 否则用 从字典找到的
-            auto &&iter = oh.ptrOffsets.find((void *) &*v);
+            auto &&iter = oh.objOffsets.find((void *) &*v);
             size_t offs;
-            if (iter == oh.ptrOffsets.end()) {
+            if (iter == oh.objOffsets.end()) {
                 offs = data.len - oh.bak;
-                oh.ptrOffsets[(void *) &*v] = offs;
+                oh.objOffsets[(void *) &*v] = offs;
             } else {
                 offs = iter->second;
             }
@@ -247,7 +260,7 @@ namespace xx {
             Write(offs);
 
             // 第一次出现则 继续写入 内容序列化数据
-            if (iter == oh.ptrOffsets.end()) {
+            if (iter == oh.objOffsets.end()) {
                 v->Serialize(*this);
             }
         }
@@ -306,9 +319,6 @@ namespace xx {
                 return 0;
             }
 
-            // 简单检查 创建函数 的 有效性( 防止忘记注册 )
-            if (!oh.createFuncs[typeId]) return __LINE__;
-
             // 计算 当前相对偏移量
             auto currOffs = offset - oh.bak;
 
@@ -319,8 +329,8 @@ namespace xx {
             // 如果等于 当前相对偏移量，则表明是第一次写入，后面会跟随 内容序列化数据
             if (offs == currOffs) {
 
-                // 用创建函数创建出目标实例. 如果创建失败则退出( 防止注册到无效的创建函数或创建时内存不足构造失败啥的 )
-                auto &&o = oh.createFuncs[typeId]();
+                // 用创建函数创建出目标实例. 如果创建失败则退出( 未注册? 创建函数bug? 创建时内存不足? 构造失败? )
+                auto &&o = oh.CreateByTypeId(typeId);
                 if (!o) return __LINE__;
 
                 // 将 o 写入 v. 利用动态转换检查数据类型兼容性。如果转换失败则退出( 防止数据与类型对应不上 )
@@ -524,11 +534,18 @@ namespace xx {
 
     template<typename T>
     int ObjectHelper::Clone(T const&in, T& out) {
-        d.Clear();
-        DataWriterEx dw(d, *this);
+        tmp.Clear();
+        DataWriterEx dw(tmp, *this);
         dw.WriteOnce(in);
-        DataReaderEx dr(d, *this);
+        DataReaderEx dr(tmp, *this);
         return dr.ReadOnce(out);
+    }
+
+    template<typename T>
+    T ObjectHelper::Clone(T const& in) {
+        T out;
+        Clone<T>(in, out);
+        return out;
     }
 }
 
