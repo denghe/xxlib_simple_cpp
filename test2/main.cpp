@@ -29,8 +29,7 @@ int main() {
         oh.CoutN(data);
 
         // 测试下克隆
-        std::shared_ptr<PKG::Scene> scene2;
-        oh.Clone(scene, scene2);
+        auto&& scene2 = oh.Clone(scene);
         // 比较数据是否相同。相同则篡改下
         if (!oh.Compare(scene, scene2)) {
             // 故意改点东西

@@ -6,10 +6,6 @@
 #include <array>
 
 namespace xx {
-    // 在 DataFuncs 对原生数据类型的支持的基础上，继续扩展对 std::shared_ptr  std::weak_ptr 的 Object 基类 序列化支持
-    // 读写器 继承并扩展 针对智能指针的读写函数
-    // 示例参考 代码生成物
-
     /************************************************************************************/
     // Data 序列化 / 反序列化 基础适配模板 for Object, std::shared_ptr, std::weak_ptr
 
@@ -18,6 +14,7 @@ namespace xx {
     struct ObjectHelper;
     struct Object;
 
+    // 默认转发到 DataFunc 模板
     template<typename T, typename ENABLED = void>
     struct DataFuncsEx {
         static inline void Write(DataWriterEx &dw, T const &in) {
@@ -29,12 +26,22 @@ namespace xx {
         }
     };
 
-    // 默认调用 xx::Append(oh.s, in)
+    // 默认转发到 StringFuncs 模板
     template<typename T, typename ENABLED = void>
     struct StringFuncsEx {
         static void Append(ObjectHelper &oh, T const &in);
     };
 
+    // 这是新的适配模板 for clone 功能
+    template<typename T, typename ENABLED = void>
+    struct CloneFuncs {
+        static inline void Clone1(ObjectHelper &oh, T const &in, T &out) {
+            out = in;
+        }
+        static inline void Clone2(ObjectHelper &oh, T const &in, T &out) {
+            // do nothing
+        }
+    };
 
     /************************************************************************************/
     // 为 Object 序列化 克隆 值相等判定 转字符串 功能 提供上下文支撑( 主要是类创建，字典防递归 )
@@ -69,7 +76,7 @@ namespace xx {
         }
 
         // 根据 typeId 来创建对象
-        inline std::shared_ptr<Object> CreateByTypeId(uint16_t const& typeId) {
+        inline std::shared_ptr<Object> CreateByTypeId(uint16_t const &typeId) {
             if (!createFuncs[typeId]) return nullptr;
             return createFuncs[typeId]();
         }
@@ -80,13 +87,13 @@ namespace xx {
         // 通过 obj 定位 offset
         std::unordered_map<void *, size_t> objOffsets;
 
+        // 克隆过程中用于映射 ptr 关系. 便于 weak 调整指向
+        std::unordered_map<void *, std::shared_ptr<Object>> oldNewObjs;
+
         // ToString 填充用 $
         std::string s;
         std::string s1;
         std::string s2;
-
-        // Clone 用 data
-        xx::Data tmp;
 
         // len / offset backup
         int bak = 0;
@@ -94,43 +101,34 @@ namespace xx {
         // 对于一些本来返回 int 的函数但是改变了返回值，那就将那个 int 存放到此备查
         int lastRtv = 0;
 
-        // 啥都清( 理论上讲用不到 )
-        inline void Cleanup() {
-            s.clear();
-            s1.clear();
-            s2.clear();
-            tmp.Clear();
-            bak = 0;
-            objOffsets.clear();
-            offsetObjs.clear();
-        }
-
         // 将一个东西写入 data
         template<typename T>
-        void WriteTo(Data& d, T const& v);
+        void WriteTo(Data &d, T const &v);
 
         // 从 data 读出一个东西
         template<typename T>
-        int ReadFrom(Data& d, T& v);
+        int ReadFrom(Data &d, T &v);
 
-        std::shared_ptr<Object> ReadObjectFrom(Data& d);
+        std::shared_ptr<Object> ReadObjectFrom(Data &d);
 
         // s1 = a.ToString(), s2 = b.ToString(), return memcmp(s1, s2)
         template<typename T>
-        int Compare(T const&a, T const& b);
+        int Compare(T const &a, T const &b);
 
         // 简单输出 s1, s2 的不同之处
         void CoutCompareResult();
 
-        // 利用序列化来造出新数据. 返回 0 表示成功( 理论上讲应该永远成功, 除非内存不足或构造函数崩 )
+        // 调用适配模板实现 2 pass clone
+        // step 1: clone data + shared_ptrs( create old new map )
+        // step 2: clone weak_ptrs( from old new map )
         template<typename T>
-        int Clone(T const&in, T& out);
+        void Clone(T const &in, T &out);
 
         template<typename T>
-        T Clone(T const& in);
+        T Clone(T const &in);
 
         template<typename...Args>
-        std::string const& ToString(Args const& ...args) {
+        std::string const &ToString(Args const &...args) {
             s.clear();
             objOffsets.clear();
             AppendEx(*this, args...);
@@ -139,9 +137,9 @@ namespace xx {
 
         // 替代 std::cout. 支持实现了 StringFuncsEx 模板适配的类型
         template<typename...Args>
-        inline void Cout(Args const& ...args) {
+        inline void Cout(Args const &...args) {
             ToString(args...);
-            for (auto&& c : s) {
+            for (auto &&c : s) {
                 if (!c) c = '^';
             }
             std::cout << s;
@@ -149,21 +147,21 @@ namespace xx {
 
         // 在 Cout 基础上添加了换行
         template<typename...Args>
-        inline void CoutN(Args const& ...args) {
+        inline void CoutN(Args const &...args) {
             Cout(args...);
             std::cout << std::endl;
         }
 
         // 在 CoutN 基础上于头部添加了时间
         template<typename...Args>
-        inline void CoutTN(Args const& ...args) {
+        inline void CoutTN(Args const &...args) {
             CoutN("[", std::chrono::system_clock::now(), "] ", args...);
         }
     };
 
     template<typename T, typename ENABLED>
     inline void StringFuncsEx<T, ENABLED>::Append(ObjectHelper &oh, T const &in) {
-        xx::Append(oh.s, in);
+        ::xx::StringFuncs<T>::Append(oh.s, in);
     };
 
     /************************************************************************************/
@@ -178,13 +176,13 @@ namespace xx {
     }
 
     template<typename ...Args>
-    void AppendEx(ObjectHelper &oh, Args const& ... args) {
-        std::initializer_list<int> n{ ((::xx::Core::AppendEx(oh, args)), 0)... };
-        (void)(n);
+    void AppendEx(ObjectHelper &oh, Args const &... args) {
+        std::initializer_list<int> n{((::xx::Core::AppendEx(oh, args)), 0)...};
+        (void) (n);
     }
 
     template<typename ...Args>
-    std::string const& ToStringEx(ObjectHelper &oh, Args const& ... args) {
+    std::string const &ToStringEx(ObjectHelper &oh, Args const &... args) {
         AppendEx(oh, args...);
         return oh.s;
     }
@@ -211,6 +209,12 @@ namespace xx {
 
         // 输出 json 长相时用于输出花括号内部的成员拼接
         inline virtual void ToStringCore(ObjectHelper &oh) const {};
+
+        // 克隆步骤1: 拷贝普通数据，遇到 shared_ptr 就同型新建, 并保存映射关系
+        inline virtual void Clone1(ObjectHelper &oh, std::shared_ptr<Object> const &tar) const {};
+
+        // 克隆步骤2: 只处理成员中的 weak_ptr 类型。根据步骤 1 建立的映射关系来填充
+        inline virtual void Clone2(ObjectHelper &oh, std::shared_ptr<Object> const &tar) const {};
     };
 
     /************************************************************************************/
@@ -384,6 +388,28 @@ namespace xx {
         }
     };
 
+    template<typename T>
+    struct CloneFuncs<std::shared_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
+        static inline void Clone1(ObjectHelper &oh, std::shared_ptr<T> const &in, std::shared_ptr<T> &out) {
+            if (!in) {
+                out.reset();
+            } else {
+                auto inTypeId = in->GetTypeId();
+                if (!out || out->GetTypeId() != inTypeId) {
+                    out = xx::As<T>(oh.CreateByTypeId(inTypeId));
+                }
+                oh.oldNewObjs[&*in] = out;
+                in->Clone1(oh, out);
+            }
+        }
+
+        static inline void Clone2(ObjectHelper &oh, std::shared_ptr<T> const &in, std::shared_ptr<T> &out) {
+            if (in) {
+                in->Clone2(oh, out);
+            }
+        }
+    };
+
     // 适配 std::weak_ptr<T>
     template<typename T>
     struct DataFuncsEx<std::weak_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
@@ -410,25 +436,25 @@ namespace xx {
         }
     };
 
-    // 适配 Object
     template<typename T>
-    struct DataFuncsEx<T, std::enable_if_t<std::is_base_of_v<Object, T>>> {
-        static inline void Write(DataWriterEx &dw, T const &in) {
-            in.Serialize(dw);
+    struct CloneFuncs<std::weak_ptr<T>, std::enable_if_t<std::is_base_of_v<Object, T>>> {
+        static inline void Clone1(ObjectHelper &oh, std::weak_ptr<T> const &in, std::weak_ptr<T> &out) {
+            // do nothing
         }
 
-        static inline int Read(DataReaderEx &dr, T &out) {
-            return out.Deserialize(dr);
+        static inline void Clone2(ObjectHelper &oh, std::weak_ptr<T> const &in, std::weak_ptr<T> &out) {
+            assert(!out.lock());
+            auto&& sp = in.lock();
+            if (!sp) return;
+            auto&& iter = oh.oldNewObjs.find(&*sp);
+            if (iter == oh.oldNewObjs.end()) {
+                out = sp;
+            }
+            else {
+                out = xx::As<T>(iter->second);
+            }
         }
     };
-
-    template<typename T>
-    struct StringFuncsEx<T, std::enable_if_t<std::is_base_of_v<Object, T>>> {
-        static inline void Append(ObjectHelper &oh, T const &in) {
-            in.ToString(oh);
-        }
-    };
-
 
     // 适配 std::vector
     template<typename T>
@@ -471,37 +497,56 @@ namespace xx {
 
     template<typename T>
     struct StringFuncsEx<std::vector<T>, void> {
-        static inline void Append(ObjectHelper& oh, std::vector<T> const& in) {
+        static inline void Append(ObjectHelper &oh, std::vector<T> const &in) {
             oh.s.push_back('[');
             if (auto inLen = in.size()) {
-                for(size_t i = 0; i < inLen; ++i) {
+                for (size_t i = 0; i < inLen; ++i) {
                     ::xx::AppendEx(oh, in[i]);
                     oh.s.push_back(',');
                 }
                 oh.s[oh.s.size() - 1] = ']';
-            }
-            else {
+            } else {
                 oh.s.push_back(']');
             }
         }
     };
 
+    template<typename T>
+    struct CloneFuncs<std::vector<T>, void> {
+        static inline void Clone1(ObjectHelper &oh, std::vector<T> const &in, std::vector<T> &out) {
+            auto siz = in.size();
+            out.resize(siz);
+            for (size_t i = 0; i < siz; ++i) {
+                CloneFuncs<T>::Clone1(oh, in[i], out[i]);
+            }
+        }
+
+        static inline void Clone2(ObjectHelper &oh, std::vector<T> const &in, std::vector<T> &out) {
+            assert(in.size() == out.size());
+            auto siz = in.size();
+            for (size_t i = 0; i < siz; ++i) {
+                CloneFuncs<T>::Clone2(oh, in[i], out[i]);
+            }
+        }
+    };
+
+
     /************************************************************************************/
     // ObjectHelper 的各种实现
 
     template<typename T>
-    void ObjectHelper::WriteTo(Data& d, T const& v) {
+    void ObjectHelper::WriteTo(Data &d, T const &v) {
         DataWriterEx dw(d, *this);
         dw.WriteOnce(v);
     }
 
     template<typename T>
-    int ObjectHelper::ReadFrom(Data& d, T& v) {
+    int ObjectHelper::ReadFrom(Data &d, T &v) {
         DataReaderEx dr(d, *this);
         return dr.ReadOnce(v);
     }
 
-    inline std::shared_ptr<Object> ObjectHelper::ReadObjectFrom(Data& d) {
+    inline std::shared_ptr<Object> ObjectHelper::ReadObjectFrom(Data &d) {
         DataReaderEx dr(d, *this);
         std::shared_ptr<Object> o;
         lastRtv = dr.ReadOnce(o);
@@ -509,7 +554,7 @@ namespace xx {
     }
 
     template<typename T>
-    int ObjectHelper::Compare(T const&a, T const& b) {
+    int ObjectHelper::Compare(T const &a, T const &b) {
         s1 = ToString(a);
         s2 = ToString(b);
         auto &&s1Siz = s1.size();
@@ -533,16 +578,14 @@ namespace xx {
     }
 
     template<typename T>
-    int ObjectHelper::Clone(T const&in, T& out) {
-        tmp.Clear();
-        DataWriterEx dw(tmp, *this);
-        dw.WriteOnce(in);
-        DataReaderEx dr(tmp, *this);
-        return dr.ReadOnce(out);
+    void ObjectHelper::Clone(T const &in, T &out) {
+        oldNewObjs.clear();
+        CloneFuncs<T>::Clone1(*this, in, out);
+        CloneFuncs<T>::Clone2(*this, in, out);
     }
 
     template<typename T>
-    T ObjectHelper::Clone(T const& in) {
+    T ObjectHelper::Clone(T const &in) {
         T out;
         Clone<T>(in, out);
         return out;
@@ -563,7 +606,9 @@ uint16_t GetTypeId() const override; \
 void Serialize(xx::DataWriterEx &dw) const override; \
 int Deserialize(xx::DataReaderEx &dr) override; \
 void ToString(xx::ObjectHelper &oh) const override; \
-void ToStringCore(xx::ObjectHelper &oh) const override;
+void ToStringCore(xx::ObjectHelper &oh) const override; \
+void Clone1(xx::ObjectHelper &oh, std::shared_ptr<Object> const& tar) const override; \
+void Clone2(xx::ObjectHelper &oh, std::shared_ptr<Object> const& tar) const override;
 
 
 #define XX_GENCODE_STRUCT_H(T) \
