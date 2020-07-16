@@ -190,7 +190,7 @@ namespace xx {
     /************************************************************************************/
     // Object 主要用于满足 无脑智能指针堆业务逻辑 的建模与序列化需求
 
-    struct Object {
+    struct Object : std::enable_shared_from_this<Object> {
         Object() = default;
 
         virtual ~Object() = default;
