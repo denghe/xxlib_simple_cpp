@@ -20,7 +20,7 @@ namespace xx {
 		// 预分配空间 构造
 		explicit Data(size_t const& newCap) {
 			if (newCap) {
-				auto siz = Round2n(recvLen + cap);
+				auto siz = Round2n(recvLen + newCap);
 				buf = ((char*)::malloc(siz)) + recvLen;
 				cap = siz - recvLen;
 			}
