@@ -5,9 +5,14 @@
 int Client::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
     xx::ScopeGuard sg([&] {
-        dialer.reset();
+        if (dialer) {
+            dialer->Stop();
+            dialer.reset();
+        }
         peer.reset();
         DisableCommandLine();
+        auto c = shared_from_this().use_count();
+        assert(c == 2);
     });
     // 初始化拨号器
     xx::MakeTo(dialer, shared_from_this());

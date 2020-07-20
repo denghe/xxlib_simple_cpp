@@ -105,7 +105,10 @@ namespace xx
 	template <class T>
 	void Queue<T>::Pop() noexcept {
 		assert(head != tail);
-		buf[head++].~T();
+		if constexpr (!std::is_pod_v<T>) {
+            buf[head].~T();
+		}
+        ++head;
 		if (head == cap) {
 			head = 0;
 		}
@@ -114,7 +117,10 @@ namespace xx
 	template <class T>
 	void Queue<T>::PopLast() noexcept {
 		assert(head != tail);
-		buf[tail--].~T();
+        if constexpr (!std::is_pod_v<T>) {
+            buf[tail].~T();
+        }
+        --tail;
 		if (tail == (size_t)-1) {
 			tail = cap - 1;
 		}
@@ -147,7 +153,7 @@ namespace xx
 		//........HT......................
 		if (head == tail) return;
 
-		if constexpr (!IsPod_v<T>) {
+		if constexpr (!std::is_pod_v<T>) {
 			//......Head+++++++++++Tail......
 			if (head < tail) {
 				for (auto i = head; i < tail; ++i) {
@@ -182,7 +188,7 @@ namespace xx
 
 		//......Head+++++++++++Tail......
 		if (head < tail) {
-			if constexpr (!IsPod_v<T>) {
+			if constexpr (!std::is_pod_v<T>) {
 				//......Head+++++++++++count......
 				for (auto i = head; i < head + count; ++i) buf[i].~T();
 			}
@@ -193,13 +199,13 @@ namespace xx
 			auto frontDataLen = cap - head;
 			//...Head+++
 			if (count < frontDataLen) {
-				if constexpr (!IsPod_v<T>) {
+				if constexpr (!std::is_pod_v<T>) {
 					for (auto i = head; i < head + count; ++i) buf[i].~T();
 				}
 				head += count;
 			}
 			else {
-				if constexpr (!IsPod_v<T>) {
+				if constexpr (!std::is_pod_v<T>) {
 					//...Head++++++
 					for (auto i = head; i < cap; ++i) buf[i].~T();
 				}
@@ -207,7 +213,7 @@ namespace xx
 				// <-Head
 				head = count - frontDataLen;
 
-				if constexpr (!IsPod_v<T>) {
+				if constexpr (!std::is_pod_v<T>) {
 					// ++++++Head...
 					for (size_t i = 0; i < head; ++i) buf[i].~T();
 				}

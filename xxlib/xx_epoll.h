@@ -204,7 +204,6 @@ namespace xx::Epoll {
     };
     struct PipeWriter : Item {
         using Item::Item;
-        ~PipeWriter() override { close(fd); fd = -1; }
         inline int WriteSome() { return write(fd, ".", 1) == 1 ? -1 : 0; }
     };
 

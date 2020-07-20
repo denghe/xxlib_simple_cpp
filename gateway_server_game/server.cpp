@@ -9,10 +9,18 @@ int Server::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
     xx::ScopeGuard sg1([&]{
         lobbyPeer.reset();
-        lobbyDialer.reset();
+        if (lobbyDialer) {
+            lobbyDialer->Stop();
+            lobbyDialer.reset();
+        }
+        for(auto&& gp : gps) {
+            gp.second->Close(__LINE__);
+        }
         gps.clear();
         gatewayListener.reset();
         DisableCommandLine();
+        auto c = shared_from_this().use_count();
+        assert(c == 2);
     });
     // 创建监听器
     xx::MakeTo(gatewayListener, shared_from_this());
