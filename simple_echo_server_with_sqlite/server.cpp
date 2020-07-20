@@ -15,9 +15,10 @@ void Server::Log(std::string &&txt) {
 int Server::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
     xx::ScopeGuard sg([&] {
-        // 清理监听器( 消除对 Context 的引用计数的影响 )
-        listener.reset();
         DisableCommandLine();
+        listener.reset();
+        holdItems.clear();
+        assert(shared_from_this().use_count() == 2);
     });
     // 按配置的端口创建监听器
     xx::MakeTo(listener, shared_from_this());

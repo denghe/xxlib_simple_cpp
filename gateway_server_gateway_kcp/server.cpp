@@ -6,10 +6,29 @@
 int Server::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
     xx::ScopeGuard sg1([&]{
-        dps.clear();
-        cps.clear();
-        listener.reset();
         DisableCommandLine();
+        listener.reset();
+
+        for(auto&& dp : dps) {
+            dp.second.first->Stop();
+            if (dp.second.second) {
+                dp.second.second->Close(__LINE__);
+            }
+        }
+        dps.clear();
+
+        std::vector<uint32_t> keys;
+        for(auto&& cp : cps) {
+            keys.push_back(cp.first);
+        }
+        for(auto&& key : keys) {
+            cps[key]->Close(__LINE__);
+        }
+        cps.clear();
+
+        holdItems.clear();
+
+        assert(shared_from_this().use_count() == 2);
     });
 
     // 初始化监听器和回收sg

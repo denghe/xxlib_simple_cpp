@@ -11,9 +11,14 @@ bool Client::ExistsCoroName(std::string const& name) {
 int Client::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
     xx::ScopeGuard sg([&] {
-        dialer.reset();
-        peer.reset();
         DisableCommandLine();
+        dialer.reset();
+        if(peer) {
+            peer->Close(__LINE__);
+            peer.reset();
+        }
+        holdItems.clear();
+        assert(shared_from_this().use_count() == 2);
     });
     // 创建默认协程
     CreateCoro<CoroMain>();
