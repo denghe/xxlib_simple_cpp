@@ -234,13 +234,15 @@ namespace xx::Epoll {
         // Run 时填充, 以便于局部获取并转换时间单位
         double frameRate = 10;
         // 帧时间间隔
-        double ticksPerFrame = 1.0 / frameRate;
+        double ticksPerFrame = 10000000.0 / frameRate;
         // 公用 buf( 需要的地方可临时用用 )
         std::array<char, 256 * 1024> buf;
         // 公用 data( 需要的地方可临时用用 )
         xx::Data data;
         // 映射通过 stdin 进来的指令的处理函数. 去空格 去 tab 后第一个单词作为 key. 剩余部分作为 args
         std::unordered_map<std::string, std::function<void(std::vector<std::string> const &args)>> cmds;
+        // 公用发包数据指针+长度数组容器
+        std::array<iovec, UIO_MAXIOV> iovecs{};
 
         // 参数：时间轮长度( 要求为 2^n )
         explicit Context(size_t const &wheelLen = (1u << 12u));
@@ -465,18 +467,14 @@ namespace xx::Epoll {
         // 如果没有待发送数据，停止监控 EPOLLOUT 并退出
         if (!sendQueue.bytes) return ec->Ctl(fd, EPOLLIN, EPOLL_CTL_MOD);
 
-        // 前置准备
-        // buf + len 数组指针
-        std::array<iovec, UIO_MAXIOV> vs;
-        // 数组长度
-        int vsLen = 0;
         // 本次预计发送最大字节数
         size_t bufLen = 1024 * 256;
-
+        // 数据块个数
+        int vsLen = 0;
         // 填充 vs, vsLen, bufLen 并返回预期 offset. 每次只发送 bufLen 长度
-        auto &&offset = sendQueue.Fill(vs, vsLen, bufLen);
+        auto &&offset = sendQueue.Fill(ec->iovecs, vsLen, bufLen);
         // 返回值为 实际发出的字节数
-        auto &&sentLen = writev(fd, vs.data(), vsLen);
+        auto &&sentLen = writev(fd, ec->iovecs.data(), vsLen);
 
         // 已断开
         if (sentLen == 0) return -2;
