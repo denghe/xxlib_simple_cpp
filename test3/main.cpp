@@ -1,14 +1,32 @@
-﻿#include <xx_sharedlist.h>
-#include <iostream>
+﻿#include <xx_data_rw.h>
+#include <xx_string.h>
 
 int main() {
-    xx::SharedList<int> ints;
-    //ints.Emplace()
-    ints.Add(1,2,3,4,5);
-    ints.AddRange(ints);
-    ints.Emplace(6);
-    ints.EmplaceAt(0, 7);
-    std::cout << ints.Find(7) << std::endl;
+    std::unordered_map<std::string, std::map<int, std::vector<std::string>>> m;
+    m["s1"][4] = {"xxxxxxxxxxxx", "sadfdf"};
+    m["s1"][3] = {"qwerzxcv"};
+    m["s2"][1] = {"asdf", "123", "xcvxvc"};
+    m["s2"][3] = {"qwerzxcv"};
+
+    xx::Data d;
+    xx::DataWriter dw(d);
+    dw.Write(m);
+
+    xx::CoutN(d);
+
+    xx::DataReader dr(d);
+    std::unordered_map<std::string, std::map<int, std::vector<std::string>>> m2;
+    dr.Read(m2);
+    xx::CoutN(m2);
+
+//
+//    xx::SharedList<int> ints;
+//    //ints.Emplace()
+//    ints.Add(1,2,3,4,5);
+//    ints.AddRange(ints);
+//    ints.Emplace(6);
+//    ints.EmplaceAt(0, 7);
+//    std::cout << ints.Find(7) << std::endl;
     
 //    for(auto&& o : ints) {
 //        std::cout << o << std::endl;

@@ -4,6 +4,8 @@
 #include <type_traits>
 #include <optional>
 #include <vector>
+#include <map>
+#include <unordered_map>
 #include <chrono>
 #include <sstream>
 #include <iostream>
@@ -158,6 +160,46 @@ namespace xx {
             if (auto inLen = in.size()) {
                 for(size_t i = 0; i < inLen; ++i) {
                     ::xx::Append(s, in[i]);
+                    s.push_back(',');
+                }
+                s[s.size() - 1] = ']';
+            }
+            else {
+                s.push_back(']');
+            }
+        }
+    };
+
+    // 适配 std::unordered_map<K, V>
+    template<typename K, typename V>
+    struct StringFuncs<std::unordered_map<K, V>, void> {
+        static inline void Append(std::string& s, std::unordered_map<K, V> const& in) {
+            s.push_back('[');
+            if (!in.empty()) {
+                for (auto &kv : in) {
+                    ::xx::Append(s, kv.first);
+                    s.push_back(',');
+                    ::xx::Append(s, kv.second);
+                    s.push_back(',');
+                }
+                s[s.size() - 1] = ']';
+            }
+            else {
+                s.push_back(']');
+            }
+        }
+    };
+
+    // 适配 std::map<K, V>
+    template<typename K, typename V>
+    struct StringFuncs<std::map<K, V>, void> {
+        static inline void Append(std::string& s, std::map<K, V> const& in) {
+            s.push_back('[');
+            if (!in.empty()) {
+                for (auto &kv : in) {
+                    ::xx::Append(s, kv.first);
+                    s.push_back(',');
+                    ::xx::Append(s, kv.second);
                     s.push_back(',');
                 }
                 s[s.size() - 1] = ']';

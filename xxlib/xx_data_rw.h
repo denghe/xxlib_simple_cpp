@@ -2,6 +2,8 @@
 #include "xx_data.h"
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <map>
 #include <optional>
 #include <cmath>
 
@@ -361,7 +363,6 @@ namespace xx {
 				}
 			}
 		}
-		// 内容为 ReadLimit 的精简版
 		static inline int Read(DataReader& dr, std::vector<T>& out) {
 			size_t siz = 0;
 			if (auto rtv = dr.Read(siz)) return rtv;
@@ -381,4 +382,58 @@ namespace xx {
 			return 0;
 		}
 	};
+
+    // 适配 std::map<K, V>
+    template<typename K, typename V>
+    struct DataFuncs<std::map<K, V>, void> {
+        static inline void Write(DataWriter& dw, std::map<K, V> const& in) {
+            auto len = in.size();
+            auto&& d = dw.data;
+            d.Reserve(d.len + 5 + len * (sizeof(K) + sizeof(V)));
+            d.WriteVarIntger(len);
+            if (!len) return;
+            for(auto&& kv : in) {
+                dw.Write(kv.first, kv.second);
+            }
+        }
+        static inline int Read(DataReader& dr, std::map<K, V>& out) {
+            size_t siz = 0;
+            if (auto rtv = dr.Read(siz)) return rtv;
+            if (siz == 0) return 0;
+            if (dr.offset + siz * 2 > dr.len) return __LINE__;
+            for (size_t i = 0; i < siz; ++i) {
+                std::pair<K, V> kv;
+                if (int r = dr.Read(kv.first, kv.second)) return r;
+                out.insert(std::move(kv));
+            }
+            return 0;
+        }
+    };
+
+    // 适配 std::unordered_map<K, V>
+    template<typename K, typename V>
+    struct DataFuncs<std::unordered_map<K, V>, void> {
+        static inline void Write(DataWriter& dw, std::unordered_map<K, V> const& in) {
+            auto len = in.size();
+            auto&& d = dw.data;
+            d.Reserve(d.len + 5 + len * (sizeof(K) + sizeof(V)));
+            d.WriteVarIntger(len);
+            if (!len) return;
+            for(auto&& kv : in) {
+                dw.Write(kv.first, kv.second);
+            }
+        }
+        static inline int Read(DataReader& dr, std::unordered_map<K, V>& out) {
+            size_t siz = 0;
+            if (auto rtv = dr.Read(siz)) return rtv;
+            if (siz == 0) return 0;
+            if (dr.offset + siz * 2 > dr.len) return __LINE__;
+            for (size_t i = 0; i < siz; ++i) {
+                std::pair<K, V> kv;
+                if (int r = dr.Read(kv.first, kv.second)) return r;
+                out.insert(std::move(kv));
+            }
+            return 0;
+        }
+    };
 }

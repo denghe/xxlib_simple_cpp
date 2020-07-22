@@ -27,6 +27,7 @@ class D : C {
 
 [TypeId(56)]
 class Scene : Node {
+    Dict<string, Weak<Node>> nodes;
 }
 
 [TypeId(78)]

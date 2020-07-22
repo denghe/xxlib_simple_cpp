@@ -258,24 +258,29 @@ namespace PKG {
     }
     Scene& Scene::operator=(Scene&& o) noexcept {
         this->BaseType::operator=(std::move(o));
+        std::swap(this->nodes, o.nodes);
         return *this;
     }
     void Scene::Clone1(xx::ObjectHelper &oh, std::shared_ptr<Object> const &tar) const {
         this->BaseType::Clone1(oh, tar);
         auto&& o = xx::As<PKG::Scene>(tar);
+        xx::CloneFuncs<std::map<std::string, std::weak_ptr<PKG::Node>>>::Clone1(oh, this->nodes, o->nodes);
     }
     void Scene::Clone2(xx::ObjectHelper &oh, std::shared_ptr<Object> const &tar) const {
         this->BaseType::Clone2(oh, tar);
         auto&& o = xx::As<PKG::Scene>(tar);
+        xx::CloneFuncs<std::map<std::string, std::weak_ptr<PKG::Node>>>::Clone2(oh, this->nodes, o->nodes);
     }
     uint16_t Scene::GetTypeId() const {
         return xx::TypeId_v<PKG::Scene>;
     }
     void Scene::Serialize(xx::DataWriterEx& dw) const {
         this->BaseType::Serialize(dw);
+        dw.Write(this->nodes);
     }
     int Scene::Deserialize(xx::DataReaderEx& dr) {
         if (int r = this->BaseType::Deserialize(dr)) return r;
+        if (int r = dr.Read(this->nodes)) return r;
         return 0;
     }
     void Scene::ToString(xx::ObjectHelper &oh) const {
@@ -293,5 +298,6 @@ namespace PKG {
     }
     void Scene::ToStringCore(xx::ObjectHelper &oh) const {
         this->BaseType::ToStringCore(oh);
+        xx::AppendEx(oh, ",\"nodes\":", this->nodes);
     }
 }

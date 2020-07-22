@@ -23,6 +23,10 @@ int main() {
         node1->childs.push_back(node1_2);
         node1_2->parent = node1;
 
+        scene->nodes["1"] = node1;
+        scene->nodes["1_1"] = node1_1;
+        scene->nodes["1_2"] = node1_2;
+
         // 序列化进 data
         oh.WriteTo(data, scene);
         // 打印 data 的内容

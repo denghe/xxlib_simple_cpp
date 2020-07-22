@@ -531,6 +531,149 @@ namespace xx {
     };
 
 
+    // 适配 std::map
+    template<typename K, typename V>
+    struct DataFuncsEx<std::map<K, V>, void> {
+        static inline void Write(DataWriterEx &dw, std::map<K, V> const &in) {
+            auto len = in.size();
+            auto &&d = dw.data;
+            d.Reserve(d.len + 5 + len * (sizeof(K) + sizeof(V)));
+            d.WriteVarIntger(len);
+            if (!len) return;
+            for(auto&& kv : in) {
+                dw.Write(kv.first, kv.second);
+            }
+        }
+
+        static inline int Read(DataReaderEx &dr, std::map<K, V> &out) {
+            size_t siz = 0;
+            if (auto rtv = dr.Read(siz)) return rtv;
+            if (siz == 0) return 0;
+            if (dr.offset + siz * 2 > dr.len) return __LINE__;
+            for (size_t i = 0; i < siz; ++i) {
+                std::pair<K, V> kv;
+                if (int r = dr.Read(kv.first, kv.second)) return r;
+                out.insert(std::move(kv));
+            }
+            return 0;
+        }
+    };
+
+    template<typename K, typename V>
+    struct StringFuncsEx<std::map<K, V>, void> {
+        static inline void Append(ObjectHelper &oh, std::map<K, V> const &in) {
+            auto&& s = oh.s;
+            s.push_back('[');
+            if (!in.empty()) {
+                for (auto &kv : in) {
+                    ::xx::AppendEx(oh, kv.first);
+                    s.push_back(',');
+                    ::xx::AppendEx(oh, kv.second);
+                    s.push_back(',');
+                }
+                s[s.size() - 1] = ']';
+            }
+            else {
+                s.push_back(']');
+            }
+        }
+    };
+
+    template<typename K, typename V>
+    struct CloneFuncs<std::map<K, V>, void> {
+        static inline void Clone1(ObjectHelper &oh, std::map<K, V> const &in, std::map<K, V> &out) {
+            auto siz = in.size();
+            out.clear();
+            for(auto&& kv : in) {
+                std::pair<K, V> tar;
+                CloneFuncs<K>::Clone1(oh, kv.first, tar.first);
+                CloneFuncs<V>::Clone1(oh, kv.second, tar.second);
+                out.insert(std::move(tar));
+            }
+        }
+
+        static inline void Clone2(ObjectHelper &oh, std::map<K, V> const &in, std::map<K, V> &out) {
+            assert(in.size() == out.size());
+            for(auto&& kv : in) {
+                auto&& iter = out.find(kv.first);
+                CloneFuncs<K>::Clone2(oh, kv.first, *(K*)&iter->first);
+                CloneFuncs<V>::Clone2(oh, kv.second, iter->second);
+            }
+        }
+    };
+
+    // 适配 std::unordered_map
+    template<typename K, typename V>
+    struct DataFuncsEx<std::unordered_map<K, V>, void> {
+        static inline void Write(DataWriterEx &dw, std::unordered_map<K, V> const &in) {
+            auto len = in.size();
+            auto &&d = dw.data;
+            d.Reserve(d.len + 5 + len * (sizeof(K) + sizeof(V)));
+            d.WriteVarIntger(len);
+            if (!len) return;
+            for(auto&& kv : in) {
+                dw.Write(kv.first, kv.second);
+            }
+        }
+
+        static inline int Read(DataReaderEx &dr, std::unordered_map<K, V> &out) {
+            size_t siz = 0;
+            if (auto rtv = dr.Read(siz)) return rtv;
+            if (siz == 0) return 0;
+            if (dr.offset + siz * 2 > dr.len) return __LINE__;
+            for (size_t i = 0; i < siz; ++i) {
+                std::pair<K, V> kv;
+                if (int r = dr.Read(kv.first, kv.second)) return r;
+                out.insert(std::move(kv));
+            }
+            return 0;
+        }
+    };
+
+    template<typename K, typename V>
+    struct StringFuncsEx<std::unordered_map<K, V>, void> {
+        static inline void Append(ObjectHelper &oh, std::unordered_map<K, V> const &in) {
+            auto&& s = oh.s;
+            s.push_back('[');
+            if (!in.empty()) {
+                for (auto &kv : in) {
+                    ::xx::AppendEx(oh, kv.first);
+                    s.push_back(',');
+                    ::xx::AppendEx(oh, kv.second);
+                    s.push_back(',');
+                }
+                s[s.size() - 1] = ']';
+            }
+            else {
+                s.push_back(']');
+            }
+        }
+    };
+
+    template<typename K, typename V>
+    struct CloneFuncs<std::unordered_map<K, V>, void> {
+        static inline void Clone1(ObjectHelper &oh, std::unordered_map<K, V> const &in, std::unordered_map<K, V> &out) {
+            auto siz = in.size();
+            out.clear();
+            for(auto&& kv : in) {
+                std::pair<K, V> tar;
+                CloneFuncs<K>::Clone1(oh, kv.first, tar.first);
+                CloneFuncs<V>::Clone1(oh, kv.second, tar.second);
+                out.insert(std::move(tar));
+            }
+        }
+
+        static inline void Clone2(ObjectHelper &oh, std::unordered_map<K, V> const &in, std::unordered_map<K, V> &out) {
+            assert(in.size() == out.size());
+            for(auto&& kv : in) {
+                auto&& iter = out.find(kv.first);
+                CloneFuncs<K>::Clone2(oh, kv.first, *(K*)&iter->first);
+                CloneFuncs<V>::Clone2(oh, kv.second, iter->second);
+            }
+        }
+    };
+
+
     /************************************************************************************/
     // ObjectHelper 的各种实现
 
