@@ -55,8 +55,8 @@ namespace xx::Epoll {
         explicit Item(std::shared_ptr<Context> const& ec, int const& fd = -1);
         // 注意：析构中调用虚函数，不会 call 到派生类的 override 版本
         virtual ~Item() { Close(0); }
-        // 会导致 关闭 fd 解除映射, fd = -1. reason 通常传 __LINE__. 如果传 0 则通常由 非基类析构 发起
-        virtual bool Close(int const& reason);
+        // 会导致 关闭 fd 解除映射, fd = -1. reason 通常传 __LINE__, __FILE__
+        virtual bool Close(int const& reason, char const* const& desc = nullptr);
         // 将当前实例的智能指针放入 ec->holdItems( 不能在构造函数或析构中执行 )
         void Hold();
         // 将当前实例的指针放入 ec->deadItems( 不能在析构中执行 ) 稍后会从 ec->holdItems 移除以触发析构
@@ -119,7 +119,7 @@ namespace xx::Epoll {
         xx::DataQueue sendQueue;
         // 发送
         int Write();
-        // 超时触发 Close(__LINE__)
+        // 超时触发 Close(__LINE__, __FILE__)
         void Timeout() override;
         // epoll 事件处理
         void EpollEvent(uint32_t const &e) override;
@@ -335,7 +335,7 @@ namespace xx::Epoll {
         }
     }
 
-    inline bool Item::Close(int const& reason) {
+    inline bool Item::Close(int const& reason, char const* const& desc) {
         if (fd != -1) {
             assert(ec->fdMappings[fd] == this);
             // 解绑
@@ -415,13 +415,13 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
     // TcpPeer
     inline void TcpPeer::Timeout() {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
     }
 
     inline void TcpPeer::EpollEvent(uint32_t const &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         // read
@@ -432,13 +432,13 @@ namespace xx::Epoll {
             }
             // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
             if (recv.len == recv.cap) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
             // 通过 fd 从系统网络缓冲区读取数据. 追加填充到 recv 后面区域. 返回填充长度. <= 0 则认为失败 断开
             auto &&len = read(fd, recv.buf + recv.len, recv.cap - recv.len);
             if (len <= 0) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
             recv.len += len;
@@ -452,7 +452,7 @@ namespace xx::Epoll {
             // 设置为可写状态
             writing = false;
             if (int r = Write()) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
         }
@@ -552,7 +552,7 @@ namespace xx::Epoll {
     inline void TcpListener<PeerType, ENABLED>::EpollEvent(uint32_t const &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         // accept 到 没有 或 出错 为止
@@ -601,14 +601,14 @@ namespace xx::Epoll {
     inline void TcpConn<PeerType, ENABLED>::EpollEvent(uint32_t const &e) {
         // 如果 error 则 Close
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         // 读取错误 或者读到错误 都认为是连接失败. 返回非 0 触发 Close
         int err;
         socklen_t result_len = sizeof(err);
         if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &result_len) == -1 || err) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
 

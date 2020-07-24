@@ -7,6 +7,7 @@ int Server::Run() {
     xx::ScopeGuard sg([&]{
         DisableCommandLine();
         listener.reset();
+        holdItems.clear();
         auto c = shared_from_this().use_count();
         assert(c == 2);
     });

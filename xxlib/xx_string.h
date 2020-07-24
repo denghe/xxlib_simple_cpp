@@ -229,6 +229,37 @@ namespace xx {
     };
 
 
+
+    // 适配 sockaddr const*
+    template<>
+    struct StringFuncs<sockaddr const*, void> {
+        static inline void Append(std::string& s, sockaddr const* const& in) {
+            if (in) {
+                s.push_back('\"');
+                char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+                if (!getnameinfo(in, in->sa_family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN, hbuf, sizeof hbuf,
+                                 sbuf, sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV)) {
+                    s.append(hbuf);
+                    s.push_back(':');
+                    s.append(sbuf);
+                }
+                s.push_back('\"');
+            }
+            else {
+                s.append("null");
+            }
+        }
+    };
+
+    // 适配 sockaddr_in6
+    template<>
+    struct StringFuncs<sockaddr_in6, void> {
+        static inline void Append(std::string& s, sockaddr_in6 const& in) {
+            StringFuncs<sockaddr const*>::Append(s, (sockaddr const*)&in);
+        }
+    };
+
+
     /************************************************************************************/
     // string 处理相关
     /************************************************************************************/
