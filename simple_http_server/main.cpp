@@ -1,23 +1,51 @@
-﻿#include <xx_data_rw.h>
-#include <xx_string.h>
+﻿#include "xx_signal.h"
+#include "config.h"
+#include "server.h"
 
 int main() {
-    std::unordered_map<std::string, std::map<int, std::vector<std::string>>> m;
-    m["s1"][4] = {"xxxxxxxxxxxx", "sadfdf"};
-    m["s1"][3] = {"qwerzxcv"};
-    m["s2"][1] = {"asdf", "123", "xcvxvc"};
-    m["s2"][3] = {"qwerzxcv"};
+    // 禁掉 SIGPIPE 信号避免因为连接关闭出错
+    xx::IgnoreSignal();
 
-    xx::Data d;
-    xx::DataWriter dw(d);
-    dw.Write(m);
+    // 加载配置
+    ajson::load_from_file(::config, "config.json");
 
-    xx::CoutN(d);
+    // 显示配置内容
+    std::cout << ::config << std::endl;
 
-    xx::DataReader dr(d);
-    std::unordered_map<std::string, std::map<int, std::vector<std::string>>> m2;
-    dr.Read(m2);
-    xx::CoutN(m2);
+    // 创建服务类实例
+    auto &&s = xx::Make<Server>();
+
+    // 开始运行
+    return s->Run();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+//    std::unordered_map<std::string, std::map<int, std::vector<std::string>>> m;
+//    m["s1"][4] = {"xxxxxxxxxxxx", "sadfdf"};
+//    m["s1"][3] = {"qwerzxcv"};
+//    m["s2"][1] = {"asdf", "123", "xcvxvc"};
+//    m["s2"][3] = {"qwerzxcv"};
+//
+//    xx::Data d;
+//    xx::DataWriter dw(d);
+//    dw.Write(m);
+//
+//    xx::CoutN(d);
+//
+//    xx::DataReader dr(d);
+//    std::unordered_map<std::string, std::map<int, std::vector<std::string>>> m2;
+//    dr.Read(m2);
+//    xx::CoutN(m2);
 
 //
 //    xx::SharedList<int> ints;
@@ -27,7 +55,7 @@ int main() {
 //    ints.Emplace(6);
 //    ints.EmplaceAt(0, 7);
 //    std::cout << ints.Find(7) << std::endl;
-    
+
 //    for(auto&& o : ints) {
 //        std::cout << o << std::endl;
 //    }
@@ -42,10 +70,6 @@ int main() {
 //    auto ints3 = std::move(ints);
 //    std::cout << ints.useCount() << std::endl;
 //    std::cout << ints3.useCount() << std::endl;
-
-    return 0;
-}
-
 
 //#include <xx_sharedlist.h>
 //#include <xx_chrono.h>
