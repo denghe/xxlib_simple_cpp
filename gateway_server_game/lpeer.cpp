@@ -11,9 +11,9 @@ void LPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
     // todo
 }
 
-bool LPeer::Close(int const &reason) {
+bool LPeer::Close(int const &reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
-    if (!this->Item::Close(reason)) return false;
+    if (!this->Item::Close(reason, desc)) return false;
     // 减持
     GetServer().lobbyPeer.reset();
     // 延迟减持

@@ -3,7 +3,7 @@
 #include "cpeer.h"
 #include "xx_data_rw.h"
 
-bool SPeer::Close(int const& reason) {
+bool SPeer::Close(int const& reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
     if (!this->Peer::Close(reason)) return false;
     std::cout << "SPeer Close. serverId = "<< serverId <<", reason = " << reason << std::endl;
@@ -47,7 +47,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
     // 试读取 cmd 字串. 失败直接断开
     std::string cmd;
     if (int r = dr.Read(cmd)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
@@ -57,7 +57,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
     if (cmd == "open") {                        // 向客户端开放 serverId. 参数: clientId
         // 试读出 clientId. 失败直接断开
         if (int r = dr.Read(clientId)) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         // 如果没找到 client peer, 则忽略
@@ -70,7 +70,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
     } else if (cmd == "close") {                // 关端口. 参数: clientId
         // 试读出 clientId. 失败直接断开
         if (int r = dr.Read(clientId)) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         // 如果没找到 client peer, 则忽略
@@ -84,7 +84,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
         // 试读出参数
         int64_t delayMS = 0;
         if (int r = dr.Read(clientId, delayMS)) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         // 如果没找到 或已断开 则返回，忽略错误
@@ -99,10 +99,10 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
             cp->DelayClose((double) delayMS / 1000);
         } else {
             // 立刻踢下线
-            cp->Close(__LINE__);
+            cp->Close(__LINE__, __FILE__);
         }
     } else {                                    // 未知指令
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
     }
 }
 

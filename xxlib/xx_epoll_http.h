@@ -41,11 +41,73 @@ namespace xx::Epoll {
         virtual void ReceiveHttp() = 0;
     };
 
-    inline bool HttpPeer::Close(int const &reason, char const* const& desc) {
-        if (!this->Item::Close(reason)) return false;
-        // 从 ec->holdItems 延迟移除 以 释放智能指针( 出函数后 )
-        DelayUnhold();
-        return true;
+
+    inline HttpPeer::HttpPeer(std::shared_ptr<Context> const& ec, int const& fd)
+            : TcpPeer(ec, fd) {
+        // 初始化 parser. 绑定各种回调。通过 data 来传递 this
+        http_parser_init(&httpParser, HTTP_BOTH);
+        httpParser.data = this;
+        http_parser_settings_init(&httpParserSettings);
+        httpParserSettings.on_message_begin = [](http_parser* parser) noexcept {
+            //auto&& self = *(HttpPeer*)parser->data;
+            return 0;
+        };
+        httpParserSettings.on_url = [](http_parser* parser, const char* buf, size_t length) noexcept {
+            auto&& self = *(HttpPeer*)parser->data;
+            self.url.append(buf, length);
+            return 0;
+        };
+        httpParserSettings.on_status = [](http_parser* parser, const char* buf, size_t length) noexcept {
+            auto&& self = *(HttpPeer*)parser->data;
+            self.status.append(buf, length);
+            return 0;
+        };
+        httpParserSettings.on_header_field = [](http_parser* parser, const char* buf, size_t length) noexcept {
+            auto&& self = *(HttpPeer*)parser->data;
+            if (self.recvingValue) {
+                self.recvingValue = false;
+                self.header.insert(std::make_pair(std::move(self.lastKey), std::move(self.lastValue)));
+            }
+            self.lastKey.append(buf, length);
+            return 0;
+        };
+        httpParserSettings.on_header_value = [](http_parser* parser, const char* buf, size_t length) noexcept {
+            auto&& self = *(HttpPeer*)parser->data;
+            self.recvingValue = true;
+            self.lastValue.append(buf, length);
+            return 0;
+        };
+        httpParserSettings.on_headers_complete = [](http_parser* parser) noexcept {
+            auto&& self = *(HttpPeer*)parser->data;
+            if (self.recvingValue) {
+                self.recvingValue = false;
+                self.header.insert(std::make_pair(std::move(self.lastKey), std::move(self.lastValue)));
+            }
+            self.method = http_method_str((http_method)parser->method);
+            self.keepAlive = http_should_keep_alive(parser);
+            return 0;
+        };
+        httpParserSettings.on_body = [](http_parser* parser, const char* buf, size_t length) noexcept {
+            auto&& self = *(HttpPeer*)parser->data;
+            self.body.append(buf, length);
+            return 0;
+        };
+        httpParserSettings.on_message_complete = [](http_parser* parser) noexcept {
+            auto&& self = *(HttpPeer*)parser->data;
+            self.ReceiveHttp();
+            self.Clear();
+            return 0;
+        };
+        httpParserSettings.on_chunk_header = [](http_parser* parser) noexcept {
+            //auto&& self = *(HttpPeer*)parser->data;
+            // todo
+            return 0;
+        };
+        httpParserSettings.on_chunk_complete = [](http_parser* parser) noexcept {
+            //auto&& self = *(HttpPeer*)parser->data;
+            // todo
+            return 0;
+        };
     }
 
     inline void HttpPeer::Receive() {
@@ -55,6 +117,13 @@ namespace xx::Epoll {
         if (parsedLen < len) {
             Close(__LINE__, __FILE__);       // http_errno_description((http_errno)httpParser.http_errno)
         }
+    }
+
+    inline bool HttpPeer::Close(int const &reason, char const* const& desc) {
+        if (!this->Item::Close(reason)) return false;
+        // 从 ec->holdItems 延迟移除 以 释放智能指针( 出函数后 )
+        DelayUnhold();
+        return true;
     }
 
     inline void HttpPeer::Clear() {
@@ -355,76 +424,5 @@ namespace xx::Epoll {
         };
     };
 
-
-
-
-
-    inline HttpPeer::HttpPeer(std::shared_ptr<Context> const& ec, int const& fd)
-            : TcpPeer(ec, fd) {
-        // 初始化 parser. 绑定各种回调。通过 data 来传递 this
-        http_parser_init(&httpParser, HTTP_BOTH);
-        httpParser.data = this;
-        http_parser_settings_init(&httpParserSettings);
-        httpParserSettings.on_message_begin = [](http_parser* parser) noexcept {
-            //auto&& self = *(HttpPeer*)parser->data;
-            return 0;
-        };
-        httpParserSettings.on_url = [](http_parser* parser, const char* buf, size_t length) noexcept {
-            auto&& self = *(HttpPeer*)parser->data;
-            self.url.append(buf, length);
-            return 0;
-        };
-        httpParserSettings.on_status = [](http_parser* parser, const char* buf, size_t length) noexcept {
-            auto&& self = *(HttpPeer*)parser->data;
-            self.status.append(buf, length);
-            return 0;
-        };
-        httpParserSettings.on_header_field = [](http_parser* parser, const char* buf, size_t length) noexcept {
-            auto&& self = *(HttpPeer*)parser->data;
-            if (self.recvingValue) {
-                self.recvingValue = false;
-                self.header.insert(std::make_pair(std::move(self.lastKey), std::move(self.lastValue)));
-            }
-            self.lastKey.append(buf, length);
-            return 0;
-        };
-        httpParserSettings.on_header_value = [](http_parser* parser, const char* buf, size_t length) noexcept {
-            auto&& self = *(HttpPeer*)parser->data;
-            self.recvingValue = true;
-            self.lastValue.append(buf, length);
-            return 0;
-        };
-        httpParserSettings.on_headers_complete = [](http_parser* parser) noexcept {
-            auto&& self = *(HttpPeer*)parser->data;
-            if (self.recvingValue) {
-                self.recvingValue = false;
-                self.header.insert(std::make_pair(std::move(self.lastKey), std::move(self.lastValue)));
-            }
-            self.method = http_method_str((http_method)parser->method);
-            self.keepAlive = http_should_keep_alive(parser);
-            return 0;
-        };
-        httpParserSettings.on_body = [](http_parser* parser, const char* buf, size_t length) noexcept {
-            auto&& self = *(HttpPeer*)parser->data;
-            self.body.append(buf, length);
-            return 0;
-        };
-        httpParserSettings.on_message_complete = [](http_parser* parser) noexcept {
-            auto&& self = *(HttpPeer*)parser->data;
-            self.ReceiveHttp();
-            self.Clear();
-            return 0;
-        };
-        httpParserSettings.on_chunk_header = [](http_parser* parser) noexcept {
-            //auto&& self = *(HttpPeer*)parser->data;
-            // todo
-            return 0;
-        };
-        httpParserSettings.on_chunk_complete = [](http_parser* parser) noexcept {
-            //auto&& self = *(HttpPeer*)parser->data;
-            // todo
-            return 0;
-        };
-    }
 
 }

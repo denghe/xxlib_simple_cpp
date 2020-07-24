@@ -1,9 +1,9 @@
 ﻿#include "server.h"
 #include "gpeer.h"
 
-bool GPeer::Close(int const &reason) {
+bool GPeer::Close(int const &reason, char const* const& desc) {
     // close fd 解绑 并注册延迟减持( 通常会导致自杀 )
-    if (this->Peer::Close(reason)) {
+    if (this->Peer::Close(reason, desc)) {
         // 从容器移除( 如果有放入的话 )
         if (id) {
             GetServer().gps.erase(id);
@@ -27,7 +27,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 进一步解析. 看是内部指令还是普通包
     // 读出投递地址
     if (int r = dr.ReadFixed(addr)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
@@ -37,7 +37,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
         std::string cmd;
         // 试读取 cmd 字串. 失败直接断开
         if (int r = dr.Read(cmd)) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         if (cmd == "accept") {
@@ -47,7 +47,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
 
             // 试读出 指令参数. 失败直接断开
             if (int r = dr.Read(clientId, ip)) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
 
@@ -58,7 +58,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
 
             // 试读出 指令参数. 失败直接断开
             if (int r = dr.Read(clientId)) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
 
@@ -79,25 +79,25 @@ void GPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
 
     // 读出投递地址
     if (int r = dr.ReadFixed(addr)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
     // 如果不是内部指令: 断线退出
     if (addr != 0xFFFFFFFFu) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
     // 读取指令失败: 断线退出
     if (dr.Read(cmd, gatewayId)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
     // 前置检查失败: 断线退出
     if (cmd != "gatewayId" || !gatewayId) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
@@ -106,7 +106,7 @@ void GPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
 
     // 如果 serverId 已存在: 断线退出
     if (gps.find(gatewayId) != gps.end()) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 

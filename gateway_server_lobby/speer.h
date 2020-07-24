@@ -8,7 +8,7 @@ struct SPeer : Peer {
     using Peer::Peer;
 
     // 关闭 fd, 注册延迟自杀函数( 直接析构并不会触发这个 Close )
-    bool Close(int const& reason) override;
+    bool Close(int const& reason, char const* const& desc) override;
 
     // 收到正常包
     void ReceivePackage(char *const &buf, size_t const &len) override;

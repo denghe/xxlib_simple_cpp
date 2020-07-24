@@ -1,9 +1,9 @@
 ﻿#include "peer.h"
 #include "header.h"
 
-bool Peer::Close(int const &reason) {
+bool Peer::Close(int const &reason, char const* const& desc) {
     if (!this->Item::Close(reason)) return false;
-    std::cout << EP::AddressToString(addr) << " Close. reason = " << reason << std::endl;
+    std::cout << xx::ToString(addr) << " Close. reason = " << reason << std::endl;
     // 从 ec->holdItems 延迟移除 以 释放智能指针( 出函数后 )
     DelayUnhold();
     return true;
@@ -61,7 +61,7 @@ void Peer::Receive() {
 
 void Peer::ReceivePackage(char *buf, size_t len) {
     // 这里先输出收到的内容
-    std::cout << "recv message from client(" << EP::AddressToString(addr) << "): " << std::string_view(buf, len)
+    std::cout << "recv message from client(" << xx::ToString(addr) << "): " << std::string_view(buf, len)
               << std::endl;
 
     // todo: 内容处理

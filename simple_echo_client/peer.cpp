@@ -2,8 +2,8 @@
 #include "header.h"
 #include "client.h"
 
-bool Peer::Close(int const &reason) {
-    if (!this->Item::Close(reason)) return false;
+bool Peer::Close(int const &reason, char const* const& desc) {
+    if (!this->Item::Close(reason, desc)) return false;
     std::cout << "Close. reason = " << reason << std::endl;
     // 立刻减持
     ((Client*)&*ec)->peer.reset();

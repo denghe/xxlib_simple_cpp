@@ -1,9 +1,9 @@
 ﻿#include "server.h"
 #include "speer.h"
 
-bool SPeer::Close(int const& reason) {
+bool SPeer::Close(int const& reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
-    if (!this->Peer::Close(reason)) return false;
+    if (!this->Peer::Close(reason, desc)) return false;
     // 从容器移除以减持( 如果有放入的话 )
     if (id) {
         GetServer().sps.erase(id);
@@ -26,13 +26,13 @@ void SPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
 
     // 读取失败: 断线退出
     if (dr.Read(cmd, serverId)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
     // 前置检查失败: 断线退出
     if (cmd != "serverId" || !serverId) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
@@ -41,7 +41,7 @@ void SPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
 
     // 如果 serverId 已存在: 断线退出
     if (sps.find(serverId) != sps.end()) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 

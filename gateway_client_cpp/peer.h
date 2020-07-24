@@ -22,7 +22,7 @@ struct Peer : EP::TcpPeer {
     using EP::TcpPeer::TcpPeer;
 
     // 关闭 fd, 从容器移除 并 DelayUnhold
-    bool Close(int const& reason) override;
+    bool Close(int const& reason, char const* const& desc = nullptr) override;
 
     // 检查某 serverId
     [[nodiscard]] bool IsOpened(uint32_t const& serverId) const;

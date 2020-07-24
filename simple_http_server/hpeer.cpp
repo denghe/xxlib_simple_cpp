@@ -9,7 +9,7 @@ HPeer::~HPeer() {
 }
 
 void HPeer::ReceiveHttp() {
-    xx::CoutN(addr, "recv http. method = ", method, ", url = ", url, ", body = ", body);
+    xx::CoutN(addr, " recv http. method = ", method, ", url = ", url, ", body = ", body);
     if (url=="/favicon.ico") {
         Send404("");
     }

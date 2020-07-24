@@ -1,13 +1,13 @@
 ﻿#include "peer.h"
 #include "client.h"
 
-bool Peer::Close(int const& reason) {
+bool Peer::Close(int const& reason, char const* const& desc) {
     // 关闭 fd. 同时也是重入检测
     if (!this->Item::Close(reason)) return false;
     {
         // 从容器移除 this( 如果有放入的话 )
         ((Client *) &*ec)->peer.reset();
-        std::cout << "peer disconnected. reason = " << reason << std::endl;
+        std::cout << "peer disconnected. reason = " << reason << ", file = " << desc << std::endl;
     }
     // 延迟减持
     DelayUnhold();

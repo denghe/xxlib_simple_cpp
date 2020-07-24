@@ -12,7 +12,7 @@ int Server::Run() {
         for(auto&& dp : dps) {
             dp.second.first->Stop();
             if (dp.second.second) {
-                dp.second.second->Close(__LINE__);
+                dp.second.second->Close(__LINE__, __FILE__);
             }
         }
         dps.clear();
@@ -22,7 +22,7 @@ int Server::Run() {
             keys.push_back(cp.first);
         }
         for(auto&& key : keys) {
-            cps[key]->Close(__LINE__);
+            cps[key]->Close(__LINE__, __FILE__);
         }
         cps.clear();
 
@@ -72,7 +72,7 @@ int Server::Run() {
             auto &&dialer = kv.second.first;
             auto &&peer = kv.second.second;
             std::cout << dialer->serverId
-                      << "\t\t" << EP::AddressToString(dialer->addrs[0])
+                      << "\t\t" << xx::ToString(dialer->addrs[0])
                       << "\t\t" << (dialer->Busy() ? "true" : "false")
                       << "\t\t" << (peer ? "true" : "false") << std::endl;
         }
@@ -80,7 +80,7 @@ int Server::Run() {
         std::cout << "clientId		ip:port" << std::endl;
         for (auto &&kv : cps) {
             std::cout << kv.first
-                      << EP::AddressToString(kv.second->addr) << std::endl;
+                      << xx::ToString(kv.second->addr) << std::endl;
         }
     };
     cmds["quit"] = [this](auto args) {

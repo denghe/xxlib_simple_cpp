@@ -3,9 +3,9 @@
 #include "server.h"
 #include "config.h"
 
-bool CPeer::Close(int const& reason) {
+bool CPeer::Close(int const& reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
-    if (!this->BaseType::Close(reason)) return false;
+    if (!this->BaseType::Close(reason, desc)) return false;
     // 群发断开指令 并从容器移除
     PartialClose();
     // 延迟减持

@@ -14,5 +14,5 @@ struct LPeer : Peer {
     void ReceiveFirstPackage(char* const& buf, size_t const& len) override;
 
     // todo
-    bool Close(int const &reason) override;
+    bool Close(int const &reason, char const* const& desc) override;
 };

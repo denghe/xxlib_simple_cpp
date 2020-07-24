@@ -11,7 +11,7 @@ int Client::Run() {
             dialer.reset();
         }
         if(peer) {
-            peer->Close(__LINE__);
+            peer->Close(__LINE__, __FILE__);
             peer.reset();
         }
         holdItems.clear();

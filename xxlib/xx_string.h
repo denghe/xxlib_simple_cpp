@@ -93,6 +93,16 @@ namespace xx {
         }
     };
 
+    // 适配 std::string_view( 前后加引号 )
+    template<typename T>
+    struct StringFuncs<T, std::enable_if_t<std::is_base_of_v<std::string_view, T>>> {
+        static inline void Append(std::string& s, T const& in) {
+            s.push_back('\"');
+            s.append(in);
+            s.push_back('\"');
+        }
+    };
+
     // 适配所有数字
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
@@ -225,37 +235,6 @@ namespace xx {
             else {
                 s.push_back(']');
             }
-        }
-    };
-
-
-
-    // 适配 sockaddr const*
-    template<>
-    struct StringFuncs<sockaddr const*, void> {
-        static inline void Append(std::string& s, sockaddr const* const& in) {
-            if (in) {
-                s.push_back('\"');
-                char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-                if (!getnameinfo(in, in->sa_family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN, hbuf, sizeof hbuf,
-                                 sbuf, sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV)) {
-                    s.append(hbuf);
-                    s.push_back(':');
-                    s.append(sbuf);
-                }
-                s.push_back('\"');
-            }
-            else {
-                s.append("null");
-            }
-        }
-    };
-
-    // 适配 sockaddr_in6
-    template<>
-    struct StringFuncs<sockaddr_in6, void> {
-        static inline void Append(std::string& s, sockaddr_in6 const& in) {
-            StringFuncs<sockaddr const*>::Append(s, (sockaddr const*)&in);
         }
     };
 

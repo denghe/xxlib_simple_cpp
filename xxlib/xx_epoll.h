@@ -36,10 +36,36 @@
 #include "xx_chrono.h"
 #include "xx_data_queue.h"
 #include "xx_scopeguard.h"
+#include "xx_string.h"
 
 #define LIKELY(x)       __builtin_expect(!!(x), 1)
 #define UNLIKELY(x)     __builtin_expect(!!(x), 0)
 
+namespace xx {
+    // 适配 sockaddr const*
+    template<>
+    struct StringFuncs<sockaddr const *, void> {
+        static inline void Append(std::string &s, sockaddr const *const &in) {
+            if (in) {
+                char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+                if (!getnameinfo(in, in->sa_family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN, hbuf, sizeof hbuf,
+                                 sbuf, sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV)) {
+                    s.append(hbuf);
+                    s.push_back(':');
+                    s.append(sbuf);
+                }
+            }
+        }
+    };
+
+    // 适配 sockaddr_in6
+    template<>
+    struct StringFuncs<sockaddr_in6, void> {
+        static inline void Append(std::string &s, sockaddr_in6 const &in) {
+            StringFuncs<sockaddr const *>::Append(s, (sockaddr const *) &in);
+        }
+    };
+}
 namespace xx::Epoll {
     /***********************************************************************************************************/
     // Item
@@ -319,9 +345,6 @@ namespace xx::Epoll {
     // Util funcs
     // ip, port 转为 addr
     int FillAddress(std::string const &ip, int const &port, sockaddr_in6 &addr);
-    // addr 转为 string
-    std::string AddressToString(sockaddr *const &in);
-    std::string AddressToString(sockaddr_in6 const &in);
 
 
     /***********************************************************************************************************/
@@ -1071,20 +1094,5 @@ namespace xx::Epoll {
         }
 
         return 0;
-    }
-
-    inline std::string AddressToString(sockaddr *const &in) {
-        if (in) {
-            char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-            if (!getnameinfo(in, in->sa_family == AF_INET6 ? INET6_ADDRSTRLEN : INET_ADDRSTRLEN
-                    , hbuf, sizeof hbuf
-                    , sbuf, sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV)) {
-                return std::string(hbuf) + ":" + sbuf;
-            }
-        }
-        return "";
-    }
-    inline std::string AddressToString(sockaddr_in6 const &in) {
-        return AddressToString((sockaddr *) &in);
     }
 }

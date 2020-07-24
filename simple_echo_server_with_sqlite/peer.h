@@ -15,7 +15,7 @@ struct Peer : EP::TcpPeer {
 	void Receive() override;
 
 	// 断线事件( 清除自持有 )
-	bool Close(int const& reason) override;
+	bool Close(int const& reason, char const* const& desc) override;
 
 	// 在数据前面附带上 长度 并发送. 返回 非0 表示出状况( 但不一定是断线 )
 	int SendPackage(char const* const& buf, size_t const& len);

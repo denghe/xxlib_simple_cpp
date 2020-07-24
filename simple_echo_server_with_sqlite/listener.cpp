@@ -8,5 +8,5 @@ void Listener::Accept(std::shared_ptr<Peer> const &peer) {
     // 设置 n 秒后断线( 触发 Close )
     peer->SetTimeoutSeconds(30);
 
-    std::cout << "client(" << EP::AddressToString(peer->addr) << ") connected." << std::endl;
+    std::cout << "client(" << xx::ToString(peer->addr) << ") connected." << std::endl;
 }

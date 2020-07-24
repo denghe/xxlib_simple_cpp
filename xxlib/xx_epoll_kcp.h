@@ -71,7 +71,7 @@ namespace xx::Epoll {
         // 被 owner 调用. 塞数据到 kcp
         void Input(char const *const &buf, size_t const &len, bool isFirst = false);
         // 回收 kcp 对象, 看情况从 ep->kcps 移除
-        bool Close(int const &reason) override;
+        bool Close(int const &reason, char const* const& desc) override;
         // Close
         void Timeout() override;
         // 传进发送队列( 如果 !kcp 则忽略 )
@@ -128,11 +128,11 @@ namespace xx::Epoll {
     }
 
     inline KcpPeer::~KcpPeer() {
-        Close(0);
+        Close(__LINE__, __FILE__);
     }
 
     inline void KcpPeer::Timeout() {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
     }
 
     inline int KcpPeer::Send(char const *const &buf, size_t const &len) {
@@ -162,7 +162,7 @@ namespace xx::Epoll {
     inline void KcpPeer::Input(char const *const &buf, size_t const &len_, bool isFirst) {
         // 将底层数据灌入 kcp
         if (ikcp_input(kcp, buf, len_)) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         // 开始处理收到的数据
@@ -173,7 +173,7 @@ namespace xx::Epoll {
             }
             // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
             if (recv.len == recv.cap) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
 
@@ -195,7 +195,7 @@ namespace xx::Epoll {
         } while (true);
     }
 
-    inline bool KcpPeer::Close(int const &reason) {
+    inline bool KcpPeer::Close(int const &reason, char const* const& desc) {
         if (!kcp) return false;
         // 回收 kcp
         ikcp_release(kcp);
@@ -240,7 +240,7 @@ namespace xx::Epoll {
     template<typename PeerType, class ENABLED>
     inline void KcpListener<PeerType, ENABLED>::Receive(char const *const &buf, size_t const &len) {
         // addr 转为 ip:port 当 key( 似乎性能有点费? )
-        auto ip_port = AddressToString(addr);
+        auto ip_port = xx::ToString(addr);
 
         // 当前握手方案为 UdpDialer 每秒 N 次不停发送 4 字节数据( serial )过来,
         // 收到后根据其 ip:port 做 key, 生成 convId. 每次收到都向其发送 convId
@@ -319,7 +319,7 @@ namespace xx::Epoll {
             // 先清掉 owner 避免 Close 函数内部到 cps 来移除自己, 同时也是双向减持
             kv.second->owner.reset();
             // 关掉挂靠 peer
-            kv.second->Close(__LINE__);
+            kv.second->Close(__LINE__, __FILE__);
         }
         // 减持所有 挂靠 peer
         cps.clear();
@@ -335,7 +335,7 @@ namespace xx::Epoll {
     inline void UdpPeer::EpollEvent(const uint32_t &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         // read
@@ -343,7 +343,7 @@ namespace xx::Epoll {
             socklen_t addrLen = sizeof(addr);
             auto len = recvfrom(fd, ec->buf.data(), ec->buf.size(), 0, (struct sockaddr *) &addr, &addrLen);
             if (len < 0) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
             if (!len) return;

@@ -3,14 +3,14 @@
 #include "vpeer.h"
 #include "config.h"
 
-bool GPeer::Close(int const &reason) {
+bool GPeer::Close(int const &reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
     if (!this->Item::Close(reason)) return false;
     std::cout << "GPeer::Close. gatewayId = " << id << " reason = " << reason << std::endl;
     // 关闭所有虚拟 peer
     for (auto &&iter : vpeers) {
         // OnDisconnect + callbacks timeout + delayUnhold
-        iter.second->Close(reason);
+        iter.second->Close(reason, desc);
     }
     // 清除 vpeers 以减持
     vpeers.clear();
@@ -36,7 +36,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 进一步解析. 看是内部指令还是普通包
     // 读出投递地址
     if (int r = dr.ReadFixed(clientId)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
@@ -46,7 +46,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
         std::string cmd;
         // 试读取 cmd 字串. 失败直接断开
         if (int r = dr.Read(cmd)) {
-            Close(__LINE__);
+            Close(__LINE__, __FILE__);
             return;
         }
         if (cmd == "accept") {
@@ -55,7 +55,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
 
             // 试读出 指令参数. 失败直接断开
             if (int r = dr.Read(clientId, ip)) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
 
@@ -70,7 +70,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
         } else if (cmd == "disconnect") {
             // 试读出 指令参数. 失败直接断开
             if (int r = dr.Read(clientId)) {
-                Close(__LINE__);
+                Close(__LINE__, __FILE__);
                 return;
             }
 
@@ -81,7 +81,7 @@ void GPeer::ReceivePackage(char *const &buf, size_t const &len) {
             // 如果没找到就退出( 有可能刚刚被逻辑代码杀掉, close 指令还在路上, 此时 gateway 并不知道 )
             if (iter == vpeers.end()) return;
             // 杀掉 vp( 会自动下发 close 并从容器移除 )
-            iter->second->Close(__LINE__);
+            iter->second->Close(__LINE__, __FILE__);
         }
     } else {
         std::cout << "recv package. clientId = " << clientId << std::endl;
@@ -105,25 +105,25 @@ void GPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
 
     // 读出投递地址
     if (int r = dr.ReadFixed(addr)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
     // 如果不是内部指令: 断线退出
     if (addr != 0xFFFFFFFFu) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
     // 读取指令失败: 断线退出
     if (dr.Read(cmd, gatewayId)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
     // 前置检查失败: 断线退出
     if (cmd != "gatewayId" || !gatewayId) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
@@ -132,7 +132,7 @@ void GPeer::ReceiveFirstPackage(char *const &buf, size_t const &len) {
 
     // 如果 gatewayId 已存在: 断线退出
     if (gps.find(gatewayId) != gps.end()) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 

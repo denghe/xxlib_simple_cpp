@@ -58,7 +58,7 @@ int VPeer::SendRequest(char const *const &buf, size_t const &len,
     return SendResponse(-autoIncSerial, buf, len);
 }
 
-bool VPeer::Close(int const &reason) {
+bool VPeer::Close(int const &reason, char const* const& desc) {
     // 防范重入
     if (clientId == 0xFFFFFFFFu) return false;
     // 触发断线事件
@@ -93,7 +93,7 @@ void VPeer::Receive(char const *const &buf, size_t const &len) {
     int serial = 0;
     xx::DataReader dr(buf, len);
     if (dr.Read(serial)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
 
@@ -126,7 +126,7 @@ void VPeer::ReceivePush(char const *const &buf, size_t const &len) {
     std::string txt;
     xx::DataReader dr(buf, len);
     if (dr.Read(txt)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
     std::cout << "vpeer: " << clientId << " recv push: " << txt << std::endl;
@@ -138,7 +138,7 @@ void VPeer::ReceiveRequest(uint32_t const &serial, char const *const &buf, size_
     std::string txt;
     xx::DataReader dr(buf, len);
     if (dr.Read(txt)) {
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
         return;
     }
     std::cout << "vpeer: " << clientId << " recv request: " << txt << std::endl;
@@ -158,7 +158,7 @@ void VPeer::ReceiveRequest(uint32_t const &serial, char const *const &buf, size_
         SendResponse(serial, d.buf, d.len);
     } else {
         // 未知包?
-        Close(__LINE__);
+        Close(__LINE__, __FILE__);
     }
 }
 

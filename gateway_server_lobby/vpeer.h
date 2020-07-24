@@ -53,7 +53,7 @@ struct VPeer : EP::Item {
 
 
     // 掐线 OnDisconnect(reason) + callbacks + delay unhold, 同时下发 close( 如果物理 peer Alive() 的话 )
-    bool Close(int const &reason) override;
+    bool Close(int const &reason, char const* const& desc) override;
 
     // 收到数据( 进一步解析 serial 并转发到下面几个函数 )
     void Receive(char const *const &buf, size_t const &len);

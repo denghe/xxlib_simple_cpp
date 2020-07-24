@@ -17,7 +17,7 @@ int Server::Run() {
             keys.push_back(kv.first);
         }
         for(auto&& key : keys) {
-            sps[key]->Close(__LINE__);
+            sps[key]->Close(__LINE__, __FILE__);
         }
         sps.clear();
 
@@ -26,7 +26,7 @@ int Server::Run() {
             keys.push_back(kv.first);
         }
         for(auto&& key : keys) {
-            gps[key]->Close(__LINE__);
+            gps[key]->Close(__LINE__, __FILE__);
         }
         gps.clear();
 
@@ -57,12 +57,12 @@ int Server::Run() {
         std::cout << "gps.size() = " << gps.size() << std::endl;
         std::cout << "gatewayId		ip:port" << std::endl;
         for (auto &&kv : gps) {
-            std::cout << kv.first << "\t\t" << EP::AddressToString(kv.second->addr) << std::endl;
+            std::cout << kv.first << "\t\t" << xx::ToString(kv.second->addr) << std::endl;
         }
         std::cout << "sps.size() = " << sps.size() << std::endl;
         std::cout << "serverId		ip:port" << std::endl;
         for (auto &&kv : sps) {
-            std::cout << kv.first << "\t\t" << EP::AddressToString(kv.second->addr) << std::endl;
+            std::cout << kv.first << "\t\t" << xx::ToString(kv.second->addr) << std::endl;
         }
     };
 

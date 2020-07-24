@@ -11,7 +11,7 @@ int Server::Run() {
         DisableCommandLine();
         
         if(lobbyPeer) {
-            lobbyPeer->Close(__LINE__);
+            lobbyPeer->Close(__LINE__, __FILE__);
             lobbyPeer.reset();
         }
 
@@ -25,7 +25,7 @@ int Server::Run() {
             keys.push_back(gp.first);
         }
         for(auto&& key : keys) {
-            gps[key]->Close(__LINE__);
+            gps[key]->Close(__LINE__, __FILE__);
         }
         gps.clear();
 
@@ -53,16 +53,16 @@ int Server::Run() {
         std::cout << "cfg = " << config << std::endl;
     };
     cmds["info"] = [this](auto args) {
-        std::cout << "gps.size() = " << gps.size() << std::endl;
-        std::cout << "gatewayId		ip:port" << std::endl;
+        xx::CoutN("gps.size() = ", gps.size());
+        xx::CoutN("gatewayId		ip:port");
         for (auto &&kv : gps) {
-            std::cout << kv.first << "\t\t" << EP::AddressToString(kv.second->addr) << std::endl;
+            xx::CoutN(kv.first, "\t\t", kv.second->addr);
         }
-        std::cout << "dial to:		ip:port		busy		peer alive" << std::endl;
-        std::cout << "lobby"
-                  << "\t\t" << EP::AddressToString(lobbyDialer->addrs[0])
-                  << "\t\t" << (lobbyDialer->Busy() ? "true" : "false")
-                  << "\t\t" << (lobbyPeer ? "true" : "false") << std::endl;
+        xx::CoutN("dial to:		ip:port		busy		peer alive");
+        xx::CoutN("lobby"
+                  , "\t\t" , lobbyDialer->addrs[0]
+                  , "\t\t" , (lobbyDialer->Busy() ? "true" : "false")
+                  , "\t\t" , (lobbyPeer ? "true" : "false"));
     };
 
     cmds["quit"] = [this](auto args) {
