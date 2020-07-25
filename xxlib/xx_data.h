@@ -69,6 +69,11 @@ namespace xx {
 			if (len != o.len) return false;
 			return 0 == ::memcmp(buf, o.buf, len);
 		}
+		inline bool operator!=(Data const& o) {
+			return !this->operator==(o);
+		}
+
+		// todo: 大小比较?
 
 		// 确保空间足够
 		inline void Reserve(size_t const& newCap) {

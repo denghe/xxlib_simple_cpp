@@ -436,4 +436,18 @@ namespace xx {
             return 0;
         }
     };
+
+
+    // 适配 std::pair<K, V>
+    template<typename K, typename V>
+    struct DataFuncs<std::pair<K, V>, void> {
+        static inline void Write(DataWriter& dw, std::pair<K, V> const& in) {
+            dw.Write(in.first, in.second);
+        }
+        static inline int Read(DataReader& dr, std::pair<K, V>& out) {
+            return dr.Read(out.first, out.second);
+        }
+    };
+
+    // todo: 适配 std::tuple
 }

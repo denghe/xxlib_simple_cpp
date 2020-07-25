@@ -6,7 +6,7 @@
 
 namespace xx
 {
-	inline int ReadAllBytes(std::filesystem::path const& path, Data& bb) noexcept {
+	inline int ReadAllBytes(std::filesystem::path const& path, Data& d) noexcept {
 		std::ifstream f(path, std::ifstream::binary);
 		if (!f) return -1;						// not found? no permission? locked?
 		xx::ScopeGuard sg([&] { f.close(); });
@@ -14,9 +14,11 @@ namespace xx
 		auto&& siz = f.tellg();
 		if ((uint64_t)siz > std::numeric_limits<size_t>::max()) return -2;	// too big
 		f.seekg(0, f.beg);
-		bb.Resize(siz);
-		f.read((char*)bb.buf, siz);
+		d.Clear();
+		d.Reserve(siz);
+		f.read((char*)d.buf, siz);
 		if (!f) return -3;						// only f.gcount() could be read
+		d.len = siz;
 		return 0;
 	}
 

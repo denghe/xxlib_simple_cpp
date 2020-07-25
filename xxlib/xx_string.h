@@ -220,6 +220,18 @@ namespace xx {
         }
     };
 
+    // 适配 std::pair<K, V>
+    template<typename K, typename V>
+    struct StringFuncs<std::pair<K, V>, void> {
+        static inline void Append(std::string& s, std::pair<K, V> const& in) {
+            s.push_back('[');
+            ::xx::Append(s, in.first);
+            s.push_back(',');
+            ::xx::Append(s, in.second);
+            s.push_back(']');
+        }
+    };
+
     // 适配 Data
     template<>
     struct StringFuncs<Data, void> {

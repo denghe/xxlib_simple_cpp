@@ -674,6 +674,44 @@ namespace xx {
     };
 
 
+
+    // 适配 std::pair
+    template<typename K, typename V>
+    struct DataFuncsEx<std::pair<K, V>, void> {
+        static inline void Write(DataWriterEx &dw, std::pair<K, V> const &in) {
+            dw.Write(in.first, in.second);
+        }
+        static inline int Read(DataReaderEx &dr, std::pair<K, V> &out) {
+            return dr.Read(out.first, out.second);
+        }
+    };
+
+    template<typename K, typename V>
+    struct StringFuncsEx<std::pair<K, V>, void> {
+        static inline void Append(ObjectHelper &oh, std::pair<K, V> const &in) {
+            auto&& s = oh.s;
+            s.push_back('[');
+            ::xx::AppendEx(oh, in.first);
+            s.push_back(',');
+            ::xx::AppendEx(oh, in.second);
+            s.push_back(']');
+        }
+    };
+
+    template<typename K, typename V>
+    struct CloneFuncs<std::pair<K, V>, void> {
+        static inline void Clone1(ObjectHelper &oh, std::pair<K, V> const &in, std::pair<K, V> &out) {
+            CloneFuncs<K>::Clone1(oh, in.first, out.first);
+            CloneFuncs<V>::Clone1(oh, in.second, out.second);
+        }
+
+        static inline void Clone2(ObjectHelper &oh, std::pair<K, V> const &in, std::pair<K, V> &out) {
+            CloneFuncs<K>::Clone2(oh, in.first, out.first);
+            CloneFuncs<V>::Clone2(oh, in.second, out.second);
+        }
+    };
+
+
     /************************************************************************************/
     // ObjectHelper 的各种实现
 
