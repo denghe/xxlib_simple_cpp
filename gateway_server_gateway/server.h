@@ -31,4 +31,10 @@ struct Server : EP::Context {
 
     // 帧逻辑：遍历 dialerPeers 检查 Peer 状态并自动拨号
     int FrameUpdate() override;
+
+    // 得到执行情况的快照
+    std::string GetInfo();
+
+    // 令日志输出到文件？
+//    void LogN(int const& n, std::string&& txt) override;
 };

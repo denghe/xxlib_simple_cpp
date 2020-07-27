@@ -292,6 +292,16 @@ namespace xx::Epoll {
         // 关闭命令行输入控制( 减持 Context 的引用计数 )
         void DisableCommandLine();
 
+        // 为写日志留个口子
+        inline virtual void LogN(int const& n, std::string&& txt) {
+            xx::CoutN("\\033[47;36m[", xx::NowTimePoint(), "*",n ,"]\033[3", char('0' + ((n >=1 && n<=6) ? n : 7 )) ,"m", txt);
+        };
+        template<int level, typename ...Args>
+        inline void Log(Args const& ... args) {
+            LogN(level, xx::ToString(args...));
+        }
+
+
         /************************************************************************/
         // 下面的东西内部使用，别乱搞
 

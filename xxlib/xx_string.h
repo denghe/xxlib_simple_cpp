@@ -6,6 +6,7 @@
 #include <vector>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <chrono>
 #include <sstream>
 #include <iostream>
@@ -180,6 +181,24 @@ namespace xx {
         }
     };
 
+    // 适配 std::unordered_set<T>
+    template<typename T>
+    struct StringFuncs<std::unordered_set<T>, void> {
+        static inline void Append(std::string& s, std::unordered_set<T> const& in) {
+            s.push_back('[');
+            if (!in.empty()) {
+                for(auto&& o : in) {
+                    ::xx::Append(s, o);
+                    s.push_back(',');
+                }
+                s[s.size() - 1] = ']';
+            }
+            else {
+                s.push_back(']');
+            }
+        }
+    };
+
     // 适配 std::unordered_map<K, V>
     template<typename K, typename V>
     struct StringFuncs<std::unordered_map<K, V>, void> {
@@ -240,6 +259,30 @@ namespace xx {
             if (auto inLen = in.len) {
                 for(size_t i = 0; i < inLen; ++i) {
                     ::xx::Append(s, (uint8_t)in[i]);
+                    s.push_back(',');
+                }
+                s[s.size() - 1] = ']';
+            }
+            else {
+                s.push_back(']');
+            }
+        }
+    };
+
+
+    struct DataView {
+        char const* const& buf;
+        size_t const& len;
+    };
+
+    // 适配 DataView
+    template<>
+    struct StringFuncs<DataView, void> {
+        static inline void Append(std::string& s, DataView const& in) {
+            s.push_back('[');
+            if (auto inLen = in.len) {
+                for(size_t i = 0; i < inLen; ++i) {
+                    ::xx::Append(s, (uint8_t)in.buf[i]);
                     s.push_back(',');
                 }
                 s[s.size() - 1] = ']';

@@ -6,7 +6,8 @@
 bool CPeer::Close(int const& reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
     if (!this->BaseType::Close(reason, desc)) return false;
-    // 群发断开指令 并从容器移除
+    ec->Log<4>("CPeer Close. ip = ", addr," reason = ", reason, ", desc = ", desc);
+    // 群发断开通知 并从容器移除
     PartialClose();
     // 延迟减持
     DelayUnhold();
@@ -14,6 +15,7 @@ bool CPeer::Close(int const& reason, char const* const& desc) {
 }
 
 void CPeer::DelayClose(double const& delaySeconds) {
+    // 这个的日志记录在调用者那里
     // 避免重复执行
     if (closed || !Alive()) return;
     // 标记为延迟自杀
@@ -39,11 +41,7 @@ void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
 
     // 判断该服务编号是否在白名单中. 找不到就忽略
     if (serverIds.find(sid) == serverIds.end()) {
-        std::cout << "recv client package. can't find serverId = " << sid << ". serverIds = [" << std::endl;
-        for(auto&& id : serverIds) {
-            std::cout << " " << id;
-        }
-        std::cout << " ]" << std::endl;
+        ec->Log<5>("CPeer ReceivePackage can't find serverId. ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
         return;
     }
 
@@ -56,10 +54,12 @@ void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 用 serverId 对应的 peer 转发完整数据包
     GetServer().dps[sid].second->Send(buf - 4, len + 4);
 
-    std::cout << "recv client package. serverId = " << sid << " len = " << len << std::endl;
+    ec->Log<6>("CPeer ReceivePackage. ip = ", addr, ", serverId = ", sid, ", buf len = ", len);
 }
 
 void CPeer::ReceiveCommand(char *const &buf, size_t const &len) {
+    ec->Log<7>("CPeer ReceiveCommand. ip = ", addr, ", len = ", len, ", buf = ", xx::DataView{ buf, len });
+
     // 续命
     SetTimeoutSeconds(config.clientTimeoutSeconds);
 

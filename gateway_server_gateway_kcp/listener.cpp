@@ -1,6 +1,5 @@
 ﻿#include "listener.h"
 #include "server.h"
-#include "cpeer.h"
 #include "speer.h"
 #include "config.h"
 
@@ -13,15 +12,18 @@ void Listener::Accept(std::shared_ptr<CPeer> const &cp) {
     // 没连上
     if (!cp) return;
 
-    // 加持
-    cp->Hold();
-
     // 引用到 server 备用
     auto &&s = GetServer();
 
     // 检查是否已经与 0 号服务( server_base )建立了连接. 如果没有，则直接退出( cp 无加持会直接断开 )
     auto&& s0 = s.dps[0].second;
-    if (!s0) return;
+    if (!s0) {
+        ec->Log<1>("Listener Accept failed. can't find s0 peer. ip = ", cp->addr);
+        return;
+    }
+
+    // 加持
+    cp->Hold();
 
     // 填充自增id
     cp->clientId = ++s.cpeerAutoId;
@@ -34,4 +36,6 @@ void Listener::Accept(std::shared_ptr<CPeer> const &cp) {
 
     // 向默认服务发送 accept 通知
     s0->SendCommand("accept", cp->clientId, xx::ToString(cp->addr));
+
+    ec->Log<2>("Listener Accept. ip = ", cp->addr);
 }

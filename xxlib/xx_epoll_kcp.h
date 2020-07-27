@@ -25,7 +25,6 @@ namespace xx::Epoll {
 
     struct KcpPeer;
     struct KcpBase : UdpPeer {
-
         // 自增生成连接id
         uint32_t convId = 0;
         // kcp conv 值与 peer 的映射。KcpPeer Close 时从该字典移除 key
@@ -41,7 +40,7 @@ namespace xx::Epoll {
         // 从容器变量移除
         // DelayUnhold();
         // return true;
-        void CloseChilds(int const &reason);
+        void CloseChilds(int const &reason, char const* const& desc);
     protected:
         friend Context;
         // 每帧 call cps Update, 清理超时握手数据
@@ -94,6 +93,8 @@ namespace xx::Epoll {
         virtual void Accept(std::shared_ptr<PeerType> const &peer) = 0;
         // fd = MakeSocketFD(port, SOCK_DGRAM)
         int Listen(int const& port);
+        // 调用 CloseChilds
+        bool Close(int const& reason, char const* const& desc = nullptr) override;
     };
 
 
@@ -236,6 +237,14 @@ namespace xx::Epoll {
         return 0;
     }
 
+    template<typename PeerType, class ENABLED>
+    inline bool KcpListener<PeerType, ENABLED>::Close(int const& reason, char const* const& desc) {
+        if (!this->KcpBase::Close(reason, desc)) return false;
+        CloseChilds(reason, desc);
+        // 从容器变量移除
+        DelayUnhold();
+        return true;
+    }
 
     template<typename PeerType, class ENABLED>
     inline void KcpListener<PeerType, ENABLED>::Receive(char const *const &buf, size_t const &len) {
@@ -314,11 +323,11 @@ namespace xx::Epoll {
         SetTimeout(1);
     }
 
-    inline void KcpBase::CloseChilds(int const &reason) {
+    inline void KcpBase::CloseChilds(int const &reason, char const* const& desc) {
         for (auto &&kv : cps) {
-            // 先清掉 owner 避免 Close 函数内部到 cps 来移除自己, 同时也是双向减持
+            // 先清掉 owner 避免 Close 函数内部到 cps 来移除自己, 同时减持父容器
             kv.second->owner.reset();
-            // 关掉挂靠 peer
+            // 关掉 虚拟peer
             kv.second->Close(__LINE__, __FILE__);
         }
         // 减持所有 挂靠 peer

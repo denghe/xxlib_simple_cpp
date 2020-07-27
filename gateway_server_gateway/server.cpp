@@ -35,7 +35,7 @@ int Server::Run() {
     xx::MakeTo(listener, shared_from_this());
     // 如果监听失败则输出错误提示并退出
     if (int r = listener->Listen(config.listenPort)) {
-        std::cout << "listen to port " <<config.listenPort << "failed." << std::endl;
+        Log<1>("listen to port ", config.listenPort, "failed.");
         return r;
     }
 
@@ -45,7 +45,7 @@ int Server::Run() {
         auto&& dialer = xx::Make<Dialer>(shared_from_this());
         // 放入字典。如果 server id 重复就报错
         if (!dps.insert({si.serverId, std::make_pair(dialer, nullptr)}).second) {
-            std::cout << "duplicate serverId: " << si.serverId << std::endl;
+            Log<1>("duplicate serverId: ", si.serverId);
             return __LINE__;
         }
         // 填充数据，为开始拨号作准备（会在帧回调逻辑中开始拨号）
@@ -55,7 +55,7 @@ int Server::Run() {
 
     // 核查是否存在 0 号服务的 dialer. 没有就报错
     if (dps.find(0) == dps.end()) {
-        std::cout << "can't find base server ( serverId = 0 )'s dialer." << std::endl;
+        Log<1>("can't find base server ( serverId = 0 )'s dialer.");
         return __LINE__;
     }
 
@@ -66,22 +66,7 @@ int Server::Run() {
         std::cout << "cfg = " << config << std::endl;
     };
     cmds["info"] = [this](auto args) {
-        std::cout << "dps.size() = " << dps.size() << std::endl;
-        std::cout << "serverId		ip:port		busy		peer alive" << std::endl;
-        for (auto &&kv : dps) {
-            auto &&dialer = kv.second.first;
-            auto &&peer = kv.second.second;
-            std::cout << dialer->serverId
-                      << "\t\t" << xx::ToString(dialer->addrs[0])
-                      << "\t\t" << (dialer->Busy() ? "true" : "false")
-                      << "\t\t" << (peer ? "true" : "false") << std::endl;
-        }
-        std::cout << "cps.size() = " << cps.size() << std::endl;
-        std::cout << "clientId		ip:port" << std::endl;
-        for (auto &&kv : cps) {
-            std::cout << kv.first
-                      << xx::ToString(kv.second->addr) << std::endl;
-        }
+        std::cout << GetInfo() << std::endl;
     };
     cmds["quit"] = [this](auto args) {
         running = false;
@@ -108,3 +93,28 @@ int Server::FrameUpdate() {
     }
     return 0;
 }
+
+std::string Server::GetInfo() {
+    std::string s;
+    xx::Append(s, "dps.size() = ", dps.size()\
+    , "\r\nserverId		ip:port		busy		peer alive\r\n");
+    for (auto &&kv : dps) {
+        auto &&dialer = kv.second.first;
+        auto &&peer = kv.second.second;
+        xx::Append(s, dialer->serverId
+                 , "\t\t", xx::ToString(dialer->addrs[0])
+                 , "\t\t", (dialer->Busy() ? "true" : "false")
+                 , "\t\t", (peer ? "true" : "false"), "\r\n");
+    }
+    xx::Append(s, "cps.size() = ", cps.size()
+            , "\r\nclientId		ip:port\r\n");
+    for (auto &&kv : cps) {
+        xx::Append(s, kv.first, kv.second->addr);
+    }
+
+    return s;
+}
+
+//void Server::LogN(int const& n, std::string&& txt) {
+// todo
+//}

@@ -9,7 +9,10 @@ Server &Dialer::GetServer() {
 
 void Dialer::Connect(std::shared_ptr<SPeer> const &peer) {
     // 没连上
-    if (!peer) return;
+    if (!peer) {
+        ec->Log<2>("Dialer Connect failed. serverId = ", serverId);
+        return;
+    }
 
     // 加持
     peer->Hold();
@@ -22,4 +25,6 @@ void Dialer::Connect(std::shared_ptr<SPeer> const &peer) {
 
     // 向 server 发送自己的 gatewayId
     peer->SendCommand("gatewayId", config.gatewayId);
+
+    ec->Log<2>("Dialer Connect. serverId = ", serverId);
 }
