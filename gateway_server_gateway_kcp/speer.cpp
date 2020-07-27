@@ -122,6 +122,24 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
             // 立刻踢下线
             cp->Close(__LINE__, __FILE__);
         }
+    } else if (cmd == "ping") {                 // ping 的回包. 参数: int64 pingMS 应等于发送的时候自己存的那份
+        // 试读出参数
+        int64_t v = 0;
+        if (int r = dr.Read(v)) {
+            ec->Log<2>("SPeer ReceiveCommand Read 'ping' failed. serverId = ", serverId, ", r = ", r);
+            Close(__LINE__, __FILE__);
+            return;
+        }
+        if (v != lastSendPingMS) {
+            ec->Log<2>("SPeer ReceiveCommand 'ping' value wrong. serverId = ", serverId, ", recv pingTicks = ", v, ", lastSendPingTicks = ", lastSendPingMS);
+            Close(__LINE__, __FILE__);
+            return;
+        }
+        // 清除 等回包 状态. 该状态在 pingtimer 中设置，并同时发送 ping 指令
+        waitingPingBack = false;
+        // 计算延迟, 便于统计
+        pingMS = ec->nowMS - lastSendPingMS;
+        ec->Log<3>("SPeer ReceiveCommand ping cmd. serverId = ", serverId, ", ping = ", pingMS);
     } else {
         // 收到没有处理函数对应的指令
         ec->Log<2>("SPeer ReceiveCommand unhandled cmd. serverId = ", serverId, ", cmd = ", cmd);

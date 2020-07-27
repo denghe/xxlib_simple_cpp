@@ -8,6 +8,7 @@ struct Listener;
 struct Dialer;
 struct CPeer;
 struct SPeer;
+struct PingTimer;
 
 // 服务本体
 struct Server : EP::Context {
@@ -16,6 +17,9 @@ struct Server : EP::Context {
 
     // 等待 client 接入的监听器
     std::shared_ptr<Listener> listener;
+
+    // 用于 ping 内部服务的 timer
+    std::shared_ptr<PingTimer> pingTimer;
 
     // client peers
     std::unordered_map<uint32_t, std::shared_ptr<CPeer>> cps;

@@ -30,8 +30,16 @@ void Peer::Receive() {
         buf += sizeof(dataLen);
         {
             if (LIKELY(id)) {
-                ReceivePackage(buf, dataLen);
+                // 处理 ping 指令. 直接将内容 echo 回去
+                if (dataLen > sizeof(dataLen) && *(uint32_t*)(buf + dataLen) == 0xFFFFFFFFu) {
+                    Send(buf + dataLen - sizeof(dataLen), dataLen + sizeof(dataLen));
+                }
+                else {
+                    // 调用处理函数
+                    ReceivePackage(buf, dataLen);
+                }
             } else {
+                // 调用处理首包函数
                 ReceiveFirstPackage(buf, dataLen);
             }
             // 如果当前类实例已自杀则退出

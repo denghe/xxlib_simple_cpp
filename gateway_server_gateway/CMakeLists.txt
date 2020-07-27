@@ -13,6 +13,7 @@ add_executable(gateway_server_gateway
         dialer.cpp
         cpeer.cpp
         speer.cpp
+        pingtimer.cpp
         )
 
 target_link_libraries(gateway_server_gateway

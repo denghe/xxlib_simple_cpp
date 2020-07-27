@@ -9,6 +9,15 @@ struct SPeer : Peer {
     // 内部服务编号, 从配置填充
     uint32_t serverId = 0xFFFFFFFFu;
 
+    // 等待对方回 ping 的标志位
+    bool waitingPingBack = false;
+
+    // 最后一次发起 ping 的时间
+    int64_t lastSendPingMS = 0;
+
+    // 收到回复后计算出来的 ping 值
+    int64_t pingMS = 0;
+
     // 继承构造函数
     using Peer::Peer;
 

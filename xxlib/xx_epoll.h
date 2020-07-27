@@ -294,7 +294,7 @@ namespace xx::Epoll {
 
         // 为写日志留个口子
         inline virtual void LogN(int const& n, std::string&& txt) {
-            xx::CoutN("\\033[47;36m[", xx::NowTimePoint(), "*",n ,"]\033[3", char('0' + ((n >=1 && n<=6) ? n : 7 )) ,"m", txt);
+            xx::CoutN("\033[47;30m[", xx::NowTimePoint(), "*",n ,"]\033[0;3", char('0' + ((n >=1 && n<=6) ? n : 7 )) ,"m", txt);
         };
         template<int level, typename ...Args>
         inline void Log(Args const& ... args) {

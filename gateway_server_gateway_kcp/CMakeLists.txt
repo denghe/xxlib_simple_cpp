@@ -13,6 +13,8 @@ add_executable(gateway_server_gateway_kcp
         dialer.cpp
         cpeer.cpp
         speer.cpp
+		pingtimer.cpp
+
 		kpeer.cpp
         ../xxlib/ikcp.c
         )

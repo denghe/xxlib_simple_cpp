@@ -2,12 +2,14 @@
 #include "dialer.h"
 #include "config.h"
 #include "listener.h"
+#include "pingtimer.h"
 
 int Server::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
     xx::ScopeGuard sg1([&]{
         DisableCommandLine();
         listener.reset();
+        pingTimer.reset();
 
         for(auto&& dp : dps) {
             dp.second.first->Stop();
@@ -38,6 +40,10 @@ int Server::Run() {
         Log<1>("listen to port ", config.listenPort, "failed.");
         return r;
     }
+
+    // 初始化间隔时间为 1 秒的处理服务器之间 ping 防止连接僵死的 timer
+    xx::MakeTo(pingTimer, shared_from_this());
+    pingTimer->SetTimeoutSeconds(1);
 
     // 遍历配置并生成相应的 dialer
     for (auto &&si : config.serverInfos) {
