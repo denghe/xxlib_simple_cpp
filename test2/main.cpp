@@ -9,30 +9,27 @@
 namespace xx {
 
     template<size_t size = 256>
-    union FixedData {
-        char all[size];
-        struct {
-            char *buf;
-            size_t len;
-            size_t cap;
-        };
+    struct FixedData {
+        char *buf;
+        size_t len;
+        size_t cap;
         static const size_t headerLen = sizeof(buf) + sizeof(len) + sizeof(cap);
-        static_assert(size > headerLen);
+        char innerBuf[size - headerLen];
 
         FixedData() {
-            buf = all + headerLen;
+            buf = innerBuf;
             len = 0;
             cap = size - headerLen;
         }
 
         FixedData(FixedData &&o) noexcept {
-            if (o.buf == o.all) {
-                memcpy(all, o.all, headerLen + o.len);
-                buf = all + headerLen;
+            if (o.buf == o.innerBuf) {
+                buf = innerBuf;
+                memcpy(&len, &o.len, sizeof(len) + sizeof(cap) + o.len);
             } else {
-                memcpy(all, o.all, headerLen);
+                memcpy(this, &o, headerLen);
             }
-            memset(o.all, 0, headerLen);
+            memset(&o, 0, headerLen);
         }
 
         FixedData(FixedData const &o) = delete;
@@ -41,53 +38,159 @@ namespace xx {
 
         FixedData &operator=(FixedData &&o) = delete;
 
-        void Ensure(size_t const &siz, size_t const &grouth = 0) {
+        void Ensure(size_t const &siz) {
             if (len + siz <= cap) return;
-            cap = grouth ? len + siz + grouth : (len + siz) * 2;
+            while (cap < len + siz) {
+                cap *= 2;
+            }
             auto &&newBuf = (char *) malloc(cap);
             memcpy(newBuf, buf, len);
-            if (buf != all) {
+            if (buf != innerBuf) {
                 free(buf);
             }
             buf = newBuf;
         }
 
+        void Clear() {
+            if (buf != innerBuf) {
+                free(buf);
+                buf = innerBuf;
+                cap = size - headerLen;
+            }
+            len = 0;
+        }
+
         ~FixedData() {
-            if (buf != all) {
+            if (buf != innerBuf) {
                 free(buf);
             }
         }
-
-        template<typename T>
-        void Write(T const &v);
-
-        // 先写长度再写内容( 含 type id )
-        void WriteString(char const *const &data, size_t const &siz);
     };
 
+    // 类型适配模板 for FixedData<size>::Write
+    template<typename T, typename ENABLED = void>
+    struct DataTypeId;
 
-    template<> struct TypeId<bool> { static const uint16_t value = 1; };
-    template<> struct TypeId<char> { static const uint16_t value = 2; };
-    template<> struct TypeId<short> { static const uint16_t value = 3; };
-    template<> struct TypeId<int> { static const uint16_t value = 4; };
-    template<> struct TypeId<long> { static const uint16_t value = 5; };
-    template<> struct TypeId<unsigned char> { static const uint16_t value = 6; };
-    template<> struct TypeId<unsigned short> { static const uint16_t value = 7; };
-    template<> struct TypeId<unsigned int> { static const uint16_t value = 8; };
-    template<> struct TypeId<unsigned long> { static const uint16_t value = 9; };
-    template<> struct TypeId<char*> { static const uint16_t value = 10; };
+    template<>
+    struct DataTypeId<char *> {
+        static const char value = 0;
 
-    // write typeId + len + data
-    template<size_t size>
-    void FixedData<size>::WriteString(char const *const &data, size_t const &siz) {
-        Ensure(1 + sizeof(siz) + siz);
-        buf[len] = TypeId_v<char*>;
-        len += 1;
-        memcpy(buf + len, &siz, sizeof(siz));
-        len += sizeof(siz);
-        memcpy(buf + len, data, siz);
-        len += siz;
-    }
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << std::string_view(v + sizeof(size_t), *(size_t *) v);
+            v += sizeof(size_t) + *(size_t *) v;
+        }
+    };
+
+    template<>
+    struct DataTypeId<bool> {
+        static const char value = 1;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(bool *) v;
+            v += sizeof(bool);
+        }
+    };
+
+    template<>
+    struct DataTypeId<char> {
+        static const char value = 2;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *v;
+            v += sizeof(char);
+        }
+    };
+
+    template<>
+    struct DataTypeId<short> {
+        static const char value = 3;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(short *) v;
+            v += sizeof(short);
+        }
+    };
+
+    template<>
+    struct DataTypeId<int> {
+        static const char value = 4;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(int *) v;
+            v += sizeof(int);
+        }
+    };
+
+    template<>
+    struct DataTypeId<long long> {
+        static const char value = 5;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(long long *) v;
+            v += sizeof(long long);
+        }
+    };
+
+    template<>
+    struct DataTypeId<float> {
+        static const char value = 6;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(float *) v;
+            v += sizeof(float);
+        }
+    };
+
+    template<>
+    struct DataTypeId<double> {
+        static const char value = 7;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(double *) v;
+            v += sizeof(double);
+        }
+    };
+
+    template<>
+    struct DataTypeId<unsigned char> {
+        static const char value = 8;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(unsigned char *) v;
+            v += sizeof(unsigned char);
+        }
+    };
+
+    template<>
+    struct DataTypeId<unsigned short> {
+        static const char value = 9;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(unsigned short *) v;
+            v += sizeof(unsigned short);
+        }
+    };
+
+    template<>
+    struct DataTypeId<unsigned int> {
+        static const char value = 10;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(unsigned int *) v;
+            v += sizeof(unsigned int);
+        }
+    };
+
+    template<>
+    struct DataTypeId<unsigned long long> {
+        static const char value = 11;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << *(unsigned long long *) v;
+            v += sizeof(unsigned long long);
+        }
+    };
+
 
     // 适配模板 for FixedData<size>::Write
     template<size_t size, typename T, typename ENABLED = void>
@@ -98,22 +201,28 @@ namespace xx {
         }
     };
 
-    // 函数转发到适配模板
-    template<size_t size>
-    template<typename T>
-    void FixedData<size>::Write(T const &v) {
-        BufFuncs<size, T>::Write(this, v);
-    }
-
     // 适配所有数字类型
     template<size_t size, typename T>
     struct BufFuncs<size, T, std::enable_if_t<std::is_arithmetic_v<T>>> {
         // 1 byte typeId + data
         static inline void Write(FixedData<size> &data, T const &in) {
             data.Ensure(1 + sizeof(T));
-            data.buf[data.len] = (char)TypeId_v<T>;
-            memcpy(data.buf + data.len + 1, in, sizeof(T));
+            data.buf[data.len] = DataTypeId<T>::value;
+            memcpy(data.buf + data.len + 1, &in, sizeof(T));
             data.len += 1 + sizeof(T);
+        }
+    };
+
+    // 适配 pair<char*, len>
+    template<size_t size>
+    struct BufFuncs<size, std::pair<char *, size_t>> {
+        // 1 byte typeId + len + data
+        static inline void Write(FixedData<size> &data, std::pair<char *, size_t> const &in) {
+            data.Ensure(1 + sizeof(in.second) + in.second);
+            data.buf[data.len] = DataTypeId<char *>::value;
+            memcpy(data.buf + data.len + 1, &in.second, sizeof(in.second));
+            memcpy(data.buf + data.len + 1 + sizeof(in.second), in.first, in.second);
+            data.len += 1 + sizeof(in.second) + in.second;
         }
     };
 
@@ -121,7 +230,7 @@ namespace xx {
     template<size_t size, size_t len>
     struct BufFuncs<size, char[len], void> {
         static inline void Write(FixedData<size> &data, char const(&in)[len]) {
-            data.WriteString(in, len);
+            BufFuncs<size, std::pair<char *, size_t>>::Write(data, {(char *) in, len});
         }
     };
 
@@ -129,7 +238,7 @@ namespace xx {
     template<size_t size>
     struct BufFuncs<size, char const *, void> {
         static inline void Write(FixedData<size> &data, char const *const &in) {
-            data.WriteString(in, strlen(in));
+            BufFuncs<size, std::pair<char *, size_t>>::Write(data, {in, strlen(in)});
         }
     };
 
@@ -137,7 +246,7 @@ namespace xx {
     template<size_t size>
     struct BufFuncs<size, char *, void> {
         static inline void Write(FixedData<size> &data, char *const &in) {
-            data.WriteString(in, strlen(in));
+            BufFuncs<size, std::pair<char *, size_t>>::Write(data, {in, strlen(in)});
         }
     };
 
@@ -145,16 +254,81 @@ namespace xx {
     template<size_t size>
     struct BufFuncs<size, std::string, void> {
         static inline void Write(FixedData<size> &data, std::string const &in) {
-            data.WriteString(in.data(), in.size());
+            BufFuncs<size, std::pair<char *, size_t>>::Write(data, {in.data(), in.size()});
         }
     };
 
+
+    /*************************************************************************************/
+
+    template<size_t size, typename ...TS>
+    void WriteTo(FixedData<size> &data, TS const &...vs) {
+        std::initializer_list<int> n{(BufFuncs<size, TS>::Write(data, vs), 0)...};
+        (void) n;
+    }
+
+    typedef void (*DumpFunc)(std::ostream &o, char *&v);
+
+    inline DumpFunc dumpFuncs[] = {
+            DataTypeId<char *>::Dump,
+            DataTypeId<bool>::Dump,
+            DataTypeId<char>::Dump,
+            DataTypeId<short>::Dump,
+            DataTypeId<int>::Dump,
+            DataTypeId<long long>::Dump,
+            DataTypeId<float>::Dump,
+            DataTypeId<double>::Dump,
+            DataTypeId<unsigned char>::Dump,
+            DataTypeId<unsigned short>::Dump,
+            DataTypeId<unsigned int>::Dump,
+            DataTypeId<unsigned long long>::Dump,
+    };
+
+    template<typename OS, size_t size>
+    void DumpTo(OS &o, FixedData<size> const &v) {
+        auto begin = v.buf;
+        auto end = v.buf + v.len;
+        while (begin < end) {
+            auto typeId = (int) *begin;
+            ++begin;
+            dumpFuncs[typeId](o, begin);
+        }
+        o.flush();
+    }
+
 }
 
+#include "xx_chrono.h"
+#include "xx_queue.h"
+#include <deque>
+#include <queue>
+
 int main() {
-    xx::FixedData<> fd;
-    fd.Write(1);
-    fd.Write("asdf");
+    //xx::Queue<xx::FixedData<256>> fds;//(1024 * 1024 * 8 / 256);
+    //std::queue<xx::FixedData<256>> fds;
+    std::vector<xx::FixedData<256>> fds;
+    for (int i = 0; i < 30000; ++i) {
+        //auto &&fd = fds.Emplace();
+        auto &&fd = fds.emplace_back();
+        xx::WriteTo(fd, "asdf ", 1, 2.3, "asdfasdf");
+        //xx::DumpTo(std::cout, fd);
+    }
+    //fds.Clear();
+    fds.clear();
+    //while(!fds.empty()) fds.pop();
+    auto&& beginTime = xx::NowSteadyEpochMS();
+    for (int j = 0; j < 1000; ++j) {
+        for (int i = 0; i < 30000; ++i) {
+            //auto &&fd = fds.Emplace();
+            auto &&fd = fds.emplace_back();
+            xx::WriteTo(fd, "asdf ", 1, 2.3, "asdfasdf");
+            //xx::DumpTo(std::cout, fd);
+        }
+        //fds.Clear();
+        fds.clear();
+        //while(!fds.empty()) fds.pop();
+    }
+    std::cout << "elapsed ms = " << xx::NowSteadyEpochMS() - beginTime << std::endl;
 
     return 0;
 
