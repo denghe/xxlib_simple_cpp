@@ -12,3 +12,7 @@ add_executable(test2
         main.cpp
         PKG_class_lite.cpp
         nanolog.h)
+
+target_link_libraries(test2
+        pthread
+        )

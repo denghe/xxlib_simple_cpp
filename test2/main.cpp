@@ -302,34 +302,78 @@ namespace xx {
 #include "xx_queue.h"
 #include <deque>
 #include <queue>
+#include <mutex>
+#include <thread>
+
+namespace xx {
+    struct LoggerItems : std::vector<FixedData<256>> {
+        explicit LoggerItems(size_t const& cap) {
+            reserve(cap);
+        }
+    };
+    struct Logger {
+        LoggerItems items1;
+        LoggerItems items2;
+        std::thread t;
+        std::mutex mtx;
+        volatile int disposing = 0;
+        Logger(size_t const& capMB = 8)
+            : items1(1024 * 1024 * capMB / 256)
+            , items2(1024 * 1024 * capMB / 256)
+            , t(&Logger::Loop, this) {
+        }
+        void Loop() {
+            while(true) {
+                // 切换前后台队列( 如果有数据. 没有就 sleep 一下继续扫 )
+                {
+                    std::lock_guard<std::mutex> lg(mtx);
+                    if (items1.empty()) goto LabEnd;
+                    std::swap(items1, items2);
+                }
+
+                // todo: items2 写盘
+                items2.clear();
+                continue;
+
+                LabEnd:
+                // 如果需要退出，还是要多循环一次，写光数据
+                if (disposing == 1) {
+                    ++disposing;
+                    continue;
+                }
+                else if (disposing == 2) {
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::microseconds(50));
+            }
+        }
+        ~Logger() {
+            if (disposing) return;
+            disposing = 1;
+            t.join();
+        }
+
+        template<typename ...TS>
+        void Write(TS const &...vs) {
+            std::lock_guard<std::mutex> lg(mtx);
+            auto &&fd = items1.emplace_back();
+            xx::WriteTo(fd, vs...);
+        }
+    };
+}
 
 int main() {
-    //xx::Queue<xx::FixedData<256>> fds;//(1024 * 1024 * 8 / 256);
-    //std::queue<xx::FixedData<256>> fds;
-    std::vector<xx::FixedData<256>> fds;
-    for (int i = 0; i < 30000; ++i) {
-        //auto &&fd = fds.Emplace();
-        auto &&fd = fds.emplace_back();
-        xx::WriteTo(fd, "asdf ", 1, 2.3, "asdfasdf");
-        //xx::DumpTo(std::cout, fd);
-    }
-    //fds.Clear();
-    fds.clear();
-    //while(!fds.empty()) fds.pop();
-    auto&& beginTime = xx::NowSteadyEpochMS();
-    for (int j = 0; j < 1000; ++j) {
-        for (int i = 0; i < 30000; ++i) {
-            //auto &&fd = fds.Emplace();
-            auto &&fd = fds.emplace_back();
-            xx::WriteTo(fd, "asdf ", 1, 2.3, "asdfasdf");
-            //xx::DumpTo(std::cout, fd);
+    xx::Logger L;
+    int64_t totalMS = 0;
+    for (int j = 0; j < 100; ++j) {
+        auto&& beginMS = xx::NowSteadyEpochMS();
+        for (int i = 0; i < 200000; ++i) {
+            L.Write("asdf ", 1, 2.3, "asdfasdf");
         }
-        //fds.Clear();
-        fds.clear();
-        //while(!fds.empty()) fds.pop();
+        totalMS += xx::NowSteadyEpochMS() - beginMS;
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
-    std::cout << "elapsed ms = " << xx::NowSteadyEpochMS() - beginTime << std::endl;
-
+    std::cout << "elapsed ms = " << totalMS << std::endl;
     return 0;
 
 
