@@ -21,6 +21,9 @@ namespace xx {
 
 
 	// 得到当前时间点
+	inline std::chrono::system_clock::time_point Now() noexcept {
+		return std::chrono::system_clock::now();
+	}
 	inline std::chrono::system_clock::time_point NowTimePoint() noexcept {
 		return std::chrono::system_clock::now();
 	}
@@ -30,6 +33,10 @@ namespace xx {
 		return TimePointToEpoch10m(NowTimePoint());
 	}
 
+	// 得到当前时间点的 微妙 精度( 秒后 6 位 )
+	inline int64_t NowMicroseconds() noexcept {
+        return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+	}
 
 	// epoch (精度为秒后 7 个 0) 转为 .Net DateTime Utc Ticks
 	inline int64_t Epoch10mToUtcDateTimeTicks(int64_t const& val) noexcept {

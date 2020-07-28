@@ -3,9 +3,12 @@ project(test2)
 
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(../xxlib)
+include_directories(
+        ../xxlib
+        ../
+)
 
 add_executable(test2
         main.cpp
         PKG_class_lite.cpp
-        )
+        nanolog.h)

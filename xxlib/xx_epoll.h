@@ -508,6 +508,8 @@ namespace xx::Epoll {
         auto &&offset = sendQueue.Fill(ec->iovecs, vsLen, bufLen);
         // 返回值为 实际发出的字节数
         auto &&sentLen = writev(fd, ec->iovecs.data(), vsLen);
+        // 让 valgrind 闭嘴
+        memset(ec->iovecs.data(), 0, vsLen * sizeof(iovec));
 
         // 已断开
         if (sentLen == 0) return -2;
