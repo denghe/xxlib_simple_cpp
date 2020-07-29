@@ -23,7 +23,7 @@ namespace xx {
             } else {
                 memcpy(this, &o, headerLen);
             }
-            memset(&o, 0, headerLen);
+            memset((void*)&o, 0, headerLen);
         }
 
         FixedData(FixedData const &o) = delete;

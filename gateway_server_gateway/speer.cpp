@@ -40,9 +40,6 @@ void SPeer::ReceivePackage(char *const &buf, size_t const &len) {
 }
 
 void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
-    // for easy use
-    auto&& s = GetServer();
-
     // 创建一个数据读取器
     xx::DataReader dr(buf, len);
 

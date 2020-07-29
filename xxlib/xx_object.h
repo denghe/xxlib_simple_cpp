@@ -582,7 +582,6 @@ namespace xx {
     template<typename K, typename V>
     struct CloneFuncs<std::map<K, V>, void> {
         static inline void Clone1(ObjectHelper &oh, std::map<K, V> const &in, std::map<K, V> &out) {
-            auto siz = in.size();
             out.clear();
             for(auto&& kv : in) {
                 std::pair<K, V> tar;

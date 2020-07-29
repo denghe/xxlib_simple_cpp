@@ -484,7 +484,7 @@ namespace xx::Epoll {
         if (e & EPOLLOUT) {
             // 设置为可写状态
             writing = false;
-            if (int r = Write()) {
+            if (/*int r = */Write()) {
                 Close(__LINE__, __FILE__);
                 return;
             }
@@ -1010,7 +1010,7 @@ namespace xx::Epoll {
     inline int Context::Run() {
         // 创建 pipe fd. 失败返回编号
         int actionsPipes[2];
-        if (int r = pipe(actionsPipes)) return __LINE__;
+        if (/*int r = */pipe(actionsPipes)) return __LINE__;
         // 设置 pipe 为非阻塞
         fcntl(actionsPipes[1], F_SETFL, O_NONBLOCK);
         fcntl(actionsPipes[0], F_SETFL, O_NONBLOCK);

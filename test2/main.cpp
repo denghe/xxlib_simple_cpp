@@ -1,25 +1,22 @@
 ﻿#include "xx_object.h"
 #include "PKG_class_lite.h"
 
-#include "xx_logger.h"
+#include "mylog.h"
+#include "xx_chrono.h"
 
 int main() {
-    xx::Logger L;
+    // 预热
+    for (int i = 0; i < 500'000; ++i) {
+        LOG_INFO("asdf ", i, 2.3, "asdfasdf");
+    }
+    // 等落盘
+    std::this_thread::sleep_for(std::chrono::seconds (2));
 
-    for (int i = 0; i < 100'0000; ++i) {
-        L.Write("asdf ", 1, 2.3, "asdfasdf");
+    auto &&beginMS = xx::NowSteadyEpochMS();
+    for (int i = 0; i < 500'000; ++i) {
+        LOG_INFO("asdf ", i, 2.3, "asdfasdf");
     }
-    std::this_thread::sleep_for(std::chrono::microseconds(100));
-    int64_t totalMS = 0;
-    for (int j = 0; j < 10; ++j) {
-        auto &&beginMS = xx::NowSteadyEpochMS();
-        for (int i = 0; i < 100'0000; ++i) {
-            L.Write("asdf ", 1, 2.3, "asdfasdf");
-        }
-        totalMS += xx::NowSteadyEpochMS() - beginMS;
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
-    }
-    std::cout << "elapsed ms = " << totalMS << std::endl;
+    std::cout << "elapsed ms = " << xx::NowSteadyEpochMS() - beginMS << std::endl;
     return 0;
 
 

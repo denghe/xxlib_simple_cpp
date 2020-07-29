@@ -1,5 +1,6 @@
 ﻿#include "xx_fixeddata.h"
-#include "xx_chrono.h"
+#include <time.h>
+#include <chrono>
 
 namespace xx {
     // 类型适配模板 for FixedData<size>::Write
@@ -173,11 +174,11 @@ namespace xx {
         }
     };
 
-    // 适配 literal char[len] string
+    // 适配 literal char[len] string  ( 通常要去掉最后一个 0 不写 )
     template<size_t size, size_t len>
     struct BufFuncs<size, char[len], void> {
         static inline void Write(FixedData<size> &data, char const(&in)[len]) {
-            BufFuncs<size, std::pair<char *, size_t>>::Write(data, {(char *) in, len});
+            BufFuncs<size, std::pair<char *, size_t>>::Write(data, {(char *) in, len - 1});
         }
     };
 
@@ -244,13 +245,13 @@ namespace xx {
     };
 
     template<typename OS, size_t size>
-    void DumpTo(OS &o, FixedData<size> const &v) {
-        auto begin = v.buf;
+    void DumpTo(OS &tar, FixedData<size> const &v, size_t const& bufOffset = 0) {
+        auto begin = v.buf + bufOffset;
         auto end = v.buf + v.len;
         while (begin < end) {
             auto typeId = (int) *begin;
             ++begin;
-            dumpFuncs[typeId](o, begin);
+            dumpFuncs[typeId](tar, begin);
         }
     }
 }
