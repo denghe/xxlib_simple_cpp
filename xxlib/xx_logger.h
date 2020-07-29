@@ -44,7 +44,14 @@ namespace xx {
         TRACE, DEBUG, INFO, WARN, ERROR
     };
     char const *logLevelNames[] = {
-            "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
+        "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
+    };
+    char const *logLevelColorNames[] = {
+            "\033[35mTRACE\033[37m"
+            , "\033[32mDEBUG\033[37m"
+            , "\033[33mINFO\033[37m"
+            , "\033[34mWARN\033[37m"
+            , "\033[31mERROR\033[37m"
     };
 
 
@@ -106,9 +113,14 @@ namespace xx {
     public:
         // 参数：开辟多少兆初始内存 cache
         explicit Logger(size_t const &capMB = 8, char const* const& cfgName = "xxlog.config") {
+            std::cout << "current dir = " << std::filesystem::absolute(".") << std::endl;
             // 试图加载 logger cfg
             if (std::filesystem::exists(cfgName)) {
                 ajson::load_from_file(cfg, cfgName);
+                std::cout << "logger load \"" << cfgName << "\" = " << cfg << std::endl;
+            }
+            else {
+                std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg << std::endl;
             }
 
             // 根据配置和当前时间推算出日志文件名并以追加模式打开
@@ -119,7 +131,7 @@ namespace xx {
             auto fileName = cfg.logFileName + createTime;
             ofs.open(fileName, std::ios_base::app);
             if (ofs.fail()) {
-                std::cerr << "ERROR!!! open log file failed: " << fileName << std::endl;
+                std::cerr << "ERROR!!! open log file failed: \"" << fileName << "\", forget mkdir ??" << std::endl;
             }
 
             // 初始化内存池
@@ -185,30 +197,30 @@ namespace xx {
             ofs.close();
 
             int i = fileCount;
-            char old_log_name[225], new_log_name[225];
+            char oldName[225], newName[225];
             while (i > 0) {
-                snprintf(old_log_name, sizeof(old_log_name), "%s.%d", cfg.logFileName.c_str(), i);
-                snprintf(new_log_name, sizeof(new_log_name), "%s.%d", cfg.logFileName.c_str(), i + 1);
+                snprintf(oldName, sizeof(oldName), "%s.%d", cfg.logFileName.c_str(), i);
+                snprintf(newName, sizeof(newName), "%s.%d", cfg.logFileName.c_str(), i + 1);
                 if (i == cfg.logFileCount) {
-                    remove(old_log_name);
+                    remove(oldName);
                 }
                 else {
-                    rename(old_log_name, new_log_name);
+                    rename(oldName, newName);
                 }
                 --i;
             }
 
-            snprintf(old_log_name, sizeof(old_log_name), "%s", cfg.logFileName.c_str());
-            snprintf(new_log_name, sizeof(new_log_name), "%s.%d", cfg.logFileName.c_str(), i + 1);
-            rename(old_log_name, new_log_name);
+            snprintf(oldName, sizeof(oldName), "%s", cfg.logFileName.c_str());
+            snprintf(newName, sizeof(newName), "%s.%d", cfg.logFileName.c_str(), i + 1);
+            rename(oldName, newName);
 
             if (fileCount < cfg.logFileCount) {
                 ++fileCount;
             }
 
-            ofs.open(old_log_name, std::ios_base::app);
+            ofs.open(oldName, std::ios_base::app);
             if (ofs.fail()) {
-                std::cerr << "ERROR!!! open log file failed: " << old_log_name << std::endl;
+                std::cerr << "ERROR!!! open log file failed: \"" << oldName << "\", forget mkdir ??" << std::endl;
             }
         }
 
@@ -257,13 +269,14 @@ namespace xx {
         virtual void Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, TimePoint const &tp, bool const& isConsole) {
             auto&& tm = std::chrono::system_clock::to_time_t(tp);
             if (isConsole) {
-                o << "\033[36m";
+                o << "\033[36m" << std::put_time(std::localtime(&tm), "%F %T") << "\033[37m";
+                o << " [" << logLevelColorNames[(int)level] << "] [file:\033[36m"
+                << fileName << "\033[37m line:\033[36m" << lineNumber << "\033[37m func:\033[36m" << funcName << "\033[37m] ";
             }
-            o << std::put_time(std::localtime(&tm), "%F %T");
-            if (isConsole) {
-                o << "\033[37m";
+            else {
+                o << std::put_time(std::localtime(&tm), "%F %T")
+                << " ["<< logLevelNames[(int)level] << "] [file:" << fileName << " line:" << lineNumber << " func:" << funcName << "] ";
             }
-            o << " ["<< logLevelNames[(int)level] << "] [file:" << fileName << " line:" << lineNumber << " func:" << funcName << "] ";
         }
     };
 }
