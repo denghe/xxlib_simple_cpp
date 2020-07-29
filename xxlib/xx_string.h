@@ -454,21 +454,4 @@ namespace xx {
         std::cout.flush();
     }
 
-
-    /************************************************************************************/
-    // 针对 __FILE__ 编译期切割出纯文件名部分
-    /************************************************************************************/
-
-    template<size_t len>
-    constexpr char const* CutPath(char const(&in)[len]) {
-        auto&& i = len - 1;
-        for(; i >= 0; --i) {
-            if (in[i] == '\\' || in[i] == '/') return in + i + 1;
-        }
-        return in + i;
-    }
-
-    // 针对各种日志需求所弄的日志头部
-#define XX_LFF ' ',xx::CutPath(__FILE__),'\\',__LINE__,'\\',__FUNCTION__,'\\'
-#define XX_TLFF xx::Now(), XX_LFF
 }

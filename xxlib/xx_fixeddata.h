@@ -1,5 +1,7 @@
 ﻿#pragma once
 #include <cstring>
+#include <cstdlib>
+
 namespace xx {
 
     template<size_t size = 256>

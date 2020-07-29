@@ -4,6 +4,7 @@
 #include <thread>
 #include <fstream>
 #include <filesystem>
+#include <iostream>
 
 // todo: 分析 NanoLog
 // nanolog 延迟写是先带 typeId( 利用 tuple 模板 来实现根据 类型 推断 id ) 序列化数据到一段 buf. 然后在另外一个线程 pop 出来，反序列得到原始类型后 ToString 写盘
@@ -11,6 +12,17 @@
 // QueueBuffer 为基于 SpinLock 的线程安全队列，其 Items 为一组 Buffer
 
 namespace xx {
+
+
+    // 针对 __FILE__ 编译期切割出纯文件名部分
+    template<size_t len>
+    constexpr char const* CutPath(char const(&in)[len]) {
+        auto&& i = len - 1;
+        for(; i >= 0; --i) {
+            if (in[i] == '\\' || in[i] == '/') return in + i + 1;
+        }
+        return in + i;
+    }
 
     // 获取当前执行文件名字
     inline std::string GetExecuteName() {

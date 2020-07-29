@@ -1,6 +1,9 @@
 ﻿#include "xx_fixeddata.h"
-#include <time.h>
+#include <ctime>
 #include <chrono>
+#include <ostream>
+#include <iomanip>
+#include <cassert>
 
 namespace xx {
     // 类型适配模板 for FixedData<size>::Write
