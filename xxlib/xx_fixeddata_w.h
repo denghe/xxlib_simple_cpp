@@ -169,21 +169,27 @@ namespace xx {
             else if constexpr(std::is_floating_point_v<T>) {
                 if constexpr(sizeof(T) == 4) data.buf[data.len] = DumpFuncs<float>::value;
                 else if constexpr(sizeof(T) == 8) data.buf[data.len] = DumpFuncs<double>::value;
-                else throw std::logic_error("unsupported data type.");
+                else {
+                    static_assert(true, "unsupported data type.");
+                }
             }
             else if constexpr(std::is_signed_v<T>) {
                 if constexpr(sizeof(T) == 1) data.buf[data.len] = DumpFuncs<char>::value;
                 else if constexpr(sizeof(T) == 2) data.buf[data.len] = DumpFuncs<short>::value;
                 else if constexpr(sizeof(T) == 4) data.buf[data.len] = DumpFuncs<int>::value;
                 else if constexpr(sizeof(T) == 8) data.buf[data.len] = DumpFuncs<long long>::value;
-                else throw std::logic_error("unsupported data type.");
+                else {
+                    static_assert(true, "unsupported data type.");
+                }
             }
             else {
                 if constexpr(sizeof(T) == 1) data.buf[data.len] = DumpFuncs<unsigned char>::value;
                 else if constexpr(sizeof(T) == 2) data.buf[data.len] = DumpFuncs<unsigned short>::value;
                 else if constexpr(sizeof(T) == 4) data.buf[data.len] = DumpFuncs<unsigned int>::value;
                 else if constexpr(sizeof(T) == 8) data.buf[data.len] = DumpFuncs<unsigned long long>::value;
-                else throw std::logic_error("unsupported data type.");
+                else {
+                    static_assert(true, "unsupported data type.");
+                }
             }
             data.buf[data.len] = DumpFuncs<T>::value;
             memcpy(data.buf + data.len + 1, &in, sizeof(T));
