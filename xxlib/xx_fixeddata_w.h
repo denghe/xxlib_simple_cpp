@@ -1,4 +1,5 @@
-﻿#include "xx_fixeddata.h"
+﻿#pragma once
+#include "xx_fixeddata.h"
 #include <ctime>
 #include <chrono>
 #include <ostream>
@@ -277,6 +278,12 @@ namespace xx {
             DumpFuncs<unsigned int>::Dump,
             DumpFuncs<unsigned long long>::Dump,
             DumpFuncs<std::chrono::system_clock::time_point>::Dump,
+            // 占位符. 方便扩展
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
     };
 
     template<typename OS, size_t size>

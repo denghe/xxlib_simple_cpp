@@ -139,7 +139,13 @@ namespace xx {
         static inline void Append(std::string& s, std::chrono::time_point<C, D> const& in) {
             auto&& t = std::chrono::system_clock::to_time_t(in);
             std::stringstream ss;
-            ss << std::put_time(std::localtime(&t), "%F %T");
+            std::tm tm{};
+#ifdef _WIN32
+            localtime_s(&tm, &t);
+#else
+            localtime_r(&t, &tm);
+#endif
+            ss << std::put_time(&tm, "%F %T");
             s.append(ss.str());
         }
     };

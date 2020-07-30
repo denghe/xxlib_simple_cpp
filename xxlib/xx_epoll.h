@@ -37,6 +37,7 @@
 #include "xx_data_queue.h"
 #include "xx_scopeguard.h"
 #include "xx_string.h"
+#include "xx_fixeddata_w.h"
 
 #define LIKELY(x)       __builtin_expect(!!(x), 1)
 #define UNLIKELY(x)     __builtin_expect(!!(x), 0)
@@ -65,7 +66,25 @@ namespace xx {
             StringFuncs<sockaddr const *>::Append(s, (sockaddr const *) &in);
         }
     };
+
+    template<>
+    struct DumpFuncs<sockaddr_in6> {
+        static const char value = 13;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            o << ToString(*(sockaddr_in6*)v);
+            v += sizeof(std::chrono::system_clock::time_point);
+        }
+
+        // 启动时自动注册函数
+        DumpFuncs<sockaddr_in6>() {
+            dumpFuncs[value] = Dump;
+        }
+    };
+    // 启动时自动注册函数
+    inline DumpFuncs<sockaddr_in6> __DumpFuncs_sockaddr_in6;
 }
+
 namespace xx::Epoll {
     /***********************************************************************************************************/
     // Item
