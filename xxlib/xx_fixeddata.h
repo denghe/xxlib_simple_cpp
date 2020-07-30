@@ -10,7 +10,8 @@ namespace xx {
         size_t len;
         size_t cap;
         static const size_t headerLen = sizeof(buf) + sizeof(len) + sizeof(cap);
-        char innerBuf[size - headerLen];
+        static const size_t innerSpaceLen = size - headerLen;
+        char innerBuf[innerSpaceLen];
 
         FixedData() {
             buf = innerBuf;
