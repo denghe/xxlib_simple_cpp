@@ -3,6 +3,7 @@
 #include "config.h"
 #include "listener.h"
 #include "pingtimer.h"
+#include "mylog.h"
 
 int Server::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
@@ -37,7 +38,7 @@ int Server::Run() {
     xx::MakeTo(listener, shared_from_this());
     // 如果监听失败则输出错误提示并退出
     if (int r = listener->Listen(config.listenPort)) {
-        Log<1>("listen to port ", config.listenPort, "failed.");
+        LOG_ERROR("listen to port ", config.listenPort, "failed.");
         return r;
     }
 
@@ -51,7 +52,7 @@ int Server::Run() {
         auto&& dialer = xx::Make<Dialer>(shared_from_this());
         // 放入字典。如果 server id 重复就报错
         if (!dps.insert({si.serverId, std::make_pair(dialer, nullptr)}).second) {
-            Log<1>("duplicate serverId: ", si.serverId);
+            LOG_ERROR("duplicate serverId: ", si.serverId);
             return __LINE__;
         }
         // 填充数据，为开始拨号作准备（会在帧回调逻辑中开始拨号）
@@ -61,7 +62,7 @@ int Server::Run() {
 
     // 核查是否存在 0 号服务的 dialer. 没有就报错
     if (dps.find(0) == dps.end()) {
-        Log<1>("can't find base server ( serverId = 0 )'s dialer.");
+        LOG_ERROR("can't find base server ( serverId = 0 )'s dialer.");
         return __LINE__;
     }
 
@@ -120,7 +121,3 @@ std::string Server::GetInfo() {
 
     return s;
 }
-
-//void Server::LogN(int const& n, std::string&& txt) {
-// todo
-//}

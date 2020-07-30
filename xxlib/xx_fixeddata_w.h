@@ -119,6 +119,14 @@ namespace xx {
             v += sizeof(unsigned int);
         }
     };
+    template<>
+    struct DataTypeId<long unsigned int> {
+        static const char value = 10;
+    };
+    template<>
+    struct DataTypeId<long int> {
+        static const char value = 10;
+    };
 
     template<>
     struct DataTypeId<unsigned long long> {
@@ -189,7 +197,7 @@ namespace xx {
     template<size_t size>
     struct BufFuncs<size, char const *, void> {
         static inline void Write(FixedData<size> &data, char const *const &in) {
-            BufFuncs<size, std::pair<char *, size_t>>::Write(data, {in, strlen(in)});
+            BufFuncs<size, std::pair<char *, size_t>>::Write(data, {(char*)in, strlen(in)});
         }
     };
 

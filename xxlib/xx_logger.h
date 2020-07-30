@@ -10,7 +10,7 @@ namespace xx {
 
     // 针对 __FILE__ 编译期 定位到纯文件名部分并返回指针
     template<size_t len>
-    constexpr char const* CutPath(char const(&in)[len]) {
+    inline constexpr char const* CutPath(char const(&in)[len]) {
         auto&& i = len - 1;
         for(; i >= 0; --i) {
             if (in[i] == '\\' || in[i] == '/') return in + i + 1;
@@ -40,12 +40,12 @@ namespace xx {
     enum class LogLevels : int {
         TRACE, DEBUG, INFO, WARN, ERROR
     };
-    char const *logLevelNames[] = {
+    inline char const *logLevelNames[] = {
         "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
     };
 
     // 带颜色的 日志级别串（ERROR 那个是红色，别的乱来的）
-    char const *logLevelColorNames[] = {
+    inline char const *logLevelColorNames[] = {
             "\033[35mTRACE\033[37m"
             , "\033[32mDEBUG\033[37m"
             , "\033[33mINFO\033[37m"
@@ -104,10 +104,10 @@ namespace xx {
         typedef FixedData<256> Item;
 
         // 后台线程扫描写入队列的休息时长（毫秒）
-        static const int64_t loopSleepMS = 1;
+        inline static const int64_t loopSleepMS = 1;
 
         // 后台线程重新加载 cfg 文件的间隔时长（秒）
-        static const int64_t reloadConfigIntervalSeconds = 60;
+        inline static const int64_t reloadConfigIntervalSeconds = 60;
 
         // 当前配置（如果没有配置文件则可直接改。否则会被重新加载覆盖掉）
         LoggerConfig cfg;
@@ -213,7 +213,7 @@ namespace xx {
 
     protected:
         // 后台线程专用函数
-        void Loop() {
+        inline void Loop() {
             while (true) {
                 // 每 1 分钟重新读一次配置
                 if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - lastLoadConfigTP).count() > reloadConfigIntervalSeconds) {
@@ -252,7 +252,7 @@ namespace xx {
         }
 
         // 文件编号循环使用 & 改名逻辑
-        void FileRename() {
+        inline void FileRename() {
             ofs.close();
 
             int i = fileCount;
@@ -283,7 +283,7 @@ namespace xx {
             }
         }
 
-        void LoadConfig() {
+        inline void LoadConfig() {
             // 试图加载 logger cfg
             if (std::filesystem::exists(cfgName)) {
                 ajson::load_from_file(cfg, cfgName.c_str());
@@ -296,7 +296,7 @@ namespace xx {
             lastLoadConfigTP = std::chrono::system_clock::now();
         }
 
-        void OpenLogFile() {
+        inline void OpenLogFile() {
             // 根据配置和当前时间推算出日志文件名并以追加模式打开
             time_t now = time(nullptr);
             struct tm* t = localtime(&now);
@@ -310,7 +310,7 @@ namespace xx {
         }
 
         // 默认提供文件 dump 和 console dump. 可以覆盖实现自己的特殊需求
-        virtual void Dump() {
+        inline virtual void Dump() {
             // 输出到控制台?
             if (cfg.outputConsole) {
                 for (auto &&item : items2) {
@@ -336,7 +336,7 @@ namespace xx {
         }
 
         // dump 单行日志. 可覆盖实现自己的特殊需求
-        virtual void DumpItem(std::ostream& o, Item& item, bool const& isConsole) {
+        inline virtual void DumpItem(std::ostream& o, Item& item, bool const& isConsole) {
             // dump 前缀. 反向取出几个头部参数, 传递到格式化函数
             auto p = item.buf;
             Dump_Prefix(o
@@ -353,7 +353,7 @@ namespace xx {
         }
 
         // dump 单行日志 的前缀部分。可覆盖实现自己的写入格式
-        virtual void Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, TimePoint const &tp, bool const& isConsole) {
+        inline virtual void Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, TimePoint const &tp, bool const& isConsole) {
             auto&& tm = std::chrono::system_clock::to_time_t(tp);
             if (isConsole) {
                 o << "\033[36m" << std::put_time(std::localtime(&tm), "%F %T") << "\033[37m";

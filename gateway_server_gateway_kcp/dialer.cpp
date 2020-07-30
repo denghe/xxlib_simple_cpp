@@ -1,6 +1,7 @@
 ﻿#include "dialer.h"
 #include "server.h"
 #include "config.h"
+#include "mylog.h"
 
 Server &Dialer::GetServer() {
     // 拿到服务上下文
@@ -10,7 +11,7 @@ Server &Dialer::GetServer() {
 void Dialer::Connect(std::shared_ptr<SPeer> const &peer) {
     // 没连上
     if (!peer) {
-        ec->Log<2>("Dialer Connect failed. serverId = ", serverId);
+        LOG_INFO("Dialer Connect failed. serverId = ", serverId);
         return;
     }
 
@@ -26,5 +27,5 @@ void Dialer::Connect(std::shared_ptr<SPeer> const &peer) {
     // 向 server 发送自己的 gatewayId
     peer->SendCommand("gatewayId", config.gatewayId);
 
-    ec->Log<2>("Dialer Connect. serverId = ", serverId);
+    LOG_INFO("Dialer Connect. serverId = ", serverId);
 }

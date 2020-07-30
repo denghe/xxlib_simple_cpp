@@ -2,11 +2,12 @@
 #include "speer.h"
 #include "server.h"
 #include "config.h"
+#include "mylog.h"
 
 bool CPeer::Close(int const& reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
     if (!this->BaseType::Close(reason, desc)) return false;
-    ec->Log<4>("CPeer Close. ip = ", addr," reason = ", reason, ", desc = ", desc);
+    LOG_INFO("CPeer Close. ip = ", addr," reason = ", reason, ", desc = ", desc);
     // 群发断开通知 并从容器移除
     PartialClose();
     // 延迟减持
@@ -41,7 +42,7 @@ void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
 
     // 判断该服务编号是否在白名单中. 找不到就忽略
     if (serverIds.find(sid) == serverIds.end()) {
-        ec->Log<5>("CPeer ReceivePackage can't find serverId. ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
+        LOG_INFO("CPeer ReceivePackage can't find serverId. ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
         return;
     }
 
@@ -54,11 +55,11 @@ void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
     // 用 serverId 对应的 peer 转发完整数据包
     GetServer().dps[sid].second->Send(buf - 4, len + 4);
 
-    ec->Log<6>("CPeer ReceivePackage. ip = ", addr, ", serverId = ", sid, ", buf len = ", len);
+    LOG_INFO("CPeer ReceivePackage. ip = ", addr, ", serverId = ", sid, ", buf len = ", len);
 }
 
 void CPeer::ReceiveCommand(char *const &buf, size_t const &len) {
-    ec->Log<7>("CPeer ReceiveCommand. ip = ", addr, ", len = ", len, ", buf = ", xx::DataView{ buf, len });
+    LOG_INFO("CPeer ReceiveCommand. ip = ", addr, ", len = ", len, ", buf = ", xx::DataView{ buf, len });
 
     // 续命
     SetTimeoutSeconds(config.clientTimeoutSeconds);
