@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <sstream>
 
 namespace xx {
 
@@ -25,16 +26,27 @@ namespace xx {
         std::ifstream("/proc/self/comm") >> s;
         return s;
 #elif defined(_WIN32)
-        char buf[MAX_PATH];
-        GetModuleFileNameA(nullptr, buf, MAX_PATH);
-        return buf;
+        //char buf[MAX_PATH];
+        //GetModuleFileNameA(nullptr, buf, MAX_PATH);
+        //return buf;
+        return "unnamed.exe";   // 为避免在此处引入 windows.h .可以通过配置解决
 #else
         static_assert(false, "unrecognized platform");
 #endif
     }
 
-    // 日志用到的时间格式
-    typedef std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> TimePoint;
+    inline std::string ToString(std::chrono::system_clock::time_point const& tp, char const* const& format = "%F %T") noexcept {
+        auto&& t = std::chrono::system_clock::to_time_t(tp);
+        std::tm tm;
+#ifdef _WIN32
+        localtime_s(&tm, &t);
+#else
+        localtime_r(&t, &tm);
+#endif
+        std::stringstream ss;
+        ss << std::put_time(&tm, format);
+        return ss.str();
+    }
 
     // 日志级别
     enum class LogLevels : int {
@@ -69,9 +81,9 @@ json 样板:
      */
     struct LoggerConfig {
         // 小于等于这个级别的才记录日志
-        int logLevel = (int) LogLevels::DEBUG;
+        int logLevel = (int) LogLevels::TRACE;
         // 日志文件 路径 & 文件名前缀( 后面可能还有日期 / 分段标志 )
-        std::string logFileName = std::string("log/") + GetExecuteName() + ".log";
+        std::string logFileName = GetExecuteName() + ".log";
         // 单个日志文件体积上限( 字节 )
         size_t logFileMaxBytes = 1024 * 1024 * 5;
         // 日志文件最多个数( 滚动使用，超过个数将删除最早的 )
@@ -139,10 +151,10 @@ namespace xx {
         size_t wroteLen = 0;
 
         // 已经写了多少个文件
-        int fileCount;
+        int fileCount = 0;
 
         // 最后一次读取配置的时间点
-        TimePoint lastLoadConfigTP;
+        int64_t lastLoadConfigTP = 0;
 
     public:
         // 参数：开辟多少兆初始内存 cache
@@ -193,15 +205,15 @@ namespace xx {
             // 申请一条存储空间
             auto &&d = items1.emplace_back();
             // 确保存储空间一定存的下这些参数
-            static_assert(Item::innerSpaceLen >= sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(TimePoint));
+            static_assert(Item::innerSpaceLen >= sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point));
             // 准备开始将参数复制到 data( 这几个 char* 参数可以直接复制指针而不必担心其消失，因为是编译器编译到代码数据段里的 )
             auto p = d.buf;
             *(int *) p = (int)level;
             *(int *) (p + sizeof(int)) = lineNumber;
             *(char const **) (p + sizeof(int) + sizeof(int)) = fileName;
             *(char const **) (p + sizeof(int) + sizeof(int) + sizeof(char *)) = funcName;
-            *(TimePoint*) (p + sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *)) = std::chrono::system_clock::now();
-            d.len = sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(TimePoint);
+            *(std::chrono::system_clock::time_point*) (p + sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *)) = std::chrono::system_clock::now();
+            d.len = sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point);
             // 继续常规写入变参部分( typeid + data, typeid + data, ....... )
             xx::WriteTo(d, vs...);
         }
@@ -215,10 +227,8 @@ namespace xx {
         // 后台线程专用函数
         inline void Loop() {
             while (true) {
-                // 每 1 分钟重新读一次配置
-                if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - lastLoadConfigTP).count() > reloadConfigIntervalSeconds) {
-                    LoadConfig();
-                }
+                // 每 ? 秒重新读一次配置
+                LoadConfig();
 
                 // 如果有数据: 交换前后台队列. 没有就继续循环
                 {
@@ -284,25 +294,24 @@ namespace xx {
         }
 
         inline void LoadConfig() {
-            // 试图加载 logger cfg
-            if (std::filesystem::exists(cfgName)) {
-                ajson::load_from_file(cfg, cfgName.c_str());
-                std::cout << "logger load \"" << cfgName << "\" = " << cfg << std::endl;
+            auto&& nowTicks = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            if (nowTicks - lastLoadConfigTP > reloadConfigIntervalSeconds) {
+                // 试图加载 logger cfg
+                if (std::filesystem::exists(cfgName)) {
+                    ajson::load_from_file(cfg, cfgName.c_str());
+                    std::cout << "logger load \"" << cfgName << "\" = " << cfg << std::endl;
+                }
+                else {
+                    std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg << std::endl;
+                }
+                // 更新最后加载时间
+                lastLoadConfigTP = nowTicks;
             }
-            else {
-                std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg << std::endl;
-            }
-            // 更新最后加载时间
-            lastLoadConfigTP = std::chrono::system_clock::now();
         }
 
         inline void OpenLogFile() {
             // 根据配置和当前时间推算出日志文件名并以追加模式打开
-            time_t now = time(nullptr);
-            struct tm* t = localtime(&now);
-            char createTime[128];
-            sprintf(createTime, "-%d-%d-%d+%d:%d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
-            currLogFileName = cfg.logFileName + createTime;
+            currLogFileName = cfg.logFileName + ToString(std::chrono::system_clock::now(), ".[%F %H.%M.%S]");
             ofs.open(currLogFileName, std::ios_base::app);
             if (ofs.fail()) {
                 std::cerr << "ERROR!!! open log file failed: \"" << currLogFileName << "\", forget mkdir ??" << std::endl;
@@ -344,25 +353,22 @@ namespace xx {
                     , *(int *) (p + sizeof(int))
                     , *(char const **) (p + sizeof(int) + sizeof(int))
                     , *(char const **) (p + sizeof(int) + sizeof(int) + sizeof(char *))
-                    , *(TimePoint *) (p + sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *))
+                    , *(std::chrono::system_clock::time_point*) (p + sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *))
                     , isConsole);
             // dump 内容
-            DumpTo(o, item, sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(TimePoint));
+            DumpTo(o, item, sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point));
             // 弄个换行符
             o << "\r\n";
         }
 
         // dump 单行日志 的前缀部分。可覆盖实现自己的写入格式
-        inline virtual void Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, TimePoint const &tp, bool const& isConsole) {
-            auto&& tm = std::chrono::system_clock::to_time_t(tp);
+        inline virtual void Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, std::chrono::system_clock::time_point const &tp, bool const& isConsole) {
             if (isConsole) {
-                o << "\033[36m" << std::put_time(std::localtime(&tm), "%F %T") << "\033[37m";
-                o << " [" << logLevelColorNames[(int)level] << "] [file:\033[36m"
+                o << "\033[36m" << ToString(tp) << "\033[37m" << " [" << logLevelColorNames[(int)level] << "] [file:\033[36m"
                 << fileName << "\033[37m line:\033[36m" << lineNumber << "\033[37m func:\033[36m" << funcName << "\033[37m] ";
             }
             else {
-                o << std::put_time(std::localtime(&tm), "%F %T")
-                << " ["<< logLevelNames[(int)level] << "] [file:" << fileName << " line:" << lineNumber << " func:" << funcName << "] ";
+                o << ToString(tp) << " ["<< logLevelNames[(int)level] << "] [file:" << fileName << " line:" << lineNumber << " func:" << funcName << "] ";
             }
         }
     };

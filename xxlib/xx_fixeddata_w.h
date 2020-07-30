@@ -138,15 +138,20 @@ namespace xx {
         }
     };
 
-    template<typename C, typename D>
-    struct DataTypeId<std::chrono::time_point<C, D>> {
+    template<>
+    struct DataTypeId<std::chrono::system_clock::time_point> {
         static const char value = 12;
 
         inline static void Dump(std::ostream &o, char *&v) {
-
-            auto&& t = std::chrono::system_clock::to_time_t(*(std::chrono::time_point<C, D>*)v);
-            o << std::put_time(std::localtime(&t), "%F %T");
-            v += sizeof(std::chrono::time_point<C, D>);
+            auto&& t = std::chrono::system_clock::to_time_t(*(std::chrono::system_clock::time_point*)v);
+            std::tm tm;
+#ifdef _WIN32
+            localtime_s(&tm, &t);
+#else
+            localtime_r(&t, &tm);
+#endif
+            o << std::put_time(&tm, "%F %T");
+            v += sizeof(std::chrono::system_clock::time_point);
         }
     };
 
@@ -252,7 +257,7 @@ namespace xx {
             DataTypeId<unsigned short>::Dump,
             DataTypeId<unsigned int>::Dump,
             DataTypeId<unsigned long long>::Dump,
-            DataTypeId<std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>>::Dump,
+            DataTypeId<std::chrono::system_clock::time_point>::Dump,
     };
 
     template<typename OS, size_t size>

@@ -859,7 +859,11 @@ namespace ajson
     enum{ INIT_AMSG_BUFF_SIZE = 1024 };
     ajson_file_stream(const char * filename) :m_f(NULL), m_status(good)
     {
+#ifdef _WIN32
+      fopen_s(&this->m_f, filename, "w");
+#else
       this->m_f = std::fopen(filename, "w");
+#endif
       if (NULL == this->m_f)
       {
         this->m_status = file_error;
@@ -2019,7 +2023,12 @@ namespace ajson
           std::fclose(f_);
       }
     };
-    std::FILE * f = std::fopen(filename, "rb");
+#ifdef _WIN32
+    std::FILE* f = nullptr;
+    fopen_s(&f, filename, "rb");
+#else
+    std::FILE* f = std::fopen(filename, "rb");
+#endif
     if (nullptr == f)
     {
       std::string errmsg = "can't open file:";
