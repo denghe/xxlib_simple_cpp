@@ -3,7 +3,6 @@
 #include <mutex>
 #include <thread>
 #include <fstream>
-#include <filesystem>
 #include <iostream>
 #include <sstream>
 
@@ -159,7 +158,6 @@ namespace xx {
     public:
         // 参数：开辟多少兆初始内存 cache
         explicit Logger(size_t const &capMB = 8, char const* const& cfgName = nullptr) {
-            std::cout << "current dir = " << std::filesystem::absolute(".") << std::endl;
             // 如果有传入新的配置文件名 就覆盖
             if (cfgName) {
                 this->cfgName = cfgName;
@@ -297,7 +295,7 @@ namespace xx {
             auto&& nowTicks = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
             if (nowTicks - lastLoadConfigTP > reloadConfigIntervalSeconds) {
                 // 试图加载 logger cfg
-                if (std::filesystem::exists(cfgName)) {
+                if (std::ifstream(cfgName.c_str()).good()) {
                     ajson::load_from_file(cfg, cfgName.c_str());
                     std::cout << "logger load \"" << cfgName << "\" = " << cfg << std::endl;
                 }

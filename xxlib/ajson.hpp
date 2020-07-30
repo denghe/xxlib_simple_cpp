@@ -1387,7 +1387,7 @@ namespace ajson
 #ifdef _MSC_VER
       _gcvt_s(buffer, 63 , val, 8);
 #else
-      gcvt(val, 62, buffer);
+      auto&& _ = gcvt(val, 62, buffer);
 #endif // MSVC
       size_t len = std::strlen(buffer);
       if (buffer[len - 1] == '.')

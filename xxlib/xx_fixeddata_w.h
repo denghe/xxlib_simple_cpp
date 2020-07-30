@@ -191,7 +191,6 @@ namespace xx {
                     static_assert(true, "unsupported data type.");
                 }
             }
-            data.buf[data.len] = DumpFuncs<T>::value;
             memcpy(data.buf + data.len + 1, &in, sizeof(T));
             data.len += 1 + sizeof(T);
         }
