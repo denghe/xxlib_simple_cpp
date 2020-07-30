@@ -67,22 +67,34 @@ namespace xx {
         }
     };
 
+    // for logger
     template<>
     struct DumpFuncs<sockaddr_in6> {
-        static const char value = 13;
+        static const char value = dumpFuncsSafeIndex + 0;
 
         inline static void Dump(std::ostream &o, char *&v) {
             o << ToString(*(sockaddr_in6*)v);
-            v += sizeof(std::chrono::system_clock::time_point);
+            v += sizeof(sockaddr_in6);
         }
 
         // 启动时自动注册函数
         DumpFuncs<sockaddr_in6>() {
+            assert(!dumpFuncs[value]);
             dumpFuncs[value] = Dump;
         }
     };
     // 启动时自动注册函数
     inline DumpFuncs<sockaddr_in6> __DumpFuncs_sockaddr_in6;
+
+    template<size_t size>
+    struct BufFuncs<size, sockaddr_in6, void> {
+        static inline void Write(FixedData<size> &data, sockaddr_in6 const &in) {
+            data.Ensure(1 + sizeof(sockaddr_in6));
+            data.buf[data.len] = DumpFuncs<sockaddr_in6>::value;
+            memcpy(data.buf + data.len + 1, &in, sizeof(sockaddr_in6));
+            data.len += 1 + sizeof(sockaddr_in6);
+        }
+    };
 }
 
 namespace xx::Epoll {

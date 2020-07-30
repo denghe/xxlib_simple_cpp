@@ -198,4 +198,12 @@ namespace xx {
 
 	template<>
 	struct IsPod<Data, void> : std::true_type {};
+
+
+
+    struct DataView {
+        char const* const& buf;
+        size_t const& len;
+    };
+
 }

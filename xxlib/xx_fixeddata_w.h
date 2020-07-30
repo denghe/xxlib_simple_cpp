@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "xx_fixeddata.h"
+#include "xx_data.h"
 #include <ctime>
 #include <chrono>
 #include <ostream>
@@ -148,6 +149,27 @@ namespace xx {
         }
     };
 
+    template<>
+    struct DumpFuncs<DataView> {
+        static const char value = 13;
+
+        inline static void Dump(std::ostream &o, char *&v) {
+            auto len = *(size_t *)v;
+            auto buf = v + sizeof(len);
+            o.put('[');
+            if (len) {
+                for(size_t i = 0; i < len; ++i) {
+                    o << (int)(uint8_t)buf[i];
+                    if(i<len-1) {
+                        o.put(',');
+                    }
+                }
+            }
+            o.put(']');
+            v += sizeof(size_t) + len;
+        }
+    };
+
 
     // 适配模板 for FixedData<size>::Write
     template<size_t size, typename T, typename ENABLED = void>
@@ -242,14 +264,26 @@ namespace xx {
         }
     };
 
-    // 适配 std::chrono::time_point
-    template<size_t size, typename C, typename D>
-    struct BufFuncs<size, std::chrono::time_point<C, D>, void> {
-        static inline void Write(FixedData<size> &data, std::chrono::time_point<C, D> const &in) {
-            data.Ensure(1 + sizeof(std::chrono::time_point<C, D>));
-            data.buf[data.len] = DumpFuncs<std::chrono::time_point<C, D>>::value;
-            memcpy(data.buf + data.len + 1, &in, sizeof(std::chrono::time_point<C, D>));
-            data.len += 1 + sizeof(std::chrono::time_point<C, D>);
+    // 适配 std::chrono::system_clock::time_point
+    template<size_t size>
+    struct BufFuncs<size, std::chrono::system_clock::time_point, void> {
+        static inline void Write(FixedData<size> &data, std::chrono::system_clock::time_point const &in) {
+            data.Ensure(1 + sizeof(std::chrono::system_clock::time_point));
+            data.buf[data.len] = DumpFuncs<std::chrono::system_clock::time_point>::value;
+            memcpy(data.buf + data.len + 1, &in, sizeof(std::chrono::system_clock::time_point));
+            data.len += 1 + sizeof(std::chrono::system_clock::time_point);
+        }
+    };
+
+    // 适配 xx::Data / xx::DataView
+    template<size_t size, typename T>
+    struct BufFuncs<size, T, std::enable_if_t<std::is_same_v<Data, T> || std::is_same_v<DataView, T>>> {
+        static inline void Write(FixedData<size> &data, T const &in) {
+            data.Ensure(1 + sizeof(in.len) + in.len);
+            data.buf[data.len] = DumpFuncs<DataView>::value;
+            memcpy(data.buf + data.len + 1, &in.len, sizeof(in.len));
+            memcpy(data.buf + data.len + 1 + sizeof(in.len), in.buf, in.len);
+            data.len += 1 + sizeof(in.len) + in.len;
         }
     };
 
@@ -263,6 +297,9 @@ namespace xx {
     }
 
     typedef void (*DumpFunc)(std::ostream &o, char *&v);
+
+    // 自写扩展时用的起始 index
+    static const int dumpFuncsSafeIndex = 14;
 
     inline DumpFunc dumpFuncs[] = {
             DumpFuncs<char *>::Dump,
@@ -278,7 +315,14 @@ namespace xx {
             DumpFuncs<unsigned int>::Dump,
             DumpFuncs<unsigned long long>::Dump,
             DumpFuncs<std::chrono::system_clock::time_point>::Dump,
+            DumpFuncs<DataView>::Dump,
             // 占位符. 方便扩展
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
             nullptr,
             nullptr,
             nullptr,

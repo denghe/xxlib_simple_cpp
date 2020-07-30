@@ -13,4 +13,5 @@ add_executable(logger_test
 
 target_link_libraries(logger_test
         pthread
+        readline
         )

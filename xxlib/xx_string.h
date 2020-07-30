@@ -269,12 +269,6 @@ namespace xx {
         }
     };
 
-
-    struct DataView {
-        char const* const& buf;
-        size_t const& len;
-    };
-
     // 适配 DataView
     template<>
     struct StringFuncs<DataView, void> {
