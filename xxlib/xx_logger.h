@@ -311,7 +311,7 @@ namespace xx {
 
         inline void OpenLogFile() {
             // 根据配置和当前时间推算出日志文件名并以追加模式打开
-            currLogFileName = cfg.logFileName + ToString(std::chrono::system_clock::now(), ".[%F %H.%M.%S]");
+            currLogFileName = cfg.logFileName + ToString(std::chrono::system_clock::now(), ".%F_%H.%M.%S");
             ofs.open(currLogFileName, std::ios_base::app);
             if (ofs.fail()) {
                 std::cerr << "ERROR!!! open log file failed: \"" << currLogFileName << "\", forget mkdir ??" << std::endl;
@@ -358,7 +358,7 @@ namespace xx {
             // dump 内容
             DumpTo(o, item, sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point));
             // 弄个换行符
-            o << "\r\n";
+            o << std::endl;
         }
 
         // dump 单行日志 的前缀部分。可覆盖实现自己的写入格式

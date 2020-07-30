@@ -8,10 +8,10 @@
 namespace xx {
     // 类型适配模板 for FixedData<size>::Write
     template<typename T, typename ENABLED = void>
-    struct DataTypeId;
+    struct DumpFuncs;
 
     template<>
-    struct DataTypeId<char *> {
+    struct DumpFuncs<char *> {
         static const char value = 0;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -21,7 +21,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<bool> {
+    struct DumpFuncs<bool> {
         static const char value = 1;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -31,7 +31,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<char> {
+    struct DumpFuncs<char> {
         static const char value = 2;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -41,7 +41,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<short> {
+    struct DumpFuncs<short> {
         static const char value = 3;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -51,7 +51,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<int> {
+    struct DumpFuncs<int> {
         static const char value = 4;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -61,7 +61,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<long long> {
+    struct DumpFuncs<long long> {
         static const char value = 5;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -71,7 +71,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<float> {
+    struct DumpFuncs<float> {
         static const char value = 6;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -81,7 +81,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<double> {
+    struct DumpFuncs<double> {
         static const char value = 7;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -91,7 +91,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<unsigned char> {
+    struct DumpFuncs<unsigned char> {
         static const char value = 8;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -101,7 +101,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<unsigned short> {
+    struct DumpFuncs<unsigned short> {
         static const char value = 9;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -111,7 +111,7 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<unsigned int> {
+    struct DumpFuncs<unsigned int> {
         static const char value = 10;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -119,17 +119,9 @@ namespace xx {
             v += sizeof(unsigned int);
         }
     };
-    template<>
-    struct DataTypeId<long unsigned int> {
-        static const char value = 10;
-    };
-    template<>
-    struct DataTypeId<long int> {
-        static const char value = 10;
-    };
 
     template<>
-    struct DataTypeId<unsigned long long> {
+    struct DumpFuncs<unsigned long long> {
         static const char value = 11;
 
         inline static void Dump(std::ostream &o, char *&v) {
@@ -139,12 +131,12 @@ namespace xx {
     };
 
     template<>
-    struct DataTypeId<std::chrono::system_clock::time_point> {
+    struct DumpFuncs<std::chrono::system_clock::time_point> {
         static const char value = 12;
 
         inline static void Dump(std::ostream &o, char *&v) {
             auto&& t = std::chrono::system_clock::to_time_t(*(std::chrono::system_clock::time_point*)v);
-            std::tm tm;
+            std::tm tm{};
 #ifdef _WIN32
             localtime_s(&tm, &t);
 #else
@@ -171,7 +163,29 @@ namespace xx {
         // 1 byte typeId + data
         static inline void Write(FixedData<size> &data, T const &in) {
             data.Ensure(1 + sizeof(T));
-            data.buf[data.len] = DataTypeId<T>::value;
+            if constexpr(std::is_same_v<bool, T>) {
+                data.buf[data.len] = DumpFuncs<bool>::value;
+            }
+            else if constexpr(std::is_floating_point_v<T>) {
+                if constexpr(sizeof(T) == 4) data.buf[data.len] = DumpFuncs<float>::value;
+                else if constexpr(sizeof(T) == 8) data.buf[data.len] = DumpFuncs<double>::value;
+                else throw std::logic_error("unsupported data type.");
+            }
+            else if constexpr(std::is_signed_v<T>) {
+                if constexpr(sizeof(T) == 1) data.buf[data.len] = DumpFuncs<char>::value;
+                else if constexpr(sizeof(T) == 2) data.buf[data.len] = DumpFuncs<short>::value;
+                else if constexpr(sizeof(T) == 4) data.buf[data.len] = DumpFuncs<int>::value;
+                else if constexpr(sizeof(T) == 8) data.buf[data.len] = DumpFuncs<long long>::value;
+                else throw std::logic_error("unsupported data type.");
+            }
+            else {
+                if constexpr(sizeof(T) == 1) data.buf[data.len] = DumpFuncs<unsigned char>::value;
+                else if constexpr(sizeof(T) == 2) data.buf[data.len] = DumpFuncs<unsigned short>::value;
+                else if constexpr(sizeof(T) == 4) data.buf[data.len] = DumpFuncs<unsigned int>::value;
+                else if constexpr(sizeof(T) == 8) data.buf[data.len] = DumpFuncs<unsigned long long>::value;
+                else throw std::logic_error("unsupported data type.");
+            }
+            data.buf[data.len] = DumpFuncs<T>::value;
             memcpy(data.buf + data.len + 1, &in, sizeof(T));
             data.len += 1 + sizeof(T);
         }
@@ -183,7 +197,7 @@ namespace xx {
         // 1 byte typeId + len + data
         static inline void Write(FixedData<size> &data, std::pair<char *, size_t> const &in) {
             data.Ensure(1 + sizeof(in.second) + in.second);
-            data.buf[data.len] = DataTypeId<char *>::value;
+            data.buf[data.len] = DumpFuncs<char *>::value;
             memcpy(data.buf + data.len + 1, &in.second, sizeof(in.second));
             memcpy(data.buf + data.len + 1 + sizeof(in.second), in.first, in.second);
             data.len += 1 + sizeof(in.second) + in.second;
@@ -227,7 +241,7 @@ namespace xx {
     struct BufFuncs<size, std::chrono::time_point<C, D>, void> {
         static inline void Write(FixedData<size> &data, std::chrono::time_point<C, D> const &in) {
             data.Ensure(1 + sizeof(std::chrono::time_point<C, D>));
-            data.buf[data.len] = DataTypeId<std::chrono::time_point<C, D>>::value;
+            data.buf[data.len] = DumpFuncs<std::chrono::time_point<C, D>>::value;
             memcpy(data.buf + data.len + 1, &in, sizeof(std::chrono::time_point<C, D>));
             data.len += 1 + sizeof(std::chrono::time_point<C, D>);
         }
@@ -245,19 +259,19 @@ namespace xx {
     typedef void (*DumpFunc)(std::ostream &o, char *&v);
 
     inline DumpFunc dumpFuncs[] = {
-            DataTypeId<char *>::Dump,
-            DataTypeId<bool>::Dump,
-            DataTypeId<char>::Dump,
-            DataTypeId<short>::Dump,
-            DataTypeId<int>::Dump,
-            DataTypeId<long long>::Dump,
-            DataTypeId<float>::Dump,
-            DataTypeId<double>::Dump,
-            DataTypeId<unsigned char>::Dump,
-            DataTypeId<unsigned short>::Dump,
-            DataTypeId<unsigned int>::Dump,
-            DataTypeId<unsigned long long>::Dump,
-            DataTypeId<std::chrono::system_clock::time_point>::Dump,
+            DumpFuncs<char *>::Dump,
+            DumpFuncs<bool>::Dump,
+            DumpFuncs<char>::Dump,
+            DumpFuncs<short>::Dump,
+            DumpFuncs<int>::Dump,
+            DumpFuncs<long long>::Dump,
+            DumpFuncs<float>::Dump,
+            DumpFuncs<double>::Dump,
+            DumpFuncs<unsigned char>::Dump,
+            DumpFuncs<unsigned short>::Dump,
+            DumpFuncs<unsigned int>::Dump,
+            DumpFuncs<unsigned long long>::Dump,
+            DumpFuncs<std::chrono::system_clock::time_point>::Dump,
     };
 
     template<typename OS, size_t size>
