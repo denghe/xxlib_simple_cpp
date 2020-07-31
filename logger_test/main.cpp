@@ -25,6 +25,12 @@ int test() {
     return 0;
 }
 
+struct XXX {
+    void xxx() {
+        LOG_INFO("asdf ");
+    }
+};
+
 int main() {
     //return test();
     sockaddr_in6 asdf{};
@@ -40,5 +46,8 @@ int main() {
 //    LOG_TRACE("asdf ", 1, " , ", 2.3, "asdfasdf");
 //    LOG_DEBUG("asdf ", 1, " , ", 2.3, "asdfasdf");
     //std::cin.get();
+
+    ((XXX*)0)->xxx();
+
     return 0;
 }

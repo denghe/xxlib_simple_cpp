@@ -30,7 +30,9 @@ void CPeer::DelayClose(double const& delaySeconds) {
 void CPeer::PartialClose() {
     // 群发断开通知
     for (auto &&sid : serverIds) {
-        GetServer().dps[sid].second->SendCommand("disconnect", clientId);
+        if (auto&& sp = GetServer().dps[sid].second) {
+            sp->SendCommand("disconnect", clientId);
+        }
     }
     // 从容器移除( 减持 )
     GetServer().cps.erase(clientId);
@@ -42,7 +44,15 @@ void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
 
     // 判断该服务编号是否在白名单中. 找不到就忽略
     if (serverIds.find(sid) == serverIds.end()) {
-        LOG_INFO("CPeer ReceivePackage can't find serverId. ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
+        LOG_INFO("CPeer ReceivePackage serverIds.find(sid) == serverIds.end(). ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
+        return;
+    }
+
+    // 指向目标服务 peer
+    auto&& sp = GetServer().dps[sid].second;
+    // 如果服务 peer 当前无效，则忽略
+    if (!sp) {
+        LOG_INFO("CPeer ReceivePackage !sp || !sp->Alive(). ip = ", addr, ", serverId = ", sid, ", serverIds = ", serverIds);
         return;
     }
 
@@ -53,7 +63,7 @@ void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
     *(uint32_t *) buf = clientId;
 
     // 用 serverId 对应的 peer 转发完整数据包
-    GetServer().dps[sid].second->Send(buf - 4, len + 4);
+    sp->Send(buf - 4, len + 4);
 
     LOG_INFO("CPeer ReceivePackage. ip = ", addr, ", serverId = ", sid, ", buf len = ", len);
 }
