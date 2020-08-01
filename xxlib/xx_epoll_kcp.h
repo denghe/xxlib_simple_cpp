@@ -382,7 +382,7 @@ namespace xx::Epoll {
                 // 猜测遇到以下错误不需要理会( ECONNREFUSED ENOTCONN 可能来自 ICMP 通知 )
                 auto er = errno;
                 if (er == EAGAIN || er == EINTR || er == ECONNREFUSED ||  er == ENOTCONN) return;
-                throw std::runtime_error(xx::ToString(__LINESTR__" UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
+                ThrowRuntimeError(xx::ToString(__LINESTR__" UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
             }
             // 可能收到 0 长度数据包. 忽略
             else if (len == 0) return;
