@@ -14,7 +14,7 @@ add_executable(gateway_server_gateway_kcp
         cpeer.cpp
         speer.cpp
 		pingtimer.cpp
-
+		tasktimer.cpp
 		kpeer.cpp
         ../xxlib/ikcp.c
         )

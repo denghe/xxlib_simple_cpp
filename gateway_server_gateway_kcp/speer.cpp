@@ -6,7 +6,7 @@
 
 bool SPeer::Close(int const& reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
-    if (!this->Peer::Close(reason)) return false;
+    if (!this->Peer::Close(reason, desc)) return false;
     LOG_INFO("SPeer Close. serverId = ", serverId, ", reason = ", reason, ", desc = ", desc);
     // 从所有 client peers 里的白名单中移除
     for (auto &&kv : GetServer().cps) {
@@ -47,8 +47,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
     // 试读取 cmd 字串. 失败直接断开
     std::string cmd;
     if (int r = dr.Read(cmd)) {
-        LOG_INFO("SPeer ReceiveCommand Read failed. serverId = ", serverId, ", r = ", r);
-        Close(__LINE__, __FILE__);
+        Close(-30, xx::ToString(__LINESTR__" SPeer ReceiveCommand if (int r = dr.Read(cmd)) serverId = ", serverId, ", r = ", r).c_str());
         return;
     }
 
@@ -58,8 +57,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
     if (cmd == "open") {                        // 向客户端开放 serverId. 参数: clientId
         // 试读出 clientId. 失败直接断开
         if (int r = dr.Read(clientId)) {
-            LOG_INFO("SPeer ReceiveCommand Read 'open' failed. serverId = ", serverId, ", r = ", r);
-            Close(__LINE__, __FILE__);
+            Close(-31, xx::ToString(__LINESTR__" SPeer ReceiveCommand if (int r = dr.Read(clientId)) serverId = ", serverId, ", r = ", r).c_str());
             return;
         }
         // 如果找到 client peer, 则转发
@@ -77,8 +75,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
     } else if (cmd == "close") {                // 关端口. 参数: clientId
         // 试读出 clientId. 失败直接断开
         if (int r = dr.Read(clientId)) {
-            LOG_INFO("SPeer ReceiveCommand Read 'close' failed. serverId = ", serverId, ", r = ", r);
-            Close(__LINE__, __FILE__);
+            Close(-32, xx::ToString(__LINESTR__" SPeer ReceiveCommand Read 'close' failed. serverId = ", serverId, ", r = ", r).c_str());
             return;
         }
         // 如果找到 client peer, 则转发
@@ -97,8 +94,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
         // 试读出参数
         int64_t delayMS = 0;
         if (int r = dr.Read(clientId, delayMS)) {
-            LOG_INFO("SPeer ReceiveCommand Read 'kick' failed. serverId = ", serverId, ", r = ", r);
-            Close(__LINE__, __FILE__);
+            Close(-33, xx::ToString(__LINESTR__" SPeer ReceiveCommand Read 'kick' failed. serverId = ", serverId, ", r = ", r).c_str());
             return;
         }
         // 如果没找到 或已断开 则返回，忽略错误
@@ -116,9 +112,8 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
             // 会立即从 cps 移除并向白名单 serverIds 对应 peer 广播断开通知. 这之后不再处理收到的消息, 直到超时自杀
             cp->DelayClose((double) delayMS / 1000);
         } else {
-            LOG_INFO("SPeer ReceiveCommand 'kick' Close. serverId = ", serverId, ", clientId = ", clientId);
             // 立刻踢下线
-            cp->Close(__LINE__, __FILE__);
+            cp->Close(-34, xx::ToString(__LINESTR__" SPeer ReceiveCommand 'kick' Close. serverId = ", serverId, ", clientId = ", clientId).c_str());
         }
     } else if (cmd == "ping") {                 // ping 的回包. 不关心内容
         // 清除 等回包 状态. 该状态在 pingtimer 中设置，并同时发送 ping 指令
@@ -127,8 +122,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
         pingMS = xx::NowSteadyEpochMS() - lastSendPingMS;
     } else {
         // 收到没有处理函数对应的指令
-        LOG_INFO("SPeer ReceiveCommand unhandled cmd. serverId = ", serverId, ", cmd = ", cmd);
-        Close(__LINE__, __FILE__);
+        Close(-35, xx::ToString(__LINESTR__" SPeer ReceiveCommand unhandled cmd. serverId = ", serverId, ", cmd = ", cmd).c_str());
     }
 }
 

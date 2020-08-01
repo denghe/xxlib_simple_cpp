@@ -6,6 +6,12 @@
 #include <string>
 #include <memory>
 
+// 先放这
+#define LIKELY(x)       __builtin_expect(!!(x), 1)
+#define UNLIKELY(x)     __builtin_expect(!!(x), 0)
+#define __STRINGFY__(...) #__VA_ARGS__
+#define __LINESTR__ __STRINGFY__(__LINE__)
+
 namespace xx {
     struct Data;
 

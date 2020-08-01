@@ -14,6 +14,7 @@ add_executable(gateway_server_gateway
         cpeer.cpp
         speer.cpp
         pingtimer.cpp
+	tasktimer.cpp
         )
 
 target_link_libraries(gateway_server_gateway

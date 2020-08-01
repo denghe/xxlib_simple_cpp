@@ -26,7 +26,7 @@ void Peer::Receive() {
 
         // 长度异常则断线退出( 不含地址? 超长? 256k 不够可以改长 )
         if (dataLen < sizeof(addr) || dataLen > 1024 * 256) {
-            Close(__LINE__, __FILE__);
+            Close(-21, __LINESTR__" Peer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
             return;
         }
 

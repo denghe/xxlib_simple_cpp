@@ -2,6 +2,10 @@
 #include "server.h"
 #include "speer.h"
 
+void PingTimer::Start() {
+    SetTimeoutSeconds(intervalSeconds);
+}
+
 void PingTimer::Timeout() {
     auto &&server = *(Server *) &*ec;
     auto &&now = xx::NowSteadyEpochMS();
@@ -14,7 +18,7 @@ void PingTimer::Timeout() {
                 // 如果已经等了好些时候了( 该值可配？）
                 if(now - sp->lastSendPingMS > 5000) {
                     // 掐线
-                    sp->Close(__LINE__, __FILE__);
+                    sp->Close(-22, __LINESTR__" PingTimer Timeout if(now - sp->lastSendPingMS > 5000)");
                 }
             }
             else {
@@ -26,6 +30,6 @@ void PingTimer::Timeout() {
         }
     }
 
-    // timer 续命。下次在 1 秒后
-    SetTimeoutSeconds(3);
+    // timer 续命
+    SetTimeoutSeconds(intervalSeconds);
 }

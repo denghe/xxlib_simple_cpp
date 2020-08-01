@@ -3,6 +3,7 @@
 #include "config.h"
 #include "listener.h"
 #include "pingtimer.h"
+#include "tasktimer.h"
 #include "mylog.h"
 
 int Server::Run() {
@@ -11,11 +12,12 @@ int Server::Run() {
         DisableCommandLine();
         listener.reset();
         pingTimer.reset();
+        taskTimer.reset();
 
         for(auto&& dp : dps) {
             dp.second.first->Stop();
             if (dp.second.second) {
-                dp.second.second->Close(__LINE__, __FILE__);
+                dp.second.second->Close(-23, __LINESTR__" Server Run sg1");
             }
         }
         dps.clear();
@@ -25,7 +27,7 @@ int Server::Run() {
             keys.push_back(cp.first);
         }
         for(auto&& key : keys) {
-            cps[key]->Close(__LINE__, __FILE__);
+            cps[key]->Close(-24, __LINESTR__" Server Run sg1");
         }
         cps.clear();
 
@@ -42,9 +44,13 @@ int Server::Run() {
         return r;
     }
 
-    // 初始化间隔时间为 1 秒的处理服务器之间 ping 防止连接僵死的 timer
+    // 初始化间隔时间为 ? 秒的处理服务器之间 ping 防止连接僵死的 timer
     xx::MakeTo(pingTimer, shared_from_this());
-    pingTimer->SetTimeoutSeconds(1);
+    pingTimer->Start();
+
+    // 初始化间隔时间为 1 秒的处理服务器之间断线重拨的 timer
+    xx::MakeTo(taskTimer, shared_from_this());
+    taskTimer->Start();
 
     // 遍历配置并生成相应的 dialer
     for (auto &&si : config.serverInfos) {
@@ -85,19 +91,6 @@ int Server::Run() {
 }
 
 int Server::FrameUpdate() {
-    // 自动拨号 & 重连逻辑
-    for (auto &&iter : dps) {
-        auto &&dialer = iter.second.first;
-        auto &&peer = iter.second.second;
-        // 未建立连接
-        if (!peer) {
-            // 并非正在拨号
-            if (!dialer->Busy()) {
-                // 超时时间 2 秒
-                dialer->DialSeconds(2);
-            }
-        }
-    }
     return 0;
 }
 

@@ -1,4 +1,5 @@
 ﻿#pragma once
+
 #include "xx_epoll.h"
 #include "ikcp.h"
 
@@ -11,38 +12,47 @@ namespace xx::Epoll {
 
         // 继承构造函数
         using Timer::Timer;
+
         // 有数据需要接收( 不累积, 直接投递过来 )
         virtual void Receive(char const *const &buf, size_t const &len) = 0;
+
         // 直接发送( 如果 fd == -1 则忽略 ), 返回已发送字节数. -1 为出错
         ssize_t Send(char const *const &buf, size_t const &len);
+
         // 判断 fd 的有效性
         inline bool Alive() { return fd != -1; }
+
     protected:
         friend Context;
+
         // epoll 事件处理
         void EpollEvent(uint32_t const &e) override;
     };
 
     struct KcpPeer;
+
     struct KcpBase : UdpPeer {
         // 自增生成连接id
         uint32_t convId = 0;
         // kcp conv 值与 peer 的映射。KcpPeer Close 时从该字典移除 key
-        std::unordered_map<uint32_t, KcpPeer*> cps;
+        std::unordered_map<uint32_t, KcpPeer *> cps;
         // 带超时的握手信息字典 key: ip:port   value: conv, nowMS
         std::unordered_map<std::string, std::pair<uint32_t, int64_t>> shakes;
 
         // 构造函数( 启动 timer 用作每帧驱动 update )
         explicit KcpBase(std::shared_ptr<Context> const &ec);
+
         // 方便派生类覆盖 Close 函数:
         // if ... return false;
         // CloseChilds(reason);
         // 从容器变量移除
         // DelayUnhold();
         // return true;
-        void CloseChilds(int const &reason, char const* const& desc);
+        void CloseChilds(int const &reason, char const *const &desc);
+
     protected:
         friend Context;
+
         // 每帧 call cps Update, 清理超时握手数据
         void Timeout() override;
     };
@@ -63,22 +73,31 @@ namespace xx::Epoll {
 
         // 初始化 kcp 相关上下文
         KcpPeer(std::shared_ptr<KcpBase> const &owner, uint32_t const &conv);
+
         // 回收 kcp 相关上下文
         ~KcpPeer() override;
+
         // 被 ep 调用. 受帧循环驱动. 帧率越高, kcp 工作效果越好. 典型的频率为 100 fps
         void UpdateKcpLogic();
+
         // 被 owner 调用. 塞数据到 kcp
         void Input(char const *const &buf, size_t const &len, bool isFirst = false);
+
         // 回收 kcp 对象, 看情况从 ep->kcps 移除
-        bool Close(int const &reason, char const* const& desc) override;
+        bool Close(int const &reason, char const *const &desc) override;
+
         // Close
         void Timeout() override;
+
         // 传进发送队列( 如果 !kcp 则忽略 )
         virtual int Send(char const *const &buf, size_t const &len);
+
         // 立刻开始发送
         virtual int Flush();
+
         // 数据接收事件: 用户可以从 recv 拿数据, 并移除掉已处理的部分
         virtual void Receive() = 0;
+
         // kcp != null && !owner
         bool Alive();
     };
@@ -86,15 +105,19 @@ namespace xx::Epoll {
     template<typename PeerType, class ENABLED = std::is_base_of<KcpPeer, PeerType>>
     struct KcpListener : KcpBase {
         using KcpBase::KcpBase;
+
         // 1. 判断收到的数据内容, 模拟握手， 最后产生 KcpPeer
         // 2. 定位到 KcpPeer, Input 数据
         void Receive(char const *const &buf, size_t const &len) override;
+
         // 连接创建成功后会触发
         virtual void Accept(std::shared_ptr<PeerType> const &peer) = 0;
+
         // fd = MakeSocketFD(port, SOCK_DGRAM)
-        int Listen(int const& port);
+        int Listen(int const &port);
+
         // 调用 CloseChilds
-        bool Close(int const& reason, char const* const& desc = nullptr) override;
+        bool Close(int const &reason, char const *const &desc) override;
     };
 
 
@@ -103,7 +126,7 @@ namespace xx::Epoll {
     }
 
     inline KcpPeer::KcpPeer(std::shared_ptr<KcpBase> const &owner, uint32_t const &conv) : Timer(owner->ec, -1) {
-        assert(!kcp);
+        if (kcp) throw std::runtime_error(__LINESTR__" KcpPeer KcpPeer if (kcp)");
         // 创建并设置 kcp 的一些参数. 按照 每秒 100 帧来设置的. 即精度 10 ms
         kcp = ikcp_create(conv, this);
         (void) ikcp_wndsize(kcp, 1024, 1024);
@@ -129,11 +152,11 @@ namespace xx::Epoll {
     }
 
     inline KcpPeer::~KcpPeer() {
-        Close(__LINE__, __FILE__);
+        Close(-10, __LINESTR__" KcpPeer ~KcpPeer");
     }
 
     inline void KcpPeer::Timeout() {
-        Close(__LINE__, __FILE__);
+        Close(-11, __LINESTR__" KcpPeer Timeout");
     }
 
     inline int KcpPeer::Send(char const *const &buf, size_t const &len) {
@@ -148,7 +171,7 @@ namespace xx::Epoll {
     }
 
     inline void KcpPeer::UpdateKcpLogic() {
-        assert(kcp);
+        if (!kcp) throw std::runtime_error(__LINESTR__" KcpPeer UpdateKcpLogic if (!kcp)");
         // 计算出当前 ms
         // 已知问题: 受 ikcp uint32 限制, 连接最多保持 50 多天
         auto &&currentMS = uint32_t(ec->nowMS - createMS);
@@ -162,8 +185,9 @@ namespace xx::Epoll {
 
     inline void KcpPeer::Input(char const *const &buf, size_t const &len_, bool isFirst) {
         // 将底层数据灌入 kcp
-        if (ikcp_input(kcp, buf, len_)) {
-            Close(__LINE__, __FILE__);
+        if (int r = ikcp_input(kcp, buf, len_)) {
+            Close(-12,
+                  xx::ToString(__LINESTR__" KcpPeer Input if (int r = ikcp_input(kcp, buf, len_)), r = ", r).c_str());
             return;
         }
         // 开始处理收到的数据
@@ -174,7 +198,7 @@ namespace xx::Epoll {
             }
             // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
             if (recv.len == recv.cap) {
-                Close(__LINE__, __FILE__);
+                Close(-13, __LINESTR__" KcpPeer Input if (recv.len == recv.cap)");
                 return;
             }
 
@@ -196,7 +220,7 @@ namespace xx::Epoll {
         } while (true);
     }
 
-    inline bool KcpPeer::Close(int const &reason, char const* const& desc) {
+    inline bool KcpPeer::Close(int const &reason, char const *const &desc) {
         if (!kcp) return false;
         // 回收 kcp
         ikcp_release(kcp);
@@ -219,9 +243,9 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
-    inline int KcpListener<PeerType, ENABLED>::Listen(int const& port) {
-        // 先清一把
-        Close(0);
+    inline int KcpListener<PeerType, ENABLED>::Listen(int const &port) {
+        // 防重复 Listen
+        if (this->fd != -1) return __LINE__;
         // 创建监听用 socket fd
         auto &&fd = ec->MakeSocketFD(port, SOCK_DGRAM);
         if (fd < 0) return -1;
@@ -238,8 +262,10 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
-    inline bool KcpListener<PeerType, ENABLED>::Close(int const& reason, char const* const& desc) {
+    inline bool KcpListener<PeerType, ENABLED>::Close(int const &reason, char const *const &desc) {
+        // 防重入 顺便关 fd
         if (!this->KcpBase::Close(reason, desc)) return false;
+        // 关闭所有虚拟 peer
         CloseChilds(reason, desc);
         // 从容器变量移除
         DelayUnhold();
@@ -282,8 +308,7 @@ namespace xx::Epoll {
             memcpy(&peerIter->second->addr, &addr, sizeof(addr));
             // 将数据灌入 kcp. 进而可能触发 peer->Receive 进而 Close
             peerIter->second->Input(buf, len);
-        }
-        else {
+        } else {
             // 如果不存在 就在 shakes 中按 ip:port 找
             auto &&iter = shakes.find(ip_port);
             // 未找到或 conv 对不上: 忽略
@@ -323,12 +348,12 @@ namespace xx::Epoll {
         SetTimeout(1);
     }
 
-    inline void KcpBase::CloseChilds(int const &reason, char const* const& desc) {
+    inline void KcpBase::CloseChilds(int const &reason, char const *const &desc) {
         for (auto &&kv : cps) {
             // 先清掉 owner 避免 Close 函数内部到 cps 来移除自己, 同时减持父容器
             kv.second->owner.reset();
             // 关掉 虚拟peer
-            kv.second->Close(__LINE__, __FILE__);
+            kv.second->Close(reason, desc);
         }
         // 减持所有 挂靠 peer
         cps.clear();
@@ -336,27 +361,35 @@ namespace xx::Epoll {
 
     inline ssize_t UdpPeer::Send(char const *const &buf, size_t const &len) {
         // 保底检查
-        if(!Alive()) return -1;
+        if (!Alive()) return -1;
         // 底层直发
         return sendto(fd, buf, len, 0, (sockaddr *) &addr, sizeof(addr));
     }
 
     inline void UdpPeer::EpollEvent(const uint32_t &e) {
-        // error
+        // fatal error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(__LINE__, __FILE__);
+            Close(-14, __LINESTR__" UdpPeer EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
             return;
         }
         // read
         if (e & EPOLLIN) {
             socklen_t addrLen = sizeof(addr);
             auto len = recvfrom(fd, ec->buf.data(), ec->buf.size(), 0, (struct sockaddr *) &addr, &addrLen);
-            if (len < 0) {
-                Close(__LINE__, __FILE__);
-                return;
+
+            // 出现错误。错误号 errno 可在上层进一步判断
+            if (len == -1) {
+                // 猜测遇到以下错误不需要理会( ECONNREFUSED ENOTCONN 可能来自 ICMP 通知 )
+                auto er = errno;
+                if (er == EAGAIN || er == EINTR || er == ECONNREFUSED ||  er == ENOTCONN) return;
+                throw std::runtime_error(xx::ToString(__LINESTR__" UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
             }
-            if (!len) return;
-            Receive(ec->buf.data(), len);
+            // 可能收到 0 长度数据包. 忽略
+            else if (len == 0) return;
+            else { // len > 0
+                // 调用数据处理函数
+                Receive(ec->buf.data(), len);
+            }
         }
     }
 }

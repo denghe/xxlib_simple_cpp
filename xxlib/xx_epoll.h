@@ -39,9 +39,6 @@
 #include "xx_string.h"
 #include "xx_fixeddata_w.h"
 
-#define LIKELY(x)       __builtin_expect(!!(x), 1)
-#define UNLIKELY(x)     __builtin_expect(!!(x), 0)
-
 namespace xx {
     // 适配 sockaddr const*
     template<>
@@ -73,16 +70,17 @@ namespace xx {
         static const char value = dumpFuncsSafeIndex + 0;
 
         inline static void Dump(std::ostream &o, char *&v) {
-            o << ToString(*(sockaddr_in6*)v);
+            o << ToString(*(sockaddr_in6 *) v);
             v += sizeof(sockaddr_in6);
         }
 
         // 启动时自动注册函数
         DumpFuncs<sockaddr_in6>() {
-            assert(!dumpFuncs[value]);
+            if (dumpFuncs[value]) throw std::runtime_error(__LINESTR__" DumpFuncs<sockaddr_in6> if (dumpFuncs[value])");
             dumpFuncs[value] = Dump;
         }
     };
+
     // 启动时自动注册函数
     inline DumpFuncs<sockaddr_in6> __DumpFuncs_sockaddr_in6;
 
@@ -102,6 +100,7 @@ namespace xx::Epoll {
     // Item
     // 所有受 Context 管理的子类的基类. 主要特征为其 fd 受 context 中的 epoll 管理
     struct Context;
+
     struct Item : std::enable_shared_from_this<Item> {
         // 指向总容器
         std::shared_ptr<Context> ec;
@@ -109,17 +108,23 @@ namespace xx::Epoll {
         int fd;
 
         // 初始化依赖上下文
-        explicit Item(std::shared_ptr<Context> const& ec, int const& fd = -1);
+        explicit Item(std::shared_ptr<Context> const &ec, int const &fd = -1);
+
         // 注意：析构中调用虚函数，不会 call 到派生类的 override 版本
-        virtual ~Item() { Close(0); }
-        // 会导致 关闭 fd 解除映射, fd = -1. reason 通常传 __LINE__, __FILE__
-        virtual bool Close(int const& reason, char const* const& desc = nullptr);
+        virtual ~Item() { Close(0, __LINESTR__" Item ~Item"); }
+
+        // 会导致 关闭 fd 解除映射, fd = -1. reason 通常为 唯一编号, 具体描述中通常含有 行号，类名，函数名，判断句等
+        virtual bool Close(int const &reason, char const *const &desc);
+
         // 将当前实例的智能指针放入 ec->holdItems( 不能在构造函数或析构中执行 )
         void Hold();
+
         // 将当前实例的指针放入 ec->deadItems( 不能在析构中执行 ) 稍后会从 ec->holdItems 移除以触发析构
         void DelayUnhold();
+
     protected:
         friend Context;
+
         // epoll 事件处理. 用不上不必实现
         inline virtual void EpollEvent(uint32_t const &e) {}
     };
@@ -139,12 +144,16 @@ namespace xx::Epoll {
     public:
         // 继承构造函数
         using Item::Item;
+
         // 设置超时( 单位：帧 )
         void SetTimeout(int const &interval);
+
         // 设置超时( 单位：秒 )
         void SetTimeoutSeconds(double const &seconds);
+
         // 从时间轮和链表中移除
         ~Timer() override;
+
         // 覆盖以实现超时后的逻辑. 如果要 repeat 效果，则可以函数内再次执行 SetTimeout
         virtual void Timeout() = 0;
     };
@@ -159,25 +168,34 @@ namespace xx::Epoll {
 
         // 继承构造函数
         using Timer::Timer;
+
         // 数据接收事件: 用户可以从 recv 拿数据, 并移除掉已处理的部分
         virtual void Receive() = 0;
+
         // Data 对象移进队列并开始发送( 如果 fd == -1 则忽略 )
         int Send(Data &&data);
+
         // 会复制数据
-        inline int Send(char const* const& buf, size_t const& len) { return Send({buf, len}); }
+        inline int Send(char const *const &buf, size_t const &len) { return Send({buf, len}); }
+
         // 判断 peer 是否还活着( 没断 )
         inline bool Alive() { return fd != -1; }
+
         // 和另一个 peer 互换 fd 和 mapping
-        void SwapFD(std::shared_ptr<TcpPeer> const& o);
+        void SwapFD(std::shared_ptr<TcpPeer> const &o);
+
     protected:
         // 是否正在发送( 是：不管 sendQueue 空不空，都不能 write, 只能塞 sendQueue )
         bool writing = false;
         // 待发送队列
         xx::DataQueue sendQueue;
+
         // 发送
         int Write();
-        // 超时触发 Close(__LINE__, __FILE__)
+
+        // 超时触发 Close
         void Timeout() override;
+
         // epoll 事件处理
         void EpollEvent(uint32_t const &e) override;
     };
@@ -187,14 +205,18 @@ namespace xx::Epoll {
     template<typename PeerType, class ENABLED = std::is_base_of<TcpPeer, PeerType>>
     struct TcpListener : Item {
         // 特化构造函数. 不需要传入 fd
-        explicit TcpListener(std::shared_ptr<Context> const& ec) : Item(ec, -1) {};
+        explicit TcpListener(std::shared_ptr<Context> const &ec) : Item(ec, -1) {};
+
         // 开始监听. 失败返回非 0
-        int Listen(int const& port);
+        int Listen(int const &port);
+
         // 提供为 peer 绑定事件的实现
         virtual void Accept(std::shared_ptr<PeerType> const &peer) = 0;
+
     protected:
         // 调用 accept
         void EpollEvent(uint32_t const &e) override;
+
         // return fd. <0: error. 0: empty (EAGAIN / EWOULDBLOCK), > 0: fd
         int HandleAccept(int const &listenFD);
     };
@@ -212,6 +234,7 @@ namespace xx::Epoll {
         std::shared_ptr<TcpDialer<PeerType>> dialer;
         // 继承构造函数
         using Item::Item;
+
         // 判断是否连接成功
         void EpollEvent(uint32_t const &e) override;
     };
@@ -226,28 +249,37 @@ namespace xx::Epoll {
         std::vector<sockaddr_in6> addrs;
 
         // 特化构造函数. 不需要传递 fd
-        explicit TcpDialer(std::shared_ptr<Context> const& ec) : Timer(ec, -1) {}
+        explicit TcpDialer(std::shared_ptr<Context> const &ec) : Timer(ec, -1) {}
+
         // 向 addrs 追加地址. 如果地址转换错误将返回非 0
         int AddAddress(std::string const &ip, int const &port);
+
         // 开始拨号( 超时单位：帧 )。会遍历 addrs 为每个地址创建一个 TcpConn 连接
         // 保留先连接上的 socket fd, 创建 Peer 并触发 Connect 事件.
         // 如果超时，也触发 Connect，参数为 nullptr
         int Dial(int const &timeoutFrames);
+
         // 开始拨号( 超时单位：秒 )
         int DialSeconds(double const &timeoutSeconds);
+
         // 返回是否正在拨号
         bool Busy();
+
         // 停止拨号 并清理 conns. 保留 addrs.
         void Stop();
+
         // 连接成功或超时后触发
         virtual void Connect(std::shared_ptr<PeerType> const &peer) = 0;
+
     protected:
         // 存个空值备用 以方便返回引用
         std::shared_ptr<PeerType> emptyPeer;
         // 内部连接对象. 拨号完毕后会被清空
         std::vector<std::shared_ptr<TcpConn<PeerType>>> conns;
+
         // 超时表明所有连接都没有连上. 触发 Connect( nullptr )
         void Timeout() override;
+
         // 根据地址创建一个 TcpConn
         int NewTcpConn(sockaddr_in6 const &addr);
     };
@@ -257,10 +289,13 @@ namespace xx::Epoll {
     // 通过 写 pipe 令 epoll_wait 退出( 用于跨线程 dispatch 通知 )
     struct PipeReader : Item {
         using Item::Item;
+
         void EpollEvent(uint32_t const &e) override;
     };
+
     struct PipeWriter : Item {
         using Item::Item;
+
         inline int WriteSome() { return write(fd, ".", 1) == 1 ? -1 : 0; }
     };
 
@@ -270,12 +305,19 @@ namespace xx::Epoll {
     struct CommandHandler : Item {
         inline static std::shared_ptr<CommandHandler> self;
         std::vector<std::string> args;
-        CommandHandler(std::shared_ptr<Context> const& ec);
+
+        CommandHandler(std::shared_ptr<Context> const &ec);
+
         static void ReadLineCallback(char *line);
+
         static char **CompleteCallback(const char *text, int start, int end);
+
         static char *CompleteGenerate(const char *text, int state);
+
         void EpollEvent(uint32_t const &e) override;
+
         ~CommandHandler() override;
+
         // 解析 row 内容并调用 cmd 绑定 handler
         void Exec(char const *const &row, size_t const &len);
     };
@@ -303,23 +345,31 @@ namespace xx::Epoll {
 
         // 参数：时间轮长度( 要求为 2^n )
         explicit Context(size_t const &wheelLen = (1u << 12u));
+
         Context(Context const &) = delete;
+
         Context &operator=(Context const &) = delete;
+
         virtual ~Context();
 
         // 帧逻辑可以覆盖这个函数. 返回非 0 将令 Run 退出
         inline virtual int FrameUpdate() { return 0; }
+
         // 初始化 Run 帧率
         virtual int SetFrameRate(double const &frameRate);
+
         // 开始运行并尽量维持在指定帧率. 临时拖慢将补帧
         virtual int Run();
+
         // 封送函数到 epoll 线程执行( 线程安全 ). 可能会阻塞.
-        int Dispatch(std::function<void()>&& action);
+        int Dispatch(std::function<void()> &&action);
+
         // 延迟执行一个函数( Wait 之后 )
-        void DelayExecute(std::function<void()>&& func);
+        void DelayExecute(std::function<void()> &&func);
 
         // 启用命令行输入控制. 支持方向键, tab 补齐, 上下历史
         int EnableCommandLine();
+
         // 关闭命令行输入控制( 减持 Context 的引用计数 )
         void DisableCommandLine();
 
@@ -327,7 +377,7 @@ namespace xx::Epoll {
         // 下面的东西内部使用，别乱搞
 
         // fd 到 处理类* 的 映射
-        std::array<Item*, 40000> fdMappings;
+        std::array<Item *, 40000> fdMappings;
         // epoll_wait 事件存储
         std::array<epoll_event, 4096> events;
         // 存储的 epoll fd
@@ -346,12 +396,12 @@ namespace xx::Epoll {
         std::shared_ptr<PipeWriter> pipeWriter;
 
         // item 的智能指针的保持容器
-        std::unordered_map<Item*, std::shared_ptr<Item>> holdItems;
+        std::unordered_map<Item *, std::shared_ptr<Item>> holdItems;
         // 要删除一个 peer 就把它的 指针 压到这个队列. 会在 稍后 从 items 删除
-        std::vector<Item*> deadItems;
+        std::vector<Item *> deadItems;
 
         // 时间轮. 只存指针引用, 不管理内存
-        std::vector<Timer*> wheel;
+        std::vector<Timer *> wheel;
         // 指向时间轮的游标
         int cursor = 0;
 
@@ -359,14 +409,19 @@ namespace xx::Epoll {
         int MakeSocketFD(int const &port, int const &sockType = SOCK_STREAM); // SOCK_DGRAM
         // 添加 fd 到 epoll 监视. return !0: error
         int Ctl(int const &fd, uint32_t const &flags, int const &op = EPOLL_CTL_ADD) const;
+
         // 关闭并从 epoll 移除监视
         int CloseDel(int const &fd) const;
+
         // 进入一次 epoll wait. 可传入超时时间.
         int Wait(int const &timeoutMS);
+
         // 每帧调用一次 以驱动 timer
         inline void UpdateTimeoutWheel();
+
         // 执行所有 Dispatch 的函数
         int HandleActions();
+
         // 将秒转为帧数
         inline int SecondsToFrames(double const &sec) const { return (int) (frameRate * sec); }
     };
@@ -380,18 +435,17 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // Item
-    inline Item::Item(std::shared_ptr<Context> const& ec, int const& fd)
-        : ec(ec)
-        , fd(fd) {
+    inline Item::Item(std::shared_ptr<Context> const &ec, int const &fd)
+            : ec(ec), fd(fd) {
         if (fd != -1) {
-            assert(!ec->fdMappings[fd]);
+            if (ec->fdMappings[fd]) throw std::runtime_error(__LINESTR__" Item Item if (ec->fdMappings[fd])");
             ec->fdMappings[fd] = this;
         }
     }
 
-    inline bool Item::Close(int const& reason, char const* const& desc) {
+    inline bool Item::Close(int const &reason, char const *const &desc) {
         if (fd != -1) {
-            assert(ec->fdMappings[fd] == this);
+            if (ec->fdMappings[fd] != this) throw std::runtime_error(__LINESTR__" Item Close if (ec->fdMappings[fd] != this)");
             // 解绑
             ec->fdMappings[fd] = nullptr;
             // 从 epoll 移除 并 关闭 fd
@@ -434,7 +488,7 @@ namespace xx::Epoll {
         if (interval) {
             // 如果设置了新的超时时间, 则放入相应的链表
             // 安全检查
-            if (interval < 0 || interval > (int) ec->wheel.size()) throw std::logic_error("interval out of range");
+            if (interval < 0 || interval > (int) ec->wheel.size()) throw std::logic_error(__LINESTR__"Timer SetTimeout if (interval < 0 || interval > (int) ec->wheel.size())");
 
             // 环形定位到 wheel 元素目标链表下标
             timeoutIndex = (interval + ec->cursor) & ((int) ec->wheel.size() - 1);
@@ -469,13 +523,13 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
     // TcpPeer
     inline void TcpPeer::Timeout() {
-        Close(__LINE__, __FILE__);
+        Close(-1, __LINESTR__" TcpPeer Timeout");
     }
 
     inline void TcpPeer::EpollEvent(uint32_t const &e) {
-        // error
+        // fatal error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(__LINE__, __FILE__);
+            Close(-2, __LINESTR__" TcpPeer EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
             return;
         }
         // read
@@ -486,27 +540,27 @@ namespace xx::Epoll {
             }
             // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
             if (recv.len == recv.cap) {
-                Close(__LINE__, __FILE__);
+                Close(-3, __LINESTR__" TcpPeer EpollEvent if (recv.len == recv.cap)");
                 return;
             }
             // 通过 fd 从系统网络缓冲区读取数据. 追加填充到 recv 后面区域. 返回填充长度. <= 0 则认为失败 断开
             auto &&len = read(fd, recv.buf + recv.len, recv.cap - recv.len);
             if (len <= 0) {
-                Close(__LINE__, __FILE__);
+                Close(-4, __LINESTR__" TcpPeer EpollEvent if (len <= 0)");
                 return;
             }
             recv.len += len;
 
             // 调用用户数据处理函数
             Receive();
-            if(!Alive()) return;
+            if (!Alive()) return;
         }
         // write
         if (e & EPOLLOUT) {
             // 设置为可写状态
             writing = false;
-            if (/*int r = */Write()) {
-                Close(__LINE__, __FILE__);
+            if (int r = Write()) {
+                Close(-5, xx::ToString(__LINESTR__" TcpPeer EpollEvent if (int r = Write()), r = ", r).c_str());
                 return;
             }
         }
@@ -534,12 +588,12 @@ namespace xx::Epoll {
 
         // 已断开
         if (sentLen == 0) return -2;
-        // 繁忙 或 出错
+            // 繁忙 或 出错
         else if (sentLen == -1) {
             if (errno == EAGAIN) goto LabEnd;
             else return -3;
         }
-        // 完整发送
+            // 完整发送
         else if ((size_t) sentLen == bufLen) {
             // 快速弹出已发送数据
             sendQueue.Pop(vsLen, offset, bufLen);
@@ -547,7 +601,7 @@ namespace xx::Epoll {
             // 这次就写这么多了. 直接返回. 下次继续 Write
             return 0;
         }
-        // 发送了一部分
+            // 发送了一部分
         else {
             // 弹出已发送数据
             sendQueue.Pop(sentLen);
@@ -562,19 +616,17 @@ namespace xx::Epoll {
     }
 
     // 和另一个 peer 互换 fd 和 mapping
-    inline void TcpPeer::SwapFD(std::shared_ptr<TcpPeer> const& o) {
+    inline void TcpPeer::SwapFD(std::shared_ptr<TcpPeer> const &o) {
         if (!o || fd == o->fd) return;
         if (fd == -1) {
             ec->fdMappings[o->fd] = this;
             fd = o->fd;
             o->fd = -1;
-        }
-        else if(o->fd == -1) {
+        } else if (o->fd == -1) {
             ec->fdMappings[fd] = &*o;
             o->fd = fd;
             fd = -1;
-        }
-        else {
+        } else {
             std::swap(ec->fdMappings[fd], ec->fdMappings[o->fd]);
             std::swap(fd, o->fd);
         }
@@ -584,9 +636,9 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
     // TcpListener
     template<typename PeerType, class ENABLED>
-    inline int TcpListener<PeerType, ENABLED>::Listen(int const& port) {
-        // 先清一把
-        Close(0);
+    inline int TcpListener<PeerType, ENABLED>::Listen(int const &port) {
+        // 防重复执行
+        if (this->fd != -1) return -1;
         // 创建监听用 socket fd
         auto &&fd = ec->MakeSocketFD(port);
         if (fd < 0) return -1;
@@ -608,8 +660,7 @@ namespace xx::Epoll {
     inline void TcpListener<PeerType, ENABLED>::EpollEvent(uint32_t const &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(__LINE__, __FILE__);
-            return;
+            throw std::runtime_error(__LINESTR__" TcpListener EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
         }
         // accept 到 没有 或 出错 为止
         while (HandleAccept(fd) > 0) {};
@@ -630,7 +681,7 @@ namespace xx::Epoll {
         ScopeGuard sg([&] { close(fd); });
         // 如果 fd 超出最大存储限制就退出。返回 fd 是为了外部能继续执行 accept
         if (fd >= (int) ec->fdMappings.size()) return fd;
-        assert(!ec->fdMappings[fd]);
+        if (ec->fdMappings[fd]) throw std::runtime_error(__LINESTR__" TcpListener HandleAccept if (ec->fdMappings[fd])");
         // 设置非阻塞状态
         if (-1 == fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK)) return -2;
         // 设置一些 tcp 参数( 可选 )
@@ -638,10 +689,10 @@ namespace xx::Epoll {
         if (-1 == setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const char *) &on, sizeof(on))) return -3;
         // 纳入 ep 管理
         if (-1 == ec->Ctl(fd, EPOLLIN)) return -4;
-        // 撤销 "确保退出时自动关闭 fd"
+        // 撤销 退出确保
         sg.Cancel();
         // 创建类容器
-        auto&& p = xx::Make<PeerType>(ec, fd);
+        auto &&p = xx::Make<PeerType>(ec, fd);
         // 填充 ip
         memcpy(&p->addr, &addr, len);
         // 触发事件
@@ -657,14 +708,15 @@ namespace xx::Epoll {
     inline void TcpConn<PeerType, ENABLED>::EpollEvent(uint32_t const &e) {
         // 如果 error 则 Close
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(__LINE__, __FILE__);
+            Close(-6, __LINESTR__" TcpConn EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
             return;
         }
         // 读取错误 或者读到错误 都认为是连接失败. 返回非 0 触发 Close
         int err;
         socklen_t result_len = sizeof(err);
-        if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &result_len) == -1 || err) {
-            Close(__LINE__, __FILE__);
+        int r = getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &result_len);
+        if (r == -1 || err) {
+            Close(-7, xx::ToString(__LINESTR__" TcpConn EpollEvent getsockopt(fd, SOL_SOCKET, SO_ERROR...) r = ", r, ", err = ", err).c_str());
             return;
         }
 
@@ -677,10 +729,10 @@ namespace xx::Epoll {
 
         // 将导致 conn 都被析构, 即 this 上下文不复存在
         dialer->Stop();
-        // 这之后只能用 "栈"变量
+        // 这之后只能用 栈变量
 
         // 创建具体 peer
-        auto&& p = xx::Make<PeerType>(ec, fd);
+        auto &&p = xx::Make<PeerType>(ec, fd);
         // fill address
         result_len = sizeof(p->addr);
         getpeername(fd, (sockaddr *) &p->addr, &result_len);
@@ -747,7 +799,7 @@ namespace xx::Epoll {
         xx::ScopeGuard sg([&] { close(fd); });
         // 检测 fd 存储上限
         if (fd >= (int) ec->fdMappings.size()) return -2;
-        assert(!ec->fdMappings[fd]);
+        if (ec->fdMappings[fd]) throw std::runtime_error(__LINESTR__" TcpDialer NewTcpConn if (ec->fdMappings[fd])");
         // 设置一些 tcp 参数( 可选 )
         int on = 1;
         if (-1 == setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const char *) &on, sizeof(on))) return -3;
@@ -758,10 +810,10 @@ namespace xx::Epoll {
         // else : 立刻连接上了
         // 纳入 epoll 管理
         if (int r = ec->Ctl(fd, EPOLLIN | EPOLLOUT)) return r;
-        // 撤销 "自动 close"
+        // 撤销 自动close
         sg.Cancel();
         // 试创建目标类实例
-        auto&& o = xx::Make<TcpConn<PeerType>>(ec, fd);
+        auto &&o = xx::Make<TcpConn<PeerType>>(ec, fd);
         // 继续初始化并放入容器
         o->dialer = xx::As<TcpDialer<PeerType, ENABLED>>(shared_from_this());
         conns.emplace_back(o);
@@ -779,7 +831,7 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // CommandHandler
-    inline CommandHandler::CommandHandler(std::shared_ptr<Context> const& ec) : Item(ec, STDIN_FILENO) {
+    inline CommandHandler::CommandHandler(std::shared_ptr<Context> const &ec) : Item(ec, STDIN_FILENO) {
         rl_attempted_completion_function = (rl_completion_func_t *) &CompleteCallback;
         rl_callback_handler_install("# ", (rl_vcpfunc_t *) &ReadLineCallback);
     }
@@ -887,7 +939,7 @@ namespace xx::Epoll {
     inline Context::Context(size_t const &wheelLen) {
         // 创建 epoll fd
         efd = epoll_create1(0);
-        if (-1 == efd) throw std::logic_error("create epoll context failed.");
+        if (-1 == efd) throw std::logic_error(__LINESTR__ " Context Context efd = epoll_create1(0) if (-1 == efd)");
         // 初始化时间伦
         wheel.resize(wheelLen);
         // 初始化处理类映射表
@@ -904,9 +956,9 @@ namespace xx::Epoll {
 
     inline int Context::EnableCommandLine() {
         // 已存在：直接短路返回
-        if (CommandHandler::self) return __LINE__;
+        if (CommandHandler::self) return -1;
         // 试将 fd 纳入 epoll 管理
-        if (-1 == Ctl(STDIN_FILENO, EPOLLIN)) return __LINE__;
+        if (-1 == Ctl(STDIN_FILENO, EPOLLIN)) return -2;
         // 创建单例
         xx::MakeTo(CommandHandler::self, shared_from_this());
         return 0;
@@ -929,7 +981,7 @@ namespace xx::Epoll {
         hints.ai_flags = AI_PASSIVE;                                            // all interfaces
 
         addrinfo *ai_, *ai;
-        if (getaddrinfo(nullptr, portStr, &hints, &ai_)) return __LINE__;
+        if (getaddrinfo(nullptr, portStr, &hints, &ai_)) return -1;
 
         int fd;
         for (ai = ai_; ai != nullptr; ai = ai->ai_next) {
@@ -946,14 +998,14 @@ namespace xx::Epoll {
             close(fd);
         }
         freeaddrinfo(ai_);
-        if (!ai) return __LINE__;
+        if (!ai) return -2;
 
         // 检测 fd 存储上限
         if (fd >= (int) fdMappings.size()) {
             close(fd);
-            return __LINE__;
+            return -3;
         }
-        assert(!fdMappings[fd]);
+        if (fdMappings[fd]) throw std::runtime_error(__LINESTR__" Context MakeSocketFD if (fdMappings[fd])");
         return fd;
     }
 
@@ -966,7 +1018,7 @@ namespace xx::Epoll {
     };
 
     inline int Context::CloseDel(int const &fd) const {
-        assert(fd != -1);
+        if (fd == -1) throw std::runtime_error(__LINESTR__" Context CloseDel if (fd == -1)");
         epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr);
         return close(fd);
     }
@@ -977,11 +1029,8 @@ namespace xx::Epoll {
         for (int i = 0; i < n; ++i) {
             auto fd = events[i].data.fd;
             auto h = fdMappings[fd];
-            if (!h) {
-                std::cout << "epoll wait !h. fd = " << fd << std::endl;
-                assert(h);
-            }
-            assert(!h->fd || h->fd == fd);
+            if (!h) throw std::runtime_error(xx::ToString(__LINESTR__" Context Wait !h. fd = ", fd));
+            if (h->fd != fd) throw std::runtime_error(xx::ToString(__LINESTR__" Context Wait if (h->fd != fd), h->fd = ", h->fd, ", fd = ", fd));
             auto e = events[i].events;
             h->EpollEvent(e);
         }
@@ -1020,7 +1069,7 @@ namespace xx::Epoll {
 
     inline int Context::SetFrameRate(const double &frameRate_) {
         // 参数检查
-        if (frameRate_ <= 0) return __LINE__;
+        if (frameRate_ <= 0) return -1;
         // 保存帧率
         frameRate = frameRate_;
         // 计算帧时间间隔
@@ -1031,7 +1080,7 @@ namespace xx::Epoll {
     inline int Context::Run() {
         // 创建 pipe fd. 失败返回编号
         int actionsPipes[2];
-        if (/*int r = */pipe(actionsPipes)) return __LINE__;
+        if (/*int r = */pipe(actionsPipes)) return -1;
         // 设置 pipe 为非阻塞
         fcntl(actionsPipes[1], F_SETFL, O_NONBLOCK);
         fcntl(actionsPipes[0], F_SETFL, O_NONBLOCK);
@@ -1042,7 +1091,7 @@ namespace xx::Epoll {
         xx::MakeTo(pipeWriter, shared_from_this(), actionsPipes[1]);
 
         // 函数退出时自动删掉 pipe 容器, 以避免 Context 的引用计数无法清 0
-        xx::ScopeGuard sg([&]{
+        xx::ScopeGuard sg([&] {
             pipeReader.reset();
             pipeWriter.reset();
         });
@@ -1099,15 +1148,16 @@ namespace xx::Epoll {
         return 0;
     }
 
-    inline int Context::Dispatch(std::function<void()>&& action) {
+    inline int Context::Dispatch(std::function<void()> &&f) {
         {
             // 锁定并塞函数到队列
             std::scoped_lock<std::mutex> g(actionsMutex);
-            actions.emplace_back(std::move(action));
+            actions.emplace_back(std::move(f));
         }
         return pipeWriter->WriteSome();
     }
-    inline void Context::DelayExecute(std::function<void()>&& func) {
+
+    inline void Context::DelayExecute(std::function<void()> &&func) {
         delayFuncs.emplace_back(std::move(action));
     }
 
