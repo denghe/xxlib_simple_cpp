@@ -445,7 +445,8 @@ namespace xx::Epoll {
 
     inline bool Item::Close(int const &reason, char const *const &desc) {
         if (fd != -1) {
-            if (ec->fdMappings[fd] != this) throw std::runtime_error(__LINESTR__" Item Close if (ec->fdMappings[fd] != this)");
+            if (ec->fdMappings[fd] != this)
+                throw std::runtime_error(__LINESTR__" Item Close if (ec->fdMappings[fd] != this)");
             // 解绑
             ec->fdMappings[fd] = nullptr;
             // 从 epoll 移除 并 关闭 fd
@@ -488,7 +489,9 @@ namespace xx::Epoll {
         if (interval) {
             // 如果设置了新的超时时间, 则放入相应的链表
             // 安全检查
-            if (interval < 0 || interval > (int) ec->wheel.size()) throw std::logic_error(__LINESTR__"Timer SetTimeout if (interval < 0 || interval > (int) ec->wheel.size())");
+            if (interval < 0 || interval > (int) ec->wheel.size())
+                throw std::logic_error(
+                        __LINESTR__"Timer SetTimeout if (interval < 0 || interval > (int) ec->wheel.size())");
 
             // 环形定位到 wheel 元素目标链表下标
             timeoutIndex = (interval + ec->cursor) & ((int) ec->wheel.size() - 1);
@@ -581,8 +584,16 @@ namespace xx::Epoll {
         int vsLen = 0;
         // 填充 vs, vsLen, bufLen 并返回预期 offset. 每次只发送 bufLen 长度
         auto &&offset = sendQueue.Fill(ec->iovecs, vsLen, bufLen);
+
         // 返回值为 实际发出的字节数
-        auto &&sentLen = writev(fd, ec->iovecs.data(), vsLen);
+        ssize_t sentLen;
+        do {
+            if (vsLen == 1) {
+                sentLen = write(fd, ec->iovecs[0].iov_base, ec->iovecs[0].iov_len);
+            } else {
+                sentLen = writev(fd, ec->iovecs.data(), vsLen);
+            }
+        } while (sentLen == -1 && errno == EINTR);
         // 让 valgrind 闭嘴
         memset(ec->iovecs.data(), 0, vsLen * sizeof(iovec));
 
@@ -590,7 +601,7 @@ namespace xx::Epoll {
         if (sentLen == 0) return -2;
             // 繁忙 或 出错
         else if (sentLen == -1) {
-            if (errno == EAGAIN) goto LabEnd;
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS) goto LabEnd;
             else return -3;
         }
             // 完整发送
@@ -681,7 +692,8 @@ namespace xx::Epoll {
         ScopeGuard sg([&] { close(fd); });
         // 如果 fd 超出最大存储限制就退出。返回 fd 是为了外部能继续执行 accept
         if (fd >= (int) ec->fdMappings.size()) return fd;
-        if (ec->fdMappings[fd]) throw std::runtime_error(__LINESTR__" TcpListener HandleAccept if (ec->fdMappings[fd])");
+        if (ec->fdMappings[fd])
+            throw std::runtime_error(__LINESTR__" TcpListener HandleAccept if (ec->fdMappings[fd])");
         // 设置非阻塞状态
         if (-1 == fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK)) return -2;
         // 设置一些 tcp 参数( 可选 )
@@ -716,7 +728,8 @@ namespace xx::Epoll {
         socklen_t result_len = sizeof(err);
         int r = getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &result_len);
         if (r == -1 || err) {
-            Close(-7, xx::ToString(__LINESTR__" TcpConn EpollEvent getsockopt(fd, SOL_SOCKET, SO_ERROR...) r = ", r, ", err = ", err).c_str());
+            Close(-7, xx::ToString(__LINESTR__" TcpConn EpollEvent getsockopt(fd, SOL_SOCKET, SO_ERROR...) r = ", r,
+                                   ", err = ", err).c_str());
             return;
         }
 
@@ -1030,7 +1043,9 @@ namespace xx::Epoll {
             auto fd = events[i].data.fd;
             auto h = fdMappings[fd];
             if (!h) throw std::runtime_error(xx::ToString(__LINESTR__" Context Wait !h. fd = ", fd));
-            if (h->fd != fd) throw std::runtime_error(xx::ToString(__LINESTR__" Context Wait if (h->fd != fd), h->fd = ", h->fd, ", fd = ", fd));
+            if (h->fd != fd)
+                throw std::runtime_error(
+                        xx::ToString(__LINESTR__" Context Wait if (h->fd != fd), h->fd = ", h->fd, ", fd = ", fd));
             auto e = events[i].events;
             h->EpollEvent(e);
         }

@@ -374,21 +374,25 @@ namespace xx::Epoll {
         }
         // read
         if (e & EPOLLIN) {
-            socklen_t addrLen = sizeof(addr);
-            auto len = recvfrom(fd, ec->buf.data(), ec->buf.size(), 0, (struct sockaddr *) &addr, &addrLen);
-
-            // 出现错误。错误号 errno 可在上层进一步判断
-            if (len == -1) {
-                // 猜测遇到以下错误不需要理会( ECONNREFUSED ENOTCONN 可能来自 ICMP 通知 )
-                auto er = errno;
-                if (er == EAGAIN || er == EINTR || er == ECONNREFUSED ||  er == ENOTCONN) return;
-                ThrowRuntimeError(xx::ToString(__LINESTR__" UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
-            }
-            // 可能收到 0 长度数据包. 忽略
-            else if (len == 0) return;
-            else { // len > 0
+            // 从 libuv 参考过来的经验循环, 尽可能的读走数据
+            for (int i = 0; i < 32; ++i) {
+                socklen_t addrLen = sizeof(addr);
+                ssize_t len;
+                do {
+                    len = recvfrom(fd, ec->buf.data(), ec->buf.size(), 0, (struct sockaddr *) &addr, &addrLen);
+                }
+                while (len == -1 && errno == EINTR);
+                if (len == -1) {
+                    auto er = errno;
+                    if (er == EAGAIN || er == EWOULDBLOCK || er == ENOBUFS) return;
+                    ThrowRuntimeError(xx::ToString(__LINESTR__" UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
+                }
+                // 可能收到 0 长度数据包. 或者没有发送地址的数据包. 忽略
+                if (len == 0 || addrLen == 0) return;
                 // 调用数据处理函数
                 Receive(ec->buf.data(), len);
+                // 可能被用户关闭
+                if (!Alive()) return;
             }
         }
     }
