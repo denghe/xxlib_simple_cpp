@@ -16,6 +16,7 @@ add_subdirectory(gateway_client_lua)
 add_subdirectory(simple_http_server)
 
 add_subdirectory(logger_test)
+add_subdirectory(mysql_test)
 
 add_subdirectory(test1)
 add_subdirectory(test2)
