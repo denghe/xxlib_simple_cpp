@@ -406,7 +406,7 @@ namespace xx::Epoll {
         int cursor = 0;
 
         // 创建非阻塞 socket fd 并返回. < 0: error
-        int MakeSocketFD(int const &port, int const &sockType = SOCK_STREAM); // SOCK_DGRAM
+        int MakeSocketFD(int const &port, int const &sockType = SOCK_STREAM, char const* const& hostName = nullptr); // SOCK_DGRAM
         // 添加 fd 到 epoll 监视. return !0: error
         int Ctl(int const &fd, uint32_t const &flags, int const &op = EPOLL_CTL_ADD) const;
 
@@ -983,7 +983,7 @@ namespace xx::Epoll {
         }
     }
 
-    inline int Context::MakeSocketFD(int const &port, int const &sockType) {
+    inline int Context::MakeSocketFD(int const &port, int const &sockType, char const* const& hostName) {
         char portStr[20];
         snprintf(portStr, sizeof(portStr), "%d", port);
 
@@ -994,7 +994,7 @@ namespace xx::Epoll {
         hints.ai_flags = AI_PASSIVE;                                            // all interfaces
 
         addrinfo *ai_, *ai;
-        if (getaddrinfo(nullptr, portStr, &hints, &ai_)) return -1;
+        if (getaddrinfo(hostName, portStr, &hints, &ai_)) return -1;
 
         int fd;
         for (ai = ai_; ai != nullptr; ai = ai->ai_next) {
@@ -1003,6 +1003,10 @@ namespace xx::Epoll {
 
             int enable = 1;
             if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+                close(fd);
+                continue;
+            }
+            if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
                 close(fd);
                 continue;
             }

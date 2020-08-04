@@ -22,6 +22,12 @@ namespace xx::Epoll {
         // 判断 fd 的有效性
         inline bool Alive() { return fd != -1; }
 
+        // fd = MakeSocketFD(port, SOCK_DGRAM, hostName)
+        int Listen(int const &port, char const* const& hostName = nullptr);
+
+        // 方便直接用这个类
+        inline void Timeout() override {}
+
     protected:
         friend Context;
 
@@ -113,12 +119,37 @@ namespace xx::Epoll {
         // 连接创建成功后会触发
         virtual void Accept(std::shared_ptr<PeerType> const &peer) = 0;
 
-        // fd = MakeSocketFD(port, SOCK_DGRAM)
-        int Listen(int const &port);
-
         // 调用 CloseChilds
         bool Close(int const &reason, char const *const &desc) override;
     };
+
+
+
+
+
+
+    /***********************************************************************************************************/
+    // impls
+    /***********************************************************************************************************/
+
+
+    inline int UdpPeer::Listen(int const &port, char const* const& hostName) {
+        // 防重复 Listen
+        if (this->fd != -1) return __LINE__;
+        // 创建监听用 socket fd
+        auto &&fd = ec->MakeSocketFD(port, SOCK_DGRAM, hostName);
+        if (fd < 0) return -1;
+        // 确保 return 时自动 close
+        xx::ScopeGuard sg([&] { close(fd); });
+        // fd 纳入 epoll 管理
+        if (-1 == ec->Ctl(fd, EPOLLIN)) return -3;
+        // 取消自动 close
+        sg.Cancel();
+        // 补映射( 因为 -1 调用的基类构造, 映射代码被跳过了 )
+        this->fd = fd;
+        ec->fdMappings[fd] = this;
+        return 0;
+    }
 
 
     inline bool KcpPeer::Alive() {
@@ -242,24 +273,6 @@ namespace xx::Epoll {
         SetTimeout(1);
     }
 
-    template<typename PeerType, class ENABLED>
-    inline int KcpListener<PeerType, ENABLED>::Listen(int const &port) {
-        // 防重复 Listen
-        if (this->fd != -1) return __LINE__;
-        // 创建监听用 socket fd
-        auto &&fd = ec->MakeSocketFD(port, SOCK_DGRAM);
-        if (fd < 0) return -1;
-        // 确保 return 时自动 close
-        xx::ScopeGuard sg([&] { close(fd); });
-        // fd 纳入 epoll 管理
-        if (-1 == ec->Ctl(fd, EPOLLIN)) return -3;
-        // 取消自动 close
-        sg.Cancel();
-        // 补映射( 因为 -1 调用的基类构造, 映射代码被跳过了 )
-        this->fd = fd;
-        ec->fdMappings[fd] = this;
-        return 0;
-    }
 
     template<typename PeerType, class ENABLED>
     inline bool KcpListener<PeerType, ENABLED>::Close(int const &reason, char const *const &desc) {
