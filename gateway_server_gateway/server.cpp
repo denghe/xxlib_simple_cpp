@@ -4,7 +4,7 @@
 #include "listener.h"
 #include "pingtimer.h"
 #include "tasktimer.h"
-#include "mylog.h"
+#include "xx_logger.h"
 
 int Server::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员

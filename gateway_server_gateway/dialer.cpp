@@ -1,7 +1,7 @@
 ﻿#include "dialer.h"
 #include "server.h"
 #include "config.h"
-#include "mylog.h"
+#include "xx_logger.h"
 
 Server &Dialer::GetServer() {
     // 拿到服务上下文

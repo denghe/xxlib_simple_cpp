@@ -4,7 +4,7 @@
 #include "listener.h"
 #include "pingtimer.h"
 #include "tasktimer.h"
-#include "mylog.h"
+#include "xx_logger.h"
 
 int Server::Run() {
     // 初始化回收sg, 以便退出 Run 时清理会加持宿主的成员
@@ -96,21 +96,22 @@ int Server::FrameUpdate() {
 
 std::string Server::GetInfo() {
     std::string s;
-    xx::Append(s, "dps.size() = ", dps.size()\
-    , "\r\nserverId		ip:port		busy		peer alive\r\n");
+    xx::Append(s, "dps.size() = ", dps.size()
+            , "  [[\"serverId\",\"ip:port\",\"busy\",\"peer alive\",\"ping\"]");
     for (auto &&kv : dps) {
         auto &&dialer = kv.second.first;
         auto &&peer = kv.second.second;
-        xx::Append(s, dialer->serverId
-                 , "\t\t", xx::ToString(dialer->addrs[0])
-                 , "\t\t", (dialer->Busy() ? "true" : "false")
-                 , "\t\t", (peer ? "true" : "false"), "\r\n");
+        xx::Append(s,",[", dialer->serverId
+                , ",", xx::ToString(dialer->addrs[0])
+                , ",", (dialer->Busy() ? "true" : "false")
+                , ",", (peer ? "true" : "false")
+                , ",", (peer ? peer->pingMS : 0), "]");
     }
-    xx::Append(s, "cps.size() = ", cps.size()
-            , "\r\nclientId		ip:port\r\n");
+    xx::Append(s,"]    ", "cps.size() = ", cps.size()
+            , "  [[\"clientId\",\"ip:port\"]");
     for (auto &&kv : cps) {
-        xx::Append(s, kv.first, kv.second->addr);
+        xx::Append(s,",[", kv.first, ",\"", kv.second->addr,"\"]");
     }
-
+    xx::Append(s,"]  ");
     return s;
 }

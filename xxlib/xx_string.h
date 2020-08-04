@@ -104,6 +104,16 @@ namespace xx {
         }
     };
 
+    // 适配 type_info     typeid(T)
+    template<>
+    struct StringFuncs<std::type_info, void> {
+        static inline void Append(std::string& s, std::type_info const& in) {
+            s.push_back('\"');
+            s.append(in.name());
+            s.push_back('\"');
+        }
+    };
+
     // 适配所有数字
     template<typename T>
     struct StringFuncs<T, std::enable_if_t<std::is_arithmetic_v<T>>> {

@@ -6,13 +6,15 @@
 #include <iostream>
 #include <sstream>
 
+// 如果要使用自己定义的日志实例和宏，就在包含之前 #define XX_USE_CUSTOM_LOG_DEFINES
+
 namespace xx {
 
     // 针对 __FILE__ 编译期 定位到纯文件名部分并返回指针
     template<size_t len>
-    inline constexpr char const* CutPath(char const(&in)[len]) {
-        auto&& i = len - 1;
-        for(; i >= 0; --i) {
+    inline constexpr char const *CutPath(char const(&in)[len]) {
+        auto &&i = len - 1;
+        for (; i >= 0; --i) {
             if (in[i] == '\\' || in[i] == '/') return in + i + 1;
         }
         return in + i;
@@ -34,8 +36,10 @@ namespace xx {
 #endif
     }
 
-    inline std::string ToString(std::chrono::system_clock::time_point const& tp, char const* const& format = "%F %T") noexcept {
-        auto&& t = std::chrono::system_clock::to_time_t(tp);
+    // 将时间转为 2020-08-01 13:56:48.123456 这样的长相
+    inline std::string
+    ToString(std::chrono::system_clock::time_point const &tp, char const *const &format = "%F %T") noexcept {
+        auto &&t = std::chrono::system_clock::to_time_t(tp);
         std::tm tm;
 #ifdef _WIN32
         localtime_s(&tm, &t);
@@ -44,6 +48,9 @@ namespace xx {
 #endif
         std::stringstream ss;
         ss << std::put_time(&tm, format);
+        auto &&e = tp.time_since_epoch();
+        ss << "." << std::chrono::duration_cast<std::chrono::microseconds>(e).count() -
+                     std::chrono::duration_cast<std::chrono::seconds>(e).count() * 1000000LL;
         return ss.str();
     }
 
@@ -52,16 +59,13 @@ namespace xx {
         TRACE, DEBUG, INFO, WARN, ERROR
     };
     inline char const *logLevelNames[] = {
-        "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
+            "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
     };
 
     // 带颜色的 日志级别串（ERROR 那个是红色，别的乱来的）
     inline char const *logLevelColorNames[] = {
-            "\033[35mTRACE\033[37m"
-            , "\033[32mDEBUG\033[37m"
-            , "\033[33mINFO\033[37m"
-            , "\033[34mWARN\033[37m"
-            , "\033[31mERROR\033[37m"
+            "\033[35mTRACE\033[37m", "\033[32mDEBUG\033[37m", "\033[33mINFO\033[37m", "\033[34mWARN\033[37m",
+            "\033[31mERROR\033[37m"
     };
 
     /***********************************************************************************************/
@@ -91,17 +95,20 @@ json 样板:
         bool outputConsole = true;
 
         LoggerConfig() = default;
+
         LoggerConfig(LoggerConfig const &) = default;
+
         LoggerConfig &operator=(LoggerConfig const &) = default;
+
         ~LoggerConfig() = default;
     };
 
 }
-    AJSON(xx::LoggerConfig, logLevel, logFileName, logFileMaxBytes, logFileCount, outputConsole);
+AJSON(xx::LoggerConfig, logLevel, logFileName, logFileMaxBytes, logFileCount, outputConsole);
 namespace xx {
 
     // 适配 std::cout
-    inline std::ostream& operator<<(std::ostream& o, LoggerConfig const& c) {
+    inline std::ostream &operator<<(std::ostream &o, LoggerConfig const &c) {
         ajson::save_to(o, c);
         return o;
     }
@@ -157,7 +164,7 @@ namespace xx {
 
     public:
         // 参数：开辟多少兆初始内存 cache
-        explicit Logger(size_t const &capMB = 8, char const* const& cfgName = nullptr) {
+        explicit Logger(size_t const &capMB = 8, char const *const &cfgName = nullptr) {
             // 如果有传入新的配置文件名 就覆盖
             if (cfgName) {
                 this->cfgName = cfgName;
@@ -191,9 +198,11 @@ namespace xx {
         // 固定以 level, __LINE__, __FILE__, __FUNCTION__, now 打头的日志内容写入. 宏代指的 char* 不会丢失，故不需要复制其内容
         // 直接写入固定无 type 前缀: level + lineNumber + fileName* + funcName* + now
         template<typename ...TS>
-        void Log(xx::LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, TS const &...vs) {
+        void
+        Log(xx::LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName,
+            TS const &...vs) {
             // 忽略一些级别不写入
-            if ((int)level < cfg.logLevel) return;
+            if ((int) level < cfg.logLevel) return;
 
             // 如果已经在析构阶段也不写入
             if (disposing) return;
@@ -203,21 +212,24 @@ namespace xx {
             // 申请一条存储空间
             auto &&d = items1.emplace_back();
             // 确保存储空间一定存的下这些参数
-            static_assert(Item::innerSpaceLen >= sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point));
+            static_assert(Item::innerSpaceLen >= sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) +
+                                                 sizeof(std::chrono::system_clock::time_point));
             // 准备开始将参数复制到 data( 这几个 char* 参数可以直接复制指针而不必担心其消失，因为是编译器编译到代码数据段里的 )
             auto p = d.buf;
-            *(int *) p = (int)level;
+            *(int *) p = (int) level;
             *(int *) (p + sizeof(int)) = lineNumber;
             *(char const **) (p + sizeof(int) + sizeof(int)) = fileName;
             *(char const **) (p + sizeof(int) + sizeof(int) + sizeof(char *)) = funcName;
-            *(std::chrono::system_clock::time_point*) (p + sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *)) = std::chrono::system_clock::now();
-            d.len = sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point);
+            *(std::chrono::system_clock::time_point *) (p + sizeof(int) + sizeof(int) + sizeof(char *) +
+                                                        sizeof(char *)) = std::chrono::system_clock::now();
+            d.len = sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) +
+                    sizeof(std::chrono::system_clock::time_point);
             // 继续常规写入变参部分( typeid + data, typeid + data, ....... )
             xx::WriteTo(d, vs...);
         }
 
         // 能简单粗略查询队列是否已经写空( 不一定准确, 测试目的 )
-        inline bool const& Busy() const {
+        inline bool const &Busy() const {
             return writing;
         }
 
@@ -255,7 +267,7 @@ namespace xx {
                 }
 
                 // 省点 cpu
-                std::this_thread::sleep_for(std::chrono::milliseconds (loopSleepMS));
+                std::this_thread::sleep_for(std::chrono::milliseconds(loopSleepMS));
             }
         }
 
@@ -270,8 +282,7 @@ namespace xx {
                 snprintf(newName, sizeof(newName), "%s.%d", currLogFileName.c_str(), i + 1);
                 if (i == cfg.logFileCount) {
                     remove(oldName);
-                }
-                else {
+                } else {
                     rename(oldName, newName);
                 }
                 --i;
@@ -292,15 +303,16 @@ namespace xx {
         }
 
         inline void LoadConfig() {
-            auto&& nowTicks = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            auto &&nowTicks = std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count();
             if (nowTicks - lastLoadConfigTP > reloadConfigIntervalSeconds) {
                 // 试图加载 logger cfg
                 if (std::ifstream(cfgName.c_str()).good()) {
                     ajson::load_from_file(cfg, cfgName.c_str());
                     std::cout << "logger load \"" << cfgName << "\" = " << cfg << std::endl;
-                }
-                else {
-                    std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg << std::endl;
+                } else {
+                    std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg
+                              << std::endl;
                 }
                 // 更新最后加载时间
                 lastLoadConfigTP = nowTicks;
@@ -312,7 +324,8 @@ namespace xx {
             currLogFileName = cfg.logFileName + ToString(std::chrono::system_clock::now(), ".%F_%H.%M.%S");
             ofs.open(currLogFileName, std::ios_base::app);
             if (ofs.fail()) {
-                std::cerr << "ERROR!!! open log file failed: \"" << currLogFileName << "\", forget mkdir ??" << std::endl;
+                std::cerr << "ERROR!!! open log file failed: \"" << currLogFileName << "\", forget mkdir ??"
+                          << std::endl;
             }
         }
 
@@ -343,31 +356,45 @@ namespace xx {
         }
 
         // dump 单行日志. 可覆盖实现自己的特殊需求
-        inline virtual void DumpItem(std::ostream& o, Item& item, bool const& isConsole) {
+        inline virtual void DumpItem(std::ostream &o, Item &item, bool const &isConsole) {
             // dump 前缀. 反向取出几个头部参数, 传递到格式化函数
             auto p = item.buf;
-            Dump_Prefix(o
-                    , (LogLevels)*(int *) p
-                    , *(int *) (p + sizeof(int))
-                    , *(char const **) (p + sizeof(int) + sizeof(int))
-                    , *(char const **) (p + sizeof(int) + sizeof(int) + sizeof(char *))
-                    , *(std::chrono::system_clock::time_point*) (p + sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *))
-                    , isConsole);
+            Dump_Prefix(o, (LogLevels) *(int *) p, *(int *) (p + sizeof(int)),
+                        *(char const **) (p + sizeof(int) + sizeof(int)),
+                        *(char const **) (p + sizeof(int) + sizeof(int) + sizeof(char *)),
+                        *(std::chrono::system_clock::time_point *) (p + sizeof(int) + sizeof(int) + sizeof(char *) +
+                                                                    sizeof(char *)), isConsole);
             // dump 内容
-            DumpTo(o, item, sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) + sizeof(std::chrono::system_clock::time_point));
+            DumpTo(o, item, sizeof(int) + sizeof(int) + sizeof(char *) + sizeof(char *) +
+                            sizeof(std::chrono::system_clock::time_point));
             // 弄个换行符
             o << std::endl;
         }
 
         // dump 单行日志 的前缀部分。可覆盖实现自己的写入格式
-        inline virtual void Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName, std::chrono::system_clock::time_point const &tp, bool const& isConsole) {
+        inline virtual void
+        Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName,
+                    char const *const &funcName, std::chrono::system_clock::time_point const &tp,
+                    bool const &isConsole) {
             if (isConsole) {
-                o << "\033[36m" << ToString(tp) << "\033[37m" << " [" << logLevelColorNames[(int)level] << "] [file:\033[36m"
-                << fileName << "\033[37m line:\033[36m" << lineNumber << "\033[37m func:\033[36m" << funcName << "\033[37m] ";
-            }
-            else {
-                o << ToString(tp) << " ["<< logLevelNames[(int)level] << "] [file:" << fileName << " line:" << lineNumber << " func:" << funcName << "] ";
+                o << "\033[36m" << ToString(tp) << "\033[37m" << " [" << logLevelColorNames[(int) level]
+                  << "] [file:\033[36m"
+                  << fileName << "\033[37m line:\033[36m" << lineNumber << "\033[37m func:\033[36m" << funcName
+                  << "\033[37m] ";
+            } else {
+                o << ToString(tp) << " [" << logLevelNames[(int) level] << "] [file:" << fileName << " line:"
+                  << lineNumber << " func:" << funcName << "] ";
             }
         }
     };
 }
+
+#ifndef XX_USE_CUSTOM_LOG_DEFINES
+inline xx::Logger __xxLogger;
+#define LOG_INFO(...) __xxLogger.Log(xx::LogLevels::INFO, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#define LOG_WARN(...) __xxLogger.Log(xx::LogLevels::WARN, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#define LOG_ERROR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#define LOG_ERR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#define LOG_TRACE(...) __xxLogger.Log(xx::LogLevels::TRACE, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#define LOG_DEBUG(...) __xxLogger.Log(xx::LogLevels::DEBUG, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#endif

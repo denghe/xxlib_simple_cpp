@@ -2,7 +2,7 @@
 #include "speer.h"
 #include "server.h"
 #include "config.h"
-#include "mylog.h"
+#include "xx_logger.h"
 
 bool CPeer::Close(int const& reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
