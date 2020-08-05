@@ -63,7 +63,39 @@ values
                 xx::CoutN(results);
             }
             {
-                xx::CoutN(7, " show all");
+                xx::CoutN(7, " fill to struct");
+                conn.Execute(
+                        "select `id`, `money` from `acc`; select `acc_id`, `money_before`, `money_add`, `money_after`, `create_time` from `acc_log`;");
+                struct Acc {
+                    int64_t id, money;
+                };
+                struct AccLog {
+                    int64_t acc_id, money_before, money_add, money_after, create_time;
+                };
+                std::vector<Acc> accs;
+                std::vector<AccLog> acclogs;
+                conn.Fetch(nullptr, [&](xx::MySql::Reader &reader) -> bool {
+                    auto &&o = accs.emplace_back();
+                    reader.Reads(o.id, o.money);
+                    return true;
+                });
+                conn.Fetch(nullptr, [&](xx::MySql::Reader &reader) -> bool {
+                    auto &&o = acclogs.emplace_back();
+                    reader.Reads(o.acc_id, o.money_before, o.money_add, o.money_after, o.create_time);
+                    return true;
+                });
+                xx::CoutN("accs.size() = ", accs.size());
+                for (auto &&o : accs) {
+                    xx::CoutN("id = ", o.id, " money = ", o.money);
+                }
+                xx::CoutN("acclogs.size() = ", acclogs.size());
+                for (auto &&o : acclogs) {
+                    xx::CoutN("acc_id = ", o.acc_id, " money_before = ", o.money_before, " money_add = ", o.money_add,
+                              " money_after = ", o.money_after, " create_time = ", o.create_time);
+                }
+            }
+            {
+                xx::CoutN(8, " direct show all");
                 auto &&results = conn.ExecuteResults("select * from `acc`; select * from `acc_log`;");
                 xx::CoutN(results);
             }
