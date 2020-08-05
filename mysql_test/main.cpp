@@ -16,11 +16,11 @@ struct Test {
     Test() {
         try {
             {
-                LOG_INFO(1);
+                LOG_INFO(1, " open");
                 conn.Open(sqlHost, sqlPort, sqlUsername, sqlPassword, sqlDBName);
             }
             {
-                LOG_INFO(2);
+                LOG_INFO(2, " cleanup");
                 // 粗暴清除数据
                 conn.Execute(R"(
 set foreign_key_checks = 0;
@@ -31,7 +31,7 @@ set foreign_key_checks = 1;
                 conn.ClearResult();
             }
             {
-                LOG_INFO(3);
+                LOG_INFO(3, " insert");
                 // 模拟账号创建
                 conn.Execute(R"(
 insert into `acc` (`id`, `money`)
@@ -47,20 +47,30 @@ values
                     return true;
                 });
             }
+            int64_t tar_acc_id = 2;
+            int64_t tar_add_money = 100;
             {
-                LOG_INFO(4);
+                LOG_INFO(4, " call sp");
                 // 调用存储过程加钱
-                conn.Execute(xx::ToString("CALL `acc_add_money`(", 2, ", ", 100, ", ", xx::NowEpoch10m(),
-                                          ", @rtv);SELECT @rtv;"));
-                // todo conn.FetchInto(
+                conn.Execute(xx::ToString("CALL `sp_acc_add_money`(", tar_acc_id, ", ", tar_add_money, ", ",
+                                          xx::NowEpoch10m(),
+                                          ", @rtv); SELECT @rtv;"));
+                // 填充出参 rtv：0 成功   -1 参数不正确   -2 找不到acc_id   -3 日志插入失败
+                auto &&rtv = conn.FetchScalar<int>();
+                if (rtv)
+                    throw std::logic_error(
+                            xx::ToString("call sp: `sp_acc_add_money` return value : ", rtv));
             }
-
-//            while(conn.Fetch([](xx::MySql::Info &info) -> bool {
-//                LOG_INFO("Fetch info.numFields = ", info.numFields, " info.numRows = ", info.numRows, " info.affectedRows = ", info.affectedRows);
-//                return true;
-//            }, [](xx::MySql::Reader &reader) -> bool {
-//                return true;
-//            })) {}
+            {
+                LOG_INFO(5, " check data");
+                auto &&curr_money = conn.ExecuteScalar<int>("select `money` from `acc` where `id` = ", tar_acc_id);
+                LOG_INFO("acc id = ", tar_acc_id, ", curr_money = ", curr_money);
+            }
+            {
+                LOG_INFO(6, " show all");
+                auto&& results = conn.ExecuteResults("select * from `acc`");
+                LOG_INFO(xx::ToString(results));
+            }
         }
         catch (std::exception const &e) {
             LOG_ERROR("errCode: ", conn.errCode, " errText: ", e.what());

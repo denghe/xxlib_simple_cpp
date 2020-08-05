@@ -44,10 +44,10 @@ DELIMITER //
 CREATE PROCEDURE `sp_acc_add_money`(
 	IN `acc_id` BIGINT,
 	IN `val` BIGINT,
-	IN `create_time` INT,
+	IN `create_time` BIGINT,
 	OUT `rtv` BIGINT
 )
-    COMMENT '返回一行一列 int：0 成功   -1 参数不正确   -2 找不到acc_id   -3 日志插入失败'
+    COMMENT '填充出参 rtv：0 成功   -1 参数不正确   -2 找不到acc_id   -3 日志插入失败'
 Lab1:BEGIN
 -- 采用 lock free 的写法。使用 SELECT + INTO 语法不会产生输出结果集. DECLARE 要写在最前面
 	DECLARE m BIGINT;

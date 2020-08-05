@@ -43,7 +43,7 @@ struct Server : EP::Context {
 };
 
 int main() {
-    int n = 2;
+    int n = 1;
     std::vector<std::thread> ts;
     for (int i = 0; i < n; ++i) {
         ts.emplace_back([] { xx::Make<Server>()->Run(); });

@@ -1,5 +1,6 @@
 ﻿#include "xx_epoll_kcp.h"
 #include <thread>
+
 namespace EP = xx::Epoll;
 
 struct Peer : EP::UdpPeer {
@@ -25,8 +26,8 @@ struct Client : EP::Context {
             assert(shared_from_this().use_count() == 2);
         });
         SetFrameRate(1);
-        for (int i = 0; i < 5; ++i) {
-            peers.emplace_back(xx::Make<Peer>(shared_from_this(), 5555 + i));
+        for (int i = 0; i < 1; ++i) {
+            peers.emplace_back(xx::Make<Peer>(shared_from_this(), 5555));
         }
         return this->EP::Context::Run();
     }
