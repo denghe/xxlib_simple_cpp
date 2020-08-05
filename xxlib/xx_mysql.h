@@ -497,7 +497,7 @@ namespace xx::MySql {
         });
         if (!filled) {
             if (hasMoreResult) goto LabRetry;
-            Throw(__LINE__, "execute no result, fetch failed.");
+            Throw(__LINE__, "no data found, fetch failed.");
         }
         if (hasMoreResult) {
             ClearResult();
