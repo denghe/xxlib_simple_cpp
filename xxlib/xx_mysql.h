@@ -185,6 +185,10 @@ namespace xx::MySql {
         template<typename ...Args>
         std::vector<Result> ExecuteResults(Args const &...args);
 
+        // 执行查询，清除所有结果( 不必再 Fetch )，返回第一个结果集的受影响行数
+        template<typename ...Args>
+        my_ulonglong ExecuteNonQuery(Args const &...args);
+
         // 通用抛异常函数
         void Throw(int const &code, std::string &&desc);
     };
@@ -510,6 +514,16 @@ namespace xx::MySql {
     std::vector<Result> Connection::ExecuteResults(Args const &...args) {
         Execute(xx::ToString(args...));
         return FetchResults();
+    }
+
+    template<typename ...Args>
+    my_ulonglong Connection::ExecuteNonQuery(Args const &...args) {
+        Execute(xx::ToString(args...));
+        my_ulonglong rtv = 0;
+        if (Fetch([&](Info &info){ rtv = info.affectedRows; return false; }, nullptr)) {
+            ClearResult();
+        }
+        return rtv;
     }
 
     inline void Connection::Throw(int const &code, std::string &&desc) {

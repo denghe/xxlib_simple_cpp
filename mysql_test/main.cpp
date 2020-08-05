@@ -32,20 +32,15 @@ set foreign_key_checks = 1;
             }
             {
                 LOG_INFO(3, " insert");
-                // 模拟账号创建
-                conn.Execute(R"(
+                // 模拟账号创建, 输出受影响行数
+                auto&& affectedRows = conn.ExecuteNonQuery(R"(
 insert into `acc` (`id`, `money`)
 values
  (1, 0)
 ,(2, 0)
 ,(3, 0)
 )");
-                // 看看受影响行数
-                conn.Fetch([](xx::MySql::Info &info) {
-                    LOG_INFO("Fetch info.numFields = ", info.numFields, " info.numRows = ", info.numRows,
-                             " info.affectedRows = ", info.affectedRows);
-                    return true;
-                });
+                LOG_INFO("affectedRows = ", affectedRows);
             }
             int64_t tar_acc_id = 2;
             int64_t tar_add_money = 100;
@@ -71,6 +66,7 @@ values
                 auto&& results = conn.ExecuteResults("select * from `acc`");
                 LOG_INFO(xx::ToString(results));
             }
+            // todo: 将输出填充到类结构
         }
         catch (std::exception const &e) {
             LOG_ERROR("errCode: ", conn.errCode, " errText: ", e.what());
