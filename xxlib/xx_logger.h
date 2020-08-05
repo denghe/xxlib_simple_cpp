@@ -88,9 +88,9 @@ json 样板:
         // 日志文件 路径 & 文件名前缀( 后面可能还有日期 / 分段标志 )
         std::string logFileName = GetExecuteName() + ".log";
         // 单个日志文件体积上限( 字节 )
-        size_t logFileMaxBytes = 1024 * 1024 * 5;
+        int64_t logFileMaxBytes = 1024 * 1024 * 5;
         // 日志文件最多个数( 滚动使用，超过个数将删除最早的 )
-        size_t logFileCount = 30;
+        int logFileCount = 30;
         // 写文件的同时, 是否同时输出到控制台
         bool outputConsole = true;
 
@@ -154,7 +154,7 @@ namespace xx {
         std::ofstream ofs;
 
         // 已经写入多长
-        size_t wroteLen = 0;
+        int64_t wroteLen = 0;
 
         // 已经写了多少个文件
         int fileCount = 0;

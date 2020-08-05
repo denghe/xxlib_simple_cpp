@@ -1,5 +1,4 @@
 ﻿#include "xx_mysql.h"
-#include "xx_logger.h"
 #include "xx_chrono.h"
 
 // 得先用脚本建库
@@ -16,11 +15,11 @@ struct Test {
     Test() {
         try {
             {
-                LOG_INFO(1, " open");
+                xx::CoutN(1, " open");
                 conn.Open(sqlHost, sqlPort, sqlUsername, sqlPassword, sqlDBName);
             }
             {
-                LOG_INFO(2, " cleanup");
+                xx::CoutN(2, " cleanup");
                 // 粗暴清除数据
                 conn.Execute(R"(
 set foreign_key_checks = 0;
@@ -31,7 +30,7 @@ set foreign_key_checks = 1;
                 conn.ClearResult();
             }
             {
-                LOG_INFO(3, " insert");
+                xx::CoutN(3, " insert");
                 // 模拟账号创建, 输出受影响行数
                 auto&& affectedRows = conn.ExecuteNonQuery(R"(
 insert into `acc` (`id`, `money`)
@@ -40,12 +39,12 @@ values
 ,(2, 0)
 ,(3, 0)
 )");
-                LOG_INFO("affectedRows = ", affectedRows);
+                xx::CoutN("affectedRows = ", affectedRows);
             }
             int64_t tar_acc_id = 2;
             int64_t tar_add_money = 100;
             {
-                LOG_INFO(4, " call sp");
+                xx::CoutN(4, " call sp");
                 // 调用存储过程加钱
                 conn.Execute(xx::ToString("CALL `sp_acc_add_money`(", tar_acc_id, ", ", tar_add_money, ", ",
                                           xx::NowEpoch10m(),
@@ -57,19 +56,32 @@ values
                             xx::ToString("call sp: `sp_acc_add_money` return value : ", rtv));
             }
             {
-                LOG_INFO(5, " check data");
+                xx::CoutN(5, " check data");
                 auto &&curr_money = conn.ExecuteScalar<int>("select `money` from `acc` where `id` = ", tar_acc_id);
-                LOG_INFO("acc id = ", tar_acc_id, ", curr_money = ", curr_money);
+                xx::CoutN("acc id = ", tar_acc_id, ", curr_money = ", curr_money);
             }
             {
-                LOG_INFO(6, " show all");
-                auto&& results = conn.ExecuteResults("select * from `acc`");
-                LOG_INFO(xx::ToString(results));
+                xx::CoutN(6, " show all");
+                auto&& results = conn.ExecuteResults("select * from `acc`");  // ; select * from `acc_log`
+                xx::CoutN(xx::ToString(results));
             }
+            {
+                xx::CoutN(7, " show id list");
+                auto&& results = conn.ExecuteList<int64_t>("select `id` from `acc`");
+                xx::CoutN(xx::ToString(results));
+            }
+            {
+                xx::CoutN(8, " test fetch more than one args");
+                conn.Execute("select `id`, `money` from `acc` where `id` = ", tar_acc_id);
+                int64_t id, money;
+                conn.FetchTo(id, money);
+                xx::CoutN("id, money = ", id, ", ", money);
+            }
+            // todo: test FetchList
             // todo: 将输出填充到类结构
         }
         catch (std::exception const &e) {
-            LOG_ERROR("errCode: ", conn.errCode, " errText: ", e.what());
+            xx::CoutN("errCode: ", conn.errCode, " errText: ", e.what());
         }
     }
 };

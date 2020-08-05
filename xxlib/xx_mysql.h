@@ -144,42 +144,48 @@ namespace xx::MySql {
         int Ping();
 
         // 执行一段 SQL 脚本. 后续 *必须* 使用 Fetch 处理所有结果集( 如果多个的话 ), 或执行 ClearResult 抛弃结果集. 出错抛异常
-        void Execute(char const *const &sql, unsigned long const &len);
-
         template<size_t len>
         void Execute(char const(&sql)[len]);
 
         void Execute(std::string const &sql);
 
+        // 多个参数拼接为 SQL 并执行. 后续 *必须* 使用 Fetch 处理所有结果集( 如果多个的话 ), 或执行 ClearResult 抛弃结果集. 出错抛异常
+        template<typename ...Args>
+        void Execute(Args const &...args);
+
         // 抛弃查询结果( 解决一次性执行多条 分号间隔语句 啥的并不关心结果, 下次再执行出现 2014 错误 的问题 )
         // 单条 sql 并不需要每次抛弃结果就可以反复执行
         void ClearResult();
 
-        // while(conn.Fetch([](xx::MySql::Info &info) -> bool {
-        //     LOG_INFO("Fetch info.numFields = ", info.numFields, " info.numRows = ", info.numRows, " info.affectedRows = ", info.affectedRows);
-        //     return true;
-        // }, [](xx::MySql::Reader &reader) -> bool {
-        //     return true;
-        // })) {}
-
+        /*
+    while(conn.Fetch([](xx::MySql::Info &info) -> bool {
+        return true;
+    }, [](xx::MySql::Reader &reader) -> bool {
+        return true;
+    })) {}
+        */
         // 填充一个结果集, 并产生相应回调. 返回 是否存在下一个结果集. 出错抛异常
         // infoHandler 返回 true 将继续对每行数据发起 rowHandler 调用. 返回 false, 将终止调用
         bool Fetch(std::function<bool(Info &)> &&infoHandler, std::function<bool(Reader &)> &&rowHandler);
 
-        // 针对只有 1 行 1 列的单结果集快速读取 并填充到入参. 出错抛异常
-        template<typename T>
-        void FetchTo(T &out);
+        // 填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 args 变量
+        template<typename ...Args>
+        void FetchTo(Args &...args);
 
         // 针对只有 1 行 1 列的单结果集快速读取. 出错抛异常
         template<typename T>
         T FetchScalar();
 
+        // 返回所有结果集
+        std::vector<Result> FetchResults();
+
+        // 返回遇到的第一个有数据的结果集的第一列
+        template<typename T>
+        std::vector<T> FetchList();
+
         // 针对只有 1 行 1 列的单结果集查询，执行并读取. 出错抛异常
         template<typename T, typename ...Args>
         T ExecuteScalar(Args const &...args);
-
-        // 返回所有结果集
-        std::vector<Result> FetchResults();
 
         // 执行查询并返回所有结果集
         template<typename ...Args>
@@ -188,6 +194,14 @@ namespace xx::MySql {
         // 执行查询，清除所有结果( 不必再 Fetch )，返回第一个结果集的受影响行数
         template<typename ...Args>
         my_ulonglong ExecuteNonQuery(Args const &...args);
+
+        // 执行查询并返回遇到的第一个有数据的结果集的第一列
+        template<typename T, typename ...Args>
+        std::vector<T> ExecuteList(Args const &...args);
+
+        // 执行查询并填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 args 变量
+        template<typename ...Args>
+        void ExecuteTo(std::string const &sql, Args &...args);
 
         // 通用抛异常函数
         void Throw(int const &code, std::string &&desc);
@@ -214,7 +228,7 @@ namespace xx::MySql {
 
     inline MYSQL_FIELD const &Info::operator[](int const &colIdx) const {
         // 前置检查
-        if (colIdx < 0 || colIdx >= numFields) {
+        if (colIdx < 0 || colIdx >= (int) numFields) {
             conn.Throw(__LINE__, xx::ToString("colIdx: ", colIdx, " out of range. numFields = ", numFields));
         }
         return fields[colIdx];
@@ -247,7 +261,7 @@ namespace xx::MySql {
     template<typename T>
     inline void Reader::Read(int const &colIdx, T &outVal) const {
         // 前置检查
-        if (colIdx < 0 || colIdx >= info.numFields) {
+        if (colIdx < 0 || colIdx >= (int) info.numFields) {
             info.conn.Throw(__LINE__, xx::ToString("colIdx: ", colIdx, " out of range. numFields = ", info.numFields));
         }
 
@@ -379,23 +393,28 @@ namespace xx::MySql {
         return mysql_ping(ctx);
     }
 
-    // 执行一段 SQL 脚本. 后续使用 Fetch 检索返回结果( 如果有的话 ). 出错抛异常
-    inline void Connection::Execute(char const *const &sql, unsigned long const &len) {
+    template<size_t len>
+    void Connection::Execute(char const(&sql)[len]) {
         if (!ctx) {
             Throw(__LINE__, "connection is closed.");
         }
-        if (mysql_real_query(ctx, sql, len)) {
+        if (mysql_real_query(ctx, sql, len - 1)) {
             Throw((int) mysql_errno(ctx), mysql_error(ctx));
         }
     }
 
-    template<size_t len>
-    void Connection::Execute(char const(&sql)[len]) {
-        Execute(sql, (unsigned long) (len - 1));
+    inline void Connection::Execute(std::string const &sql) {
+        if (!ctx) {
+            Throw(__LINE__, "connection is closed.");
+        }
+        if (mysql_real_query(ctx, sql.c_str(), sql.size())) {
+            Throw((int) mysql_errno(ctx), mysql_error(ctx));
+        }
     }
 
-    inline void Connection::Execute(std::string const &sql) {
-        Execute((char *) sql.data(), (unsigned long) sql.size());
+    template<typename ...Args>
+    void Connection::Execute(Args const &...args) {
+        Execute(xx::ToString(args...));
     }
 
     inline void Connection::ClearResult() {
@@ -458,15 +477,23 @@ namespace xx::MySql {
         return false;   // 让编译器闭嘴
     }
 
-    template<typename T>
-    void Connection::FetchTo(T &out) {
+    template<typename ...Args>
+    void Connection::FetchTo(Args &...args) {
+        static_assert(sizeof...(args) > 0);
         // 可能存在多个结果集，并且前面几个可能都没有数据. 于是需要跳过 直到遇到一个有数据的，读之，扫尾退出
+        // 将出参的指针打包存 tuple
+        auto &&tuple = std::make_tuple(&args...);
         bool filled = false;
         LabRetry:
-        auto &&hasMoreResult = Fetch(nullptr, [&](Reader &r) {
-            r.Reads(out);
+        auto &&hasMoreResult = Fetch([&](Info &info) {
             filled = true;
-            return false;
+            return true;
+        }, [&](Reader &r) {
+            // 将出参的指针tuple解包调函数
+            std::apply([&](auto &... args) {
+                r.Reads(*args...);
+            }, tuple);
+            return true;
         });
         if (!filled) {
             if (hasMoreResult) goto LabRetry;
@@ -486,7 +513,7 @@ namespace xx::MySql {
 
     template<typename T, typename ...Args>
     T Connection::ExecuteScalar(Args const &...args) {
-        Execute(xx::ToString(args...));
+        Execute(args...);
         return FetchScalar<T>();
     }
 
@@ -495,14 +522,14 @@ namespace xx::MySql {
         auto &&result = rtv.emplace_back();
         while (Fetch([&](xx::MySql::Info &info) -> bool {
             result.affectedRows = info.affectedRows;
-            for (int i = 0; i < info.numFields; ++i) {
+            for (int i = 0; i < (int) info.numFields; ++i) {
                 result.columns.emplace_back(info.fields[i].name);
             }
             return true;
         }, [&](xx::MySql::Reader &reader) -> bool {
             auto &&row = result.rows.emplace_back();
             auto &&n = result.columns.size();
-            for (int i = 0; i < n; ++i) {
+            for (size_t i = 0; i < n; ++i) {
                 row.emplace_back(reader.data[i]);
             }
             return true;
@@ -510,20 +537,57 @@ namespace xx::MySql {
         return rtv;
     }
 
+    template<typename T>
+    std::vector<T> Connection::FetchList() {
+        std::vector<T> rtv;
+        bool filled = false;
+        LabRetry:
+        auto &&hasMoreResult = Fetch([&](Info &info) {
+            filled = true;
+            return true;
+        }, [&](Reader &r) {
+            r.Reads(rtv.emplace_back());
+            return true;
+        });
+        if (!filled) {
+            if (hasMoreResult) goto LabRetry;
+            Throw(__LINE__, "execute no result, fetch failed.");
+        }
+        if (hasMoreResult) {
+            ClearResult();
+        }
+        return rtv;
+    }
+
     template<typename ...Args>
     std::vector<Result> Connection::ExecuteResults(Args const &...args) {
-        Execute(xx::ToString(args...));
+        Execute(args...);
         return FetchResults();
     }
 
     template<typename ...Args>
     my_ulonglong Connection::ExecuteNonQuery(Args const &...args) {
-        Execute(xx::ToString(args...));
+        Execute(args...);
         my_ulonglong rtv = 0;
-        if (Fetch([&](Info &info){ rtv = info.affectedRows; return false; }, nullptr)) {
+        if (Fetch([&](Info &info) {
+            rtv = info.affectedRows;
+            return false;
+        }, nullptr)) {
             ClearResult();
         }
         return rtv;
+    }
+
+    template<typename T, typename ...Args>
+    std::vector<T> Connection::ExecuteList(Args const &...args) {
+        Execute(args...);
+        return FetchList<T>();
+    }
+
+    template<typename ...Args>
+    void Connection::ExecuteTo(std::string const &sql, Args &...args) {
+        Execute(sql);
+        FetchTo(args...);
     }
 
     inline void Connection::Throw(int const &code, std::string &&desc) {

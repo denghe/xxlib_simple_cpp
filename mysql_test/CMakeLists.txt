@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(mysql_test)
 
 set(CMAKE_CXX_STANDARD 17)
-
+add_definitions("-Wall -Wno-implicit-fallthrough")
 include_directories(
         ../xxlib
         ../
