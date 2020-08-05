@@ -218,7 +218,7 @@ namespace xx::Epoll {
         // 将底层数据灌入 kcp
         if (int r = ikcp_input(kcp, buf, len_)) {
             Close(-12,
-                  xx::ToString(__LINESTR__" KcpPeer Input if (int r = ikcp_input(kcp, buf, len_)), r = ", r).c_str());
+                  xx::ToString(__LINE__, " KcpPeer Input if (int r = ikcp_input(kcp, buf, len_)), r = ", r).c_str());
             return;
         }
         // 开始处理收到的数据
@@ -398,7 +398,7 @@ namespace xx::Epoll {
                 if (len == -1) {
                     auto er = errno;
                     if (er == EAGAIN || er == EWOULDBLOCK || er == ENOBUFS) return;
-                    ThrowRuntimeError(xx::ToString(__LINESTR__" UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
+                    ThrowRuntimeError(xx::ToString(__LINE__, " UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
                 }
                 // 可能收到 0 长度数据包. 或者没有发送地址的数据包. 忽略
                 if (len == 0 || addrLen == 0) return;
