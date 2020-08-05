@@ -519,21 +519,24 @@ namespace xx::MySql {
 
     std::vector<Result> Connection::FetchResults() {
         std::vector<Result> rtv;
-        auto &&result = rtv.emplace_back();
-        while (Fetch([&](xx::MySql::Info &info) -> bool {
-            result.affectedRows = info.affectedRows;
-            for (int i = 0; i < (int) info.numFields; ++i) {
-                result.columns.emplace_back(info.fields[i].name);
-            }
-            return true;
-        }, [&](xx::MySql::Reader &reader) -> bool {
-            auto &&row = result.rows.emplace_back();
-            auto &&n = result.columns.size();
-            for (size_t i = 0; i < n; ++i) {
-                row.emplace_back(reader.data[i]);
-            }
-            return true;
-        })) {}
+        bool hasNextResult = false;
+        do {
+            auto &&result = rtv.emplace_back();
+            hasNextResult = Fetch([&](xx::MySql::Info &info) -> bool {
+                result.affectedRows = info.affectedRows;
+                for (int i = 0; i < (int) info.numFields; ++i) {
+                    result.columns.emplace_back(info.fields[i].name);
+                }
+                return true;
+            }, [&](xx::MySql::Reader &reader) -> bool {
+                auto &&row = result.rows.emplace_back();
+                auto &&n = result.columns.size();
+                for (size_t i = 0; i < n; ++i) {
+                    row.emplace_back(reader.data[i]);
+                }
+                return true;
+            });
+        } while (hasNextResult);
         return rtv;
     }
 

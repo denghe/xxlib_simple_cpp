@@ -32,7 +32,7 @@ set foreign_key_checks = 1;
             {
                 xx::CoutN(3, " insert");
                 // 模拟账号创建, 输出受影响行数
-                auto&& affectedRows = conn.ExecuteNonQuery(R"(
+                auto &&affectedRows = conn.ExecuteNonQuery(R"(
 insert into `acc` (`id`, `money`)
 values
  (1, 0)
@@ -45,40 +45,28 @@ values
             int64_t tar_add_money = 100;
             {
                 xx::CoutN(4, " call sp");
-                // 调用存储过程加钱
-                conn.Execute(xx::ToString("CALL `sp_acc_add_money`(", tar_acc_id, ", ", tar_add_money, ", ",
-                                          xx::NowEpoch10m(),
-                                          ", @rtv); SELECT @rtv;"));
-                // 填充出参 rtv：0 成功   -1 参数不正确   -2 找不到acc_id   -3 日志插入失败
-                auto &&rtv = conn.FetchScalar<int>();
-                if (rtv)
-                    throw std::logic_error(
-                            xx::ToString("call sp: `sp_acc_add_money` return value : ", rtv));
+                // 调用存储过程加钱   rtv：0 成功   -1 参数不正确   -2 找不到acc_id   -3 日志插入失败
+                auto &&rtv = conn.ExecuteScalar<int>("CALL `sp_acc_add_money`(", tar_acc_id, ", ", tar_add_money, ", ",
+                                                     xx::NowEpoch10m(), ", @rtv); SELECT @rtv;");
+                if (rtv) throw std::logic_error(xx::ToString("call sp: `sp_acc_add_money` return value : ", rtv));
             }
             {
-                xx::CoutN(5, " check data");
-                auto &&curr_money = conn.ExecuteScalar<int>("select `money` from `acc` where `id` = ", tar_acc_id);
-                xx::CoutN("acc id = ", tar_acc_id, ", curr_money = ", curr_money);
-            }
-            {
-                xx::CoutN(6, " show all");
-                auto&& results = conn.ExecuteResults("select * from `acc`");  // ; select * from `acc_log`
-                xx::CoutN(xx::ToString(results));
-            }
-            {
-                xx::CoutN(7, " show id list");
-                auto&& results = conn.ExecuteList<int64_t>("select `id` from `acc`");
-                xx::CoutN(xx::ToString(results));
-            }
-            {
-                xx::CoutN(8, " test fetch more than one args");
+                xx::CoutN(5, " show one row");
                 conn.Execute("select `id`, `money` from `acc` where `id` = ", tar_acc_id);
                 int64_t id, money;
                 conn.FetchTo(id, money);
                 xx::CoutN("id, money = ", id, ", ", money);
             }
-            // todo: test FetchList
-            // todo: 将输出填充到类结构
+            {
+                xx::CoutN(6, " show id list");
+                auto &&results = conn.ExecuteList<int64_t>("select `id` from `acc`");
+                xx::CoutN(results);
+            }
+            {
+                xx::CoutN(7, " show all");
+                auto &&results = conn.ExecuteResults("select * from `acc`; select * from `acc_log`;");
+                xx::CoutN(results);
+            }
         }
         catch (std::exception const &e) {
             xx::CoutN("errCode: ", conn.errCode, " errText: ", e.what());
