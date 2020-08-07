@@ -245,7 +245,7 @@ namespace xx::Epoll {
     // 拨号器
     template<typename PeerType, class ENABLED>
     struct TcpDialer : Timer {
-        // 要连的地址数组. 带协议标记
+        // 要连的地址数组
         std::vector<sockaddr_in6> addrs;
 
         // 特化构造函数. 不需要传递 fd

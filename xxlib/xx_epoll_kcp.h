@@ -19,6 +19,9 @@ namespace xx::Epoll {
         // 直接发送( 如果 fd == -1 则忽略 ), 返回已发送字节数. -1 为出错
         ssize_t Send(char const *const &buf, size_t const &len);
 
+        // 直接向 addr 发送( 如果 fd == -1 则忽略 ), 返回已发送字节数. -1 为出错
+        ssize_t SendTo(sockaddr_in6 const& addr, char const *const &buf, size_t const &len);
+
         // 判断 fd 的有效性
         inline bool Alive() { return fd != -1; }
 
@@ -373,10 +376,14 @@ namespace xx::Epoll {
     }
 
     inline ssize_t UdpPeer::Send(char const *const &buf, size_t const &len) {
+        return SendTo(addr, buf, len);
+    }
+
+    inline ssize_t UdpPeer::SendTo(sockaddr_in6 const& tarAddr, char const *const &buf, size_t const &len) {
         // 保底检查
         if (!Alive()) return -1;
         // 底层直发
-        return sendto(fd, buf, len, 0, (sockaddr *) &addr, sizeof(addr));
+        return sendto(fd, buf, len, 0, (sockaddr *) &tarAddr, sizeof(tarAddr));
     }
 
     inline void UdpPeer::EpollEvent(const uint32_t &e) {

@@ -10,6 +10,9 @@
 #include <chrono>
 #include <vector>
 #include <unordered_map>
+#include "ska.h"
+#include "tsl/hopscotch_map.h"
+#include "tsl/bhopscotch_map.h"
 
 int64_t NowMS() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -23,6 +26,7 @@ struct Log {
     int64_t playerId;
     int64_t money;
 };
+
 //struct Player_id {
 //};
 //using Players = boost::multi_index_container<Player,
@@ -65,18 +69,28 @@ int main() {
     //for (auto&& p : players) {
     //    std::cout << p.id << ", " << p.money << std::endl;
     //}
+    auto&& ms = NowMS();
     std::vector<Player> players;
+    players.reserve(10000);
     std::vector<Log> logs;
-    for (int i = 0; i < 100; ++i) {
-        players.emplace_back(Player{ i, i });
+    logs.reserve(10000);
+    for (int64_t i = 0; i < 10000; ++i) {
+        auto&& o = players.emplace_back();
+        o.id = o.money = i;
     }
-    for (int j = 0; j < 10000; ++j) {
-        for (int i = 0; i < 100; ++i) {
-            logs.emplace_back(Log{ i, j });
+    for (int64_t j = 0; j < 10000; ++j) {
+        for (int64_t i = 0; i < 10000; ++i) {
+            auto&& o = logs.emplace_back();
+            o.playerId = i;
+            o.money = j;
         }
     }
-    auto&& ms = NowMS();
-    std::unordered_map<int64_t, int64_t> ii;
+    std::cout << NowMS() - ms << std::endl;
+    ms = NowMS();
+    //std::unordered_map<int64_t, int64_t> ii;
+    //ska::flat_hash_map<int64_t, int64_t> ii;
+    //tsl::hopscotch_map<int64_t, int64_t> ii;
+    tsl::bhopscotch_map<int64_t, int64_t> ii;
     for (auto&& L : logs) {
         ii[L.playerId] += L.money;
     }
@@ -84,8 +98,8 @@ int main() {
         p.money += ii[p.id];
     }
     std::cout << NowMS() - ms << std::endl;
-    for (auto&& p : players) {
-        std::cout << p.id << ", " << p.money << std::endl;
+    for (int k = 0; k < 10; ++k) {
+        std::cout << players[k].id << ", " << players[k].money << std::endl;
     }
     return 0;
 }
