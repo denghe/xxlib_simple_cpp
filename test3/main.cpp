@@ -4,7 +4,8 @@
 namespace EP = xx::Epoll;
 
 struct Peer : EP::KcpPeer {
-    using EP::KcpPeer::KcpPeer;
+    using BT = EP::KcpPeer;
+    using BT::BT;
     uint64_t counter = 0;
 
     void Receive() override {
@@ -12,6 +13,16 @@ struct Peer : EP::KcpPeer {
         // echo back
         Send(recv.buf, recv.len);
         recv.Clear();
+        // 续命
+        SetTimeoutSeconds(10);
+    }
+
+    bool Close(int const &reason, char const *const &desc) override {
+        if (this->BT::Close(reason, desc)) {
+            DelayUnhold();
+            return true;
+        }
+        return false;
     }
 };
 
@@ -20,18 +31,14 @@ struct Listener : EP::KcpListener<Peer> {
 
     void Accept(std::shared_ptr<Peer> const &peer) override {
         peer->Hold();
-        peer->SetTimeoutSeconds(30);
+        peer->SetTimeoutSeconds(15);
     }
 };
 
-struct Timer : EP::Timer {
-    using EP::Timer::Timer;
-    void Timeout() override;
-};
-
 struct Server : EP::Context {
+    using EP::Context::Context;
     std::shared_ptr<Listener> listener;
-    std::shared_ptr<Timer> timer;
+    std::shared_ptr<EP::GenericTimer> timer;
 
     int Run() override {
         xx::ScopeGuard sg1([&] {
@@ -46,27 +53,27 @@ struct Server : EP::Context {
 
         xx::MakeTo(timer, shared_from_this());
         timer->SetTimeoutSeconds(1);
+        timer->onTimeout = [this] {
+            uint64_t counter = 0;
+            for (auto &&p :  listener->cps) {
+                counter += ((Peer *) p.second)->counter;
+                ((Peer *) p.second)->counter = 0;
+            }
+            xx::CoutN("listener->cps.size() = ", listener->cps.size(), " counter = ", counter);
+            timer->SetTimeoutSeconds(1);
+        };
 
         SetFrameRate(100);
+
         return this->EP::Context::Run();
     }
 };
-
-void Timer::Timeout() {
-    uint64_t counter = 0;
-    for (auto &&p :  ((Server*)&*ec)->listener->cps) {
-        counter += ((Peer *) p.second)->counter;
-        ((Peer *) p.second)->counter = 0;
-    }
-    xx::CoutN(counter);
-    SetTimeoutSeconds(1);
-}
 
 int main() {
     int n = 1;
     std::vector<std::thread> ts;
     for (int i = 0; i < n; ++i) {
-        ts.emplace_back([] { xx::Make<Server>()->Run(); });
+        ts.emplace_back([] { xx::Make<Server>((1u << 16u))->Run(); });
     }
     xx::CoutN("running... num threads = ", n);
     for (auto &&t : ts) {
