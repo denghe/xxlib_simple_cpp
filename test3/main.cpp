@@ -4,21 +4,18 @@
 namespace EP = xx::Epoll;
 
 struct Peer : EP::KcpPeer {
-    using BT = EP::KcpPeer;
-    using BT::BT;
-    uint64_t counter = 0;
+    using EP::KcpPeer::KcpPeer;
 
     void Receive() override {
-        ++counter;
-        // echo back
-        Send(recv.buf, recv.len);
+        Send(recv.buf, recv.len);       // echo back
         recv.Clear();
-        // 续命
         SetTimeoutSeconds(10);
+        ++counter;
     }
+    uint64_t counter = 0;
 
     bool Close(int const &reason, char const *const &desc) override {
-        if (this->BT::Close(reason, desc)) {
+        if (this->EP::KcpPeer::Close(reason, desc)) {
             DelayUnhold();
             return true;
         }
@@ -49,7 +46,8 @@ struct Server : EP::Context {
         });
 
         xx::MakeTo(listener, shared_from_this());
-        listener->Listen(5555);
+        listener->readCountAtOnce = 500;
+        listener->Listen(5555, nullptr, false, 1784 * 10000, 1784 * 10000);
 
         xx::MakeTo(timer, shared_from_this());
         timer->SetTimeoutSeconds(1);

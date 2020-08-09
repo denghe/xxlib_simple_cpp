@@ -185,6 +185,18 @@ root hard core unlimited
 * hard core unlimited
 ```
 
+修改 linux 收发缓冲区最大长度限制( 主要针对 UDP 端口做服务器的情况 ): /etc/sysctl.conf 增加两行, 保存重启( 下面的数字是 20兆, 能缓存约 11755 个 1784 字节 udp 包 )
+```
+rmem_max=2097152
+wmem_max=2097152
+```
+临时修改并立即生效的命令行:
+```
+sudo sysctl -w net.core.rmem_max=20971520 net.core.wmem_max=20971520
+```
+
+
+
 
 ubuntu 18.04 LTS server，安装时勾安 OpenSSH server 默认安全选项  
 

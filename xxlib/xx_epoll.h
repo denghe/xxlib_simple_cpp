@@ -406,7 +406,7 @@ namespace xx::Epoll {
         int cursor = 0;
 
         // 创建非阻塞 socket fd 并返回. < 0: error
-        int MakeSocketFD(int const &port, int const &sockType = SOCK_STREAM, char const* const& hostName = nullptr, bool const& reusePort = false); // udp: SOCK_DGRAM
+        int MakeSocketFD(int const &port, int const &sockType = SOCK_STREAM, char const* const& hostName = nullptr, bool const& reusePort = false, size_t const& rmem_max = 0, size_t const& wmem_max = 0); // udp: SOCK_DGRAM
         // 添加 fd 到 epoll 监视. return !0: error
         int Ctl(int const &fd, uint32_t const &flags, int const &op = EPOLL_CTL_ADD) const;
 
@@ -983,7 +983,7 @@ namespace xx::Epoll {
         }
     }
 
-    inline int Context::MakeSocketFD(int const &port, int const &sockType, char const* const& hostName, bool const& reusePort) {
+    inline int Context::MakeSocketFD(int const &port, int const &sockType, char const* const& hostName, bool const& reusePort, size_t const& rmem_max, size_t const& wmem_max) {
         char portStr[20];
         snprintf(portStr, sizeof(portStr), "%d", port);
 
@@ -1008,6 +1008,18 @@ namespace xx::Epoll {
             }
             if (reusePort) {
                 if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+                    close(fd);
+                    continue;
+                }
+            }
+            if (rmem_max) {
+                if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (const char*)&rmem_max, sizeof(rmem_max)) < 0) {
+                    close(fd);
+                    continue;
+                }
+            }
+            if (wmem_max) {
+                if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (const char*)&wmem_max, sizeof(wmem_max)) < 0) {
                     close(fd);
                     continue;
                 }

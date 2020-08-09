@@ -2,6 +2,20 @@
 
 #include "xx_epoll.h"
 #include "ikcp.h"
+#include <string_view>
+
+//// 实现针对 sockaddr_in6 的 hash & operator== 以便于放入字典
+//namespace std {
+//    template<>
+//    struct hash<sockaddr_in6> {
+//        size_t operator()(sockaddr_in6 const& a) const {
+//            return hash<std::string_view>()(std::string_view((char*)&a, sizeof(a)));
+//        }
+//    };
+//}
+//inline bool operator==(sockaddr_in6 const& a, sockaddr_in6 const& b) {
+//    return !memcmp(&a, &b, sizeof(a));
+//}
 
 namespace xx::Epoll {
     /***********************************************************************************************************/
@@ -9,6 +23,9 @@ namespace xx::Epoll {
     struct UdpPeer : Timer {
         // 对方的 addr( udp 收到数据时会填充. SendTo 时用到 )
         sockaddr_in6 addr{};
+
+        // 配置每次 epoll_wait 读取事件通知后一口气最多读多少次. 如果是 Listener 性质, 该值还要改大很多
+        int readCountAtOnce = 32;
 
         // 继承构造函数
         using Timer::Timer;
@@ -25,8 +42,8 @@ namespace xx::Epoll {
         // 判断 fd 的有效性
         inline bool Alive() { return fd != -1; }
 
-        // fd = MakeSocketFD(port, SOCK_DGRAM, hostName)
-        int Listen(int const &port, char const* const& hostName = nullptr);
+        // 工具函数: 用指定参数创建 fd. 成功返回 0
+        int MakeFD(int const &port, char const* const& hostName = nullptr, bool const& reusePort = false, size_t const& rmem_max = 0, size_t const& wmem_max = 0);
 
         // 方便直接用这个类
         inline void Timeout() override {}
@@ -124,6 +141,9 @@ namespace xx::Epoll {
 
         // 调用 CloseChilds
         bool Close(int const &reason, char const *const &desc) override;
+
+        // MakeFD
+        int Listen(int const &port, char const* const& hostName = nullptr, bool const& reusePort = false, size_t const& rmem_max = 1784 * 5000, size_t const& wmem_max = 1784 * 5000);
     };
 
 
@@ -136,11 +156,11 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
 
 
-    inline int UdpPeer::Listen(int const &port, char const* const& hostName) {
-        // 防重复 Listen
+    inline int UdpPeer::MakeFD(int const &port, char const* const& hostName, bool const& reusePort, size_t const& rmem_max, size_t const& wmem_max) {
+        // 防重复 make
         if (this->fd != -1) return __LINE__;
         // 创建监听用 socket fd
-        auto &&fd = ec->MakeSocketFD(port, SOCK_DGRAM, hostName);
+        auto &&fd = ec->MakeSocketFD(port, SOCK_DGRAM, hostName, reusePort, rmem_max, wmem_max);
         if (fd < 0) return -1;
         // 确保 return 时自动 close
         xx::ScopeGuard sg([&] { close(fd); });
@@ -289,8 +309,13 @@ namespace xx::Epoll {
     }
 
     template<typename PeerType, class ENABLED>
+    inline int KcpListener<PeerType, ENABLED>::Listen(int const &port, char const* const& hostName, bool const& reusePort, size_t const& rmem_max, size_t const& wmem_max) {
+        return MakeFD(port, hostName, reusePort, rmem_max, wmem_max);
+    }
+
+    template<typename PeerType, class ENABLED>
     inline void KcpListener<PeerType, ENABLED>::Receive(char const *const &buf, size_t const &len) {
-        // addr 转为 ip:port 当 key( 似乎性能有点费? )
+        // addr 转为 ip:port 当 key
         auto ip_port = xx::ToString(addr);
 
         // 当前握手方案为 UdpDialer 每秒 N 次不停发送 4 字节数据( serial )过来,
@@ -394,8 +419,8 @@ namespace xx::Epoll {
         }
         // read
         if (e & EPOLLIN) {
-            // 从 libuv 参考过来的经验循环, 尽可能的读走数据
-            for (int i = 0; i < 32; ++i) {
+            // 从 libuv 参考过来的经验循环( 32 ), 尽可能的读走数据
+            for (int i = 0; i < readCountAtOnce; ++i) {
                 socklen_t addrLen = sizeof(addr);
                 ssize_t len;
                 do {
@@ -538,10 +563,6 @@ namespace xx::Epoll {
             : KcpBase(ec)
             , timerForShake(ec)
             , timerForTimeout(ec) {
-        // 初始化 fd
-        if (Listen(port))
-            throw std::runtime_error(__LINESTR__" KcpDialer KcpDialer can't create kcp dialer. Listen(0) failed.");
-
         // 初始化握手 timer
         timerForShake.onTimeout = [this] {
             // 如果 serials 不空（ 意味着正在拨号 ), 就每秒数次无脑向目标地址发送 serial
