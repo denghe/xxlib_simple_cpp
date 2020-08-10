@@ -180,7 +180,6 @@ namespace xx::Epoll {
     }
 
     inline KcpPeer::KcpPeer(std::shared_ptr<KcpBase> const &owner, uint32_t const &conv) : Timer(owner->ec, -1) {
-        if (kcp) throw std::runtime_error(__LINESTR__" KcpPeer KcpPeer if (kcp)");
         // 创建并设置 kcp 的一些参数. 按照 每秒 100 帧来设置的. 即精度 10 ms
         kcp = ikcp_create(conv, this);
         (void) ikcp_wndsize(kcp, 1024, 1024);
@@ -478,6 +477,7 @@ namespace xx::Epoll {
 
         // 向 addrs 追加地址. 如果地址转换错误将返回非 0
         int AddAddress(std::string const &ip, int const &port);
+        void AddAddress(sockaddr_in6 const& addr);
 
         // 开始拨号( 超时单位：帧 )。会遍历 addrs 为每个地址创建一个 TcpConn 连接
         // 保留先连接上的 socket fd, 创建 Peer 并触发 Connect 事件.
@@ -537,7 +537,7 @@ namespace xx::Epoll {
             // 填充地址( 就填充拨号用的，不必理会收到的 )
             memcpy(&peer->addr, &addrs[i], sizeof(addr));
             // 发 kcp 版握手包
-            peer->Send("\1\0\0\0\0", 5);
+            //peer->Send("\1\0\0\0\0", 5);
             // 触发事件回调
             Connect(peer);
         }
@@ -614,7 +614,14 @@ namespace xx::Epoll {
             addrs.pop_back();
             return r;
         }
+        // todo: 去重
         return 0;
+    }
+
+    template<typename PeerType, class ENABLED>
+    void KcpDialer<PeerType, ENABLED>::AddAddress(sockaddr_in6 const& addr) {
+        // todo: 去重
+        addrs.emplace_back(addr);
     }
 
     template<typename PeerType, class ENABLED>

@@ -1,18 +1,32 @@
 ﻿#include "xx_epoll_kcp.h"
+#include "xx_data_rw.h"
 #include <thread>
+#include <atomic>
 
 namespace EP = xx::Epoll;
+
+std::atomic<uint64_t> g_counter;
+std::atomic<uint64_t> g_counter2;
+int n = 1;
+int nc = 200;
+int port = 0;
+sockaddr_in6 addr{};
+
+
 
 struct Peer : EP::KcpPeer {
     using EP::KcpPeer::KcpPeer;
 
     inline void Receive() override {
+        ++g_counter;
         Send(recv.buf, recv.len);       // resend
+        Flush();
         recv.Clear();
         SetTimeoutSeconds(10);
     }
 
     inline bool Close(int const &reason, char const *const &desc) override {
+        --g_counter2;
         if (this->EP::KcpPeer::Close(reason, desc)) {
             DelayUnhold();
             return true;
@@ -26,8 +40,16 @@ struct Dialer : EP::KcpDialer<Peer> {
 
     inline void Connect(std::shared_ptr<Peer> const &peer) override {
         if (!peer) return; // 没连上
+        ++g_counter2;
         peer->Hold();
-        peer->Send("asdf", 4);
+        xx::Data d;
+        xx::DataWriter dw(d);
+        dw.WriteFixed((uint32_t) 0);
+        dw.WriteFixed((uint32_t) 0xFFFFFFFF);
+        dw.WriteFixed((uint8_t) 123);
+        *(uint32_t *) d.buf = d.len - sizeof(uint32_t);
+        peer->Send(d.buf, d.len);
+        peer->Flush();
         peer->SetTimeoutSeconds(10);
     }
 };
@@ -50,28 +72,43 @@ struct Client : EP::Context {
         timer->onTimeout = [this] {
             if (!dialer) {
                 xx::MakeTo(dialer, shared_from_this());
-                if (int r = dialer->MakeFD(0, nullptr, false, 1784 * 100, 1784 * 100)) {
+                if (int r = dialer->MakeFD(0, nullptr, false, 1784 * nc, 1784 * nc)) {
                     dialer.reset();
                     xx::CoutN("MakeFD error. r = ", r);
                 } else {
-                    dialer->readCountAtOnce = 100;
-                    dialer->AddAddress("10.0.0.239", 5555);
+                    dialer->readCountAtOnce = nc;
+                    dialer->AddAddress(addr);
                 }
             }
-            if (dialer && !dialer->Busy() && dialer->cps.size() < 25) {
+            if (dialer && !dialer->Busy() && dialer->cps.size() < nc) {
                 dialer->DialSeconds(2);
             }
             timer->SetTimeout(1);
         };
         timer->SetTimeout(1);
 
-        SetFrameRate(200);
+        SetFrameRate(100);
         return this->EP::Context::Run();
     }
 };
 
-int main() {
-    int n = 40;
+int main(int argc, char const *argv[]) {
+    if (argc < 5) {
+        throw std::logic_error("need 4 args: numThreads  numSockets   ip  port");
+    }
+    xx::Convert(argv[1], n);
+    if (n < 1 || n > 100) {
+        throw std::logic_error("invalid numThreads?");
+    }
+    xx::Convert(argv[2], nc);
+    if (nc < 1 || nc > 200) {
+        throw std::logic_error("invalid numSockets?");
+    }
+    xx::Convert(argv[4], port);
+    if (int r = EP::FillAddress(argv[3], port, addr)) {
+        throw std::logic_error("invalid ip?");
+    }
+
     std::vector<std::thread> ts;
     for (int i = 0; i < n; ++i) {
         ts.emplace_back([i = i] {
@@ -82,6 +119,15 @@ int main() {
         xx::Cout(".");
         xx::CoutFlush();
     }
+
+    std::thread timerThread([&] {
+        while (true) {
+            std::cout << g_counter2 << ", " << g_counter << std::endl;
+            g_counter = 0;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    });
+
     xx::CoutN("running... num threads = ", n);
     for (auto &&t : ts) {
         t.join();

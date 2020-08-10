@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.10)
 project(test5)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -12,8 +12,10 @@ include_directories(
 
 add_executable(test5
         main.cpp
+        ../xxlib/ikcp.c
         )
 
 target_link_libraries(test5
         pthread
+        readline
         )

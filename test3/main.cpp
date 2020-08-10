@@ -8,6 +8,7 @@ struct Peer : EP::KcpPeer {
 
     void Receive() override {
         Send(recv.buf, recv.len);       // echo back
+        Flush();
         recv.Clear();
         SetTimeoutSeconds(10);
         ++counter;
