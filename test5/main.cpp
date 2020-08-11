@@ -687,9 +687,7 @@ int main(int argc, char const *argv[]) {
 //#include <chrono>
 //#include <vector>
 //#include <unordered_map>
-//#include "ska.h"
 //#include "tsl/hopscotch_map.h"
-//#include "tsl/bhopscotch_map.h"
 //
 //int64_t NowMS() {
 //    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -764,10 +762,7 @@ int main(int argc, char const *argv[]) {
 //    }
 //    std::cout << NowMS() - ms << std::endl;
 //    ms = NowMS();
-//    //std::unordered_map<int64_t, int64_t> ii;
-//    //ska::flat_hash_map<int64_t, int64_t> ii;
-//    //tsl::hopscotch_map<int64_t, int64_t> ii;
-//    tsl::bhopscotch_map<int64_t, int64_t> ii;
+//    tsl::hopscotch_map<int64_t, int64_t> ii;
 //    for (auto&& L : logs) {
 //        ii[L.playerId] += L.money;
 //    }

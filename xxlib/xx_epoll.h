@@ -692,8 +692,9 @@ namespace xx::Epoll {
         ScopeGuard sg([&] { close(fd); });
         // 如果 fd 超出最大存储限制就退出。返回 fd 是为了外部能继续执行 accept
         if (fd >= (int) ec->fdMappings.size()) return fd;
-        if (ec->fdMappings[fd])
-            throw std::runtime_error(__LINESTR__" TcpListener HandleAccept if (ec->fdMappings[fd])");
+        if (ec->fdMappings[fd]) {
+            throw std::runtime_error((__LINESTR__" TcpListener HandleAccept if (ec->fdMappings[fd])"));
+        }
         // 设置非阻塞状态
         if (-1 == fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK)) return -2;
         // 设置一些 tcp 参数( 可选 )
@@ -812,7 +813,7 @@ namespace xx::Epoll {
         xx::ScopeGuard sg([&] { close(fd); });
         // 检测 fd 存储上限
         if (fd >= (int) ec->fdMappings.size()) return -2;
-        if (ec->fdMappings[fd]) throw std::runtime_error(__LINESTR__" TcpDialer NewTcpConn if (ec->fdMappings[fd])");
+        if (ec->fdMappings[fd]) throw std::runtime_error((__LINESTR__" TcpDialer NewTcpConn if (ec->fdMappings[fd])"));
         // 设置一些 tcp 参数( 可选 )
         int on = 1;
         if (-1 == setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const char *) &on, sizeof(on))) return -3;
@@ -952,7 +953,7 @@ namespace xx::Epoll {
     inline Context::Context(size_t const &wheelLen) {
         // 创建 epoll fd
         efd = epoll_create1(0);
-        if (-1 == efd) throw std::logic_error(__LINESTR__ " Context Context efd = epoll_create1(0) if (-1 == efd)");
+        if (-1 == efd) throw std::logic_error((__LINESTR__ " Context Context efd = epoll_create1(0) if (-1 == efd)"));
         // 初始化时间伦
         wheel.resize(wheelLen);
         // 初始化处理类映射表
@@ -1036,7 +1037,7 @@ namespace xx::Epoll {
             close(fd);
             return -3;
         }
-        if (fdMappings[fd]) throw std::runtime_error(__LINESTR__" Context MakeSocketFD if (fdMappings[fd])");
+        if (fdMappings[fd]) throw std::runtime_error((__LINESTR__" Context MakeSocketFD if (fdMappings[fd])"));
         return fd;
     }
 
@@ -1049,7 +1050,7 @@ namespace xx::Epoll {
     };
 
     inline int Context::CloseDel(int const &fd) const {
-        if (fd == -1) throw std::runtime_error(__LINESTR__" Context CloseDel if (fd == -1)");
+        if (fd == -1) throw std::runtime_error((__LINESTR__" Context CloseDel if (fd == -1)"));
         epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr);
         return close(fd);
     }
@@ -1060,7 +1061,12 @@ namespace xx::Epoll {
         for (int i = 0; i < n; ++i) {
             auto fd = events[i].data.fd;
             auto h = fdMappings[fd];
-            if (!h) throw std::runtime_error(xx::ToString(__LINESTR__" Context Wait !h. fd = ", fd));
+            if (!h) {
+                CloseDel(fd);
+                continue;
+                // 线上发现的确执行进入过这个代码块，概率很低。先防崩
+                // throw std::runtime_error(xx::ToString((__LINESTR__" Context Wait !h. fd = ", fd)));
+            }
             if (h->fd != fd)
                 throw std::runtime_error(
                         xx::ToString(__LINESTR__" Context Wait if (h->fd != fd), h->fd = ", h->fd, ", fd = ", fd));
