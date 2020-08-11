@@ -389,12 +389,23 @@ namespace xx {
     };
 }
 
-#ifndef XX_USE_CUSTOM_LOG_DEFINES
 inline xx::Logger __xxLogger;
-#define LOG_INFO(...) __xxLogger.Log(xx::LogLevels::INFO, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
-#define LOG_WARN(...) __xxLogger.Log(xx::LogLevels::WARN, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
-#define LOG_ERROR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
-#define LOG_ERR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
-#define LOG_TRACE(...) __xxLogger.Log(xx::LogLevels::TRACE, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
-#define LOG_DEBUG(...) __xxLogger.Log(xx::LogLevels::DEBUG, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#if defined(LOG_INFO) ||  defined(LOG_WARN) || defined(LOG_ERROR) || defined(LOG_ERR) || defined(LOG_TRACE) || defined(LOG_DEBUG)
+#error
+#endif
+
+#ifdef XX_DISABLE_ALL_LOGS
+#   define LOG_INFO(...) void()
+#   define LOG_WARN(...) void()
+#   define LOG_ERROR(...) void()
+#   define LOG_ERR(...) void()
+#   define LOG_TRACE(...) void()
+#   define LOG_DEBUG(...) void()
+#else
+#   define LOG_INFO(...) __xxLogger.Log(xx::LogLevels::INFO, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#   define LOG_WARN(...) __xxLogger.Log(xx::LogLevels::WARN, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#   define LOG_ERROR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#   define LOG_ERR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#   define LOG_TRACE(...) __xxLogger.Log(xx::LogLevels::TRACE, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#   define LOG_DEBUG(...) __xxLogger.Log(xx::LogLevels::DEBUG, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #endif

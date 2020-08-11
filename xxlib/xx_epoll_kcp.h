@@ -468,6 +468,7 @@ namespace xx::Epoll {
         // 自己本身的 timer 已在基类用于每帧更新 cps
         GenericTimer timerForShake;
         GenericTimer timerForTimeout;
+        bool needSendFirstPackage = true;
 
         // 初始化 timer
         explicit KcpDialer(std::shared_ptr<Context> const &ec, int const& port = 0);
@@ -536,9 +537,12 @@ namespace xx::Epoll {
             cps[convId] = &*peer;
             // 填充地址( 就填充拨号用的，不必理会收到的 )
             memcpy(&peer->addr, &addrs[i], sizeof(addr));
-            // 发 kcp 版握手包
-            peer->Send("\1\0\0\0\0", 5);
-            peer->Flush();
+            // 如果需要发无意义首包刺激对方 accept. 如果是客户端先发数据 则不需要这样的首包
+            if (needSendFirstPackage) {
+                // 发 kcp 版握手包
+                peer->Send("\1\0\0\0\0", 5);
+                peer->Flush();
+            }
             // 触发事件回调
             Connect(peer);
         }

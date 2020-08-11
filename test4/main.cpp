@@ -16,8 +16,10 @@ sockaddr_in6 addr{};
 
 struct Peer : EP::KcpPeer {
     using EP::KcpPeer::KcpPeer;
-
+    // 用来发送的内容. 收到回包时对比一下
+    uint32_t msg = 0;
     inline void Receive() override {
+
         ++g_counter;
         Send(recv.buf, recv.len);       // resend
         Flush();
@@ -58,6 +60,7 @@ struct Client : EP::Context {
     using EP::Context::Context;
     std::shared_ptr<Dialer> dialer;
     std::shared_ptr<EP::GenericTimer> timer;
+    bool needSendFirstPackage = true;
 
     int Run() override {
         xx::ScopeGuard sg1([&] {
@@ -76,6 +79,7 @@ struct Client : EP::Context {
                     dialer.reset();
                     xx::CoutN("MakeFD error. r = ", r);
                 } else {
+                    dialer->needSendFirstPackage = needSendFirstPackage;
                     dialer->readCountAtOnce = nc;
                     dialer->AddAddress(addr);
                 }
@@ -93,8 +97,8 @@ struct Client : EP::Context {
 };
 
 int main(int argc, char const *argv[]) {
-    if (argc < 5) {
-        throw std::logic_error("need 4 args: numThreads  numSockets   ip  port");
+    if (argc < 6) {
+        throw std::logic_error("need 5 args: numThreads  numSockets   ip  port   needSendFirstPackage(0/1)");
     }
     xx::Convert(argv[1], n);
     if (n < 1 || n > 100) {
@@ -109,10 +113,13 @@ int main(int argc, char const *argv[]) {
         throw std::logic_error("invalid ip?");
     }
 
+    bool needSendFirstPackage = (argv[5][0] == '1');
+
     std::vector<std::thread> ts;
     for (int i = 0; i < n; ++i) {
-        ts.emplace_back([i = i] {
+        ts.emplace_back([&, i = i] {
             auto &&c = xx::Make<Client>();
+            c->needSendFirstPackage = needSendFirstPackage;
             c->Run();
         });
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

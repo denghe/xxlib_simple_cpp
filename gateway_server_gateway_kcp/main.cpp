@@ -10,10 +10,14 @@
 #include "xx_signal.h"
 #include "config.h"
 #include "server.h"
+#include "xx_logger.h"
 
 int main() {
 	// 禁掉 SIGPIPE 信号避免因为连接关闭出错
 	xx::IgnoreSignal();
+
+	// 默认日志不输出到控制台
+	__xxLogger.cfg.outputConsole = false;
 
     // 加载配置
     ajson::load_from_file(::config, "config.json");
