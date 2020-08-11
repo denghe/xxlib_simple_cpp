@@ -1,15 +1,22 @@
 #pragma once
-
+#include "xx_chrono.h"
 #include <memory>
 #include <exception>
+#include <functional>
 
-namespace xx {
+namespace xx::Looper {
 
-    struct Looper;
+    // 总上下文。需确保它活得最久。换句话说，当它析构时，确保所有成员全部清掉
+    struct Context;
 
-    struct Timer : std::enable_shared_from_this<Timer> {
+    /*************************************************************************/
+    // Timer
+    /*************************************************************************/
+
+    // Looper Context 成员基类
+    struct Timer {
     protected:
-        friend Looper;
+        friend Context;
 
         // 位于时间轮的下标
         int timeoutIndex = -1;
@@ -19,11 +26,10 @@ namespace xx {
         Timer *timeoutNext = nullptr;
 
         // 指向循环器
-        std::shared_ptr<Looper> looper;
+        Context* ctx;
 
     public:
-        // 传入循环器并持有
-        explicit Timer(std::shared_ptr<Looper> const &looper);
+        explicit Timer(Context* const &ctx);
 
         // SetTimeout(0)
         virtual ~Timer();
@@ -35,22 +41,56 @@ namespace xx {
         void SetTimeoutSeconds(double const &seconds);
 
         // Close
-        virtual void Timeout();
-
-        // 将当前实例的智能指针放入 looper->holdItems( 不能在构造函数或析构中执行 )
-        void Hold();
-
-        // 将当前实例的指针放入 looper->deadItems( 不能在析构中执行 ) 稍后会从 looper->holdItems 移除以触发析构
-        void DelayUnhold();
-
-        // user func
-        virtual bool Close(int const &reason, char const *const &desc) = 0;
+        virtual void Timeout() = 0;
     };
 
-    struct Looper : std::enable_shared_from_this<Timer> {
-        /*************************************************************************/
+    /*************************************************************************/
+    // TimerEx
+    /*************************************************************************/
+
+    // 可作为值类型成员使用
+    // 小心：lambda 可能导致某些 shared_ptr 生命周期延长 或者令某些对象中途析构
+    struct TimerEx : Timer {
+        using Timer::Timer;
+        std::function<void(TimerEx* const& self)> onTimeout;
+        inline virtual void Timeout() { onTimeout(this); }
+    };
+
+    /*************************************************************************/
+    // Item
+    /*************************************************************************/
+
+    // 业务逻辑常见基类
+    // 注意：只能用 shared_ptr 包裹使用
+    struct Item : Timer, std::enable_shared_from_this<Item> {
+        // Timer(ctx)
+        explicit Item(Context* const &ctx);
+
+        // Close
+        void Timeout() override;
+
+        // 将当前实例的智能指针放入 ctx->holdItems( 不能在构造函数或析构中执行 )
+        void Hold();
+
+        // 将当前实例的指针放入 ctx->deadItems( 不能在析构中执行 ) 稍后会从 ctx->holdItems 移除以触发析构
+        void DelayUnhold();
+
+        // 需要派生类覆盖的函数
+        virtual bool Close(int const &reason, char const *const &desc) = 0;
+
+        // 需要派生类覆盖的函数( Close(0, ... ) )
+        //~Item() override;
+    };
+
+
+    /*************************************************************************/
+    // Context
+    /*************************************************************************/
+
+    struct Context {
+        /************************************************/
         // public
-        /*************************************************************************/
+
         // 执行标志位。如果要退出，修改它
         bool running = true;
 
@@ -63,14 +103,14 @@ namespace xx {
         // 帧时间间隔
         double ticksPerFrame = 10000000.0 / frameRate;
 
-        /*************************************************************************/
+        /************************************************/
         // protected
-        /*************************************************************************/
+
         // item 的智能指针的保持容器
-        std::unordered_map<Timer *, std::shared_ptr<Timer>> holdItems;
+        std::unordered_map<Item *, std::shared_ptr<Item>> holdItems;
 
         // 要删除一个 peer 就把它的 指针 压到这个队列. 会在 稍后 从 items 删除
-        std::vector<Timer *> deadItems;
+        std::vector<Item *> deadItems;
 
         // 时间轮. 只存指针引用, 不管理内存
         std::vector<Timer *> wheel;
@@ -79,13 +119,17 @@ namespace xx {
         int cursor = 0;
 
         // 参数：时间轮长度( 要求为 2^n. 如果帧率很高 300? 500+? 该值可能需要改大 )
-        explicit Looper(size_t const &wheelLen = (1u << 12u));
+        explicit Context(size_t const &wheelLen = (1u << 12u));
 
-        Looper(Looper const &) = delete;
+        Context(Context const &) = delete;
 
-        Looper &operator=(Looper const &) = delete;
+        Context &operator=(Context const &) = delete;
 
-        virtual ~Looper() = default;
+        Context(Context &&o) noexcept;
+
+        Context &operator=(Context &&o) noexcept;
+
+        virtual ~Context() = default;
 
         // 帧逻辑可以覆盖这个函数. 返回非 0 将令 Run 退出
         inline virtual int FrameUpdate() { return 0; }
@@ -111,8 +155,8 @@ namespace xx {
     // Timer impls
     /*************************************************************************/
 
-    inline Timer::Timer(std::shared_ptr<Looper> const &looper)
-            : looper(looper) {
+    inline Timer::Timer(Context* const &ctx)
+            : ctx(ctx) {
     }
 
     inline void Timer::SetTimeout(int const &interval) {
@@ -124,7 +168,7 @@ namespace xx {
             if (timeoutPrev != nullptr) {
                 timeoutPrev->timeoutNext = timeoutNext;
             } else {
-                looper->wheel[timeoutIndex] = timeoutNext;
+                ctx->wheel[timeoutIndex] = timeoutNext;
             }
         }
 
@@ -132,18 +176,18 @@ namespace xx {
         if (interval) {
             // 如果设置了新的超时时间, 则放入相应的链表
             // 安全检查
-            if (interval < 0 || interval > (int) looper->wheel.size())
+            if (interval < 0 || interval > (int) ctx->wheel.size())
                 throw std::logic_error(
                         __LINESTR__
-                        " Timer SetTimeout if (interval < 0 || interval > (int) looper->wheel.size())");
+                        " Timer SetTimeout if (interval < 0 || interval > (int) ctx->wheel.size())");
 
             // 环形定位到 wheel 元素目标链表下标
-            timeoutIndex = (interval + looper->cursor) & ((int) looper->wheel.size() - 1);
+            timeoutIndex = (interval + ctx->cursor) & ((int) ctx->wheel.size() - 1);
 
             // 成为链表头
             timeoutPrev = nullptr;
-            timeoutNext = looper->wheel[timeoutIndex];
-            looper->wheel[timeoutIndex] = this;
+            timeoutNext = ctx->wheel[timeoutIndex];
+            ctx->wheel[timeoutIndex] = this;
 
             // 和之前的链表头连起来( 如果有的话 )
             if (timeoutNext) {
@@ -158,35 +202,57 @@ namespace xx {
     }
 
     inline void Timer::SetTimeoutSeconds(double const &seconds) {
-        SetTimeout(looper->SecondsToFrames(seconds));
+        SetTimeout(ctx->SecondsToFrames(seconds));
     }
 
     inline Timer::~Timer() {
         SetTimeout(0);
     }
 
-    inline void Timer::Timeout() {
+    /*************************************************************************/
+    // Item impls
+    /*************************************************************************/
+
+    inline Item::Item(Context* const &ctx) : Timer(ctx) {}
+
+    inline void Item::Timeout() {
         Close(-1, __LINESTR__ " Timer Timeout");
     }
 
-    inline void Timer::Hold() {
-        looper->holdItems[this] = shared_from_this();
+    inline void Item::Hold() {
+        ctx->holdItems[this] = shared_from_this();
     }
 
-    inline void Timer::DelayUnhold() {
-        looper->deadItems.emplace_back(this);
+    inline void Item::DelayUnhold() {
+        ctx->deadItems.emplace_back(this);
     }
 
     /*************************************************************************/
-    // Looper impls
+    // Context impls
     /*************************************************************************/
 
-    inline Looper::Looper(size_t const &wheelLen) {
+    inline Context::Context(size_t const &wheelLen) {
         // 初始化时间伦
         wheel.resize(wheelLen);
     }
 
-    inline int Looper::SetFrameRate(double const &frameRate_) {
+    inline Context::Context(Context &&o) noexcept {
+        this->operator=(std::move(o));
+    }
+
+    inline Context& Context::operator=(Context &&o) noexcept {
+        std::swap(running, o.running);
+        std::swap(nowMS, o.nowMS);
+        std::swap(frameRate, o.frameRate);
+        std::swap(ticksPerFrame, o.ticksPerFrame);
+        std::swap(holdItems, o.holdItems);
+        std::swap(deadItems, o.deadItems);
+        std::swap(wheel, o.wheel);
+        std::swap(cursor, o.cursor);
+        return *this;
+    }
+
+    inline int Context::SetFrameRate(double const &frameRate_) {
         // 参数检查
         if (frameRate_ <= 0) return -1;
         // 保存帧率
@@ -196,7 +262,7 @@ namespace xx {
         return 0;
     }
 
-    inline void Looper::UpdateTimeoutWheel() {
+    inline void Context::UpdateTimeoutWheel() {
         cursor = (cursor + 1) & ((int) wheel.size() - 1);
         auto p = wheel[cursor];
         wheel[cursor] = nullptr;
@@ -212,7 +278,7 @@ namespace xx {
         };
     }
 
-    inline int Looper::Run() {
+    inline int Context::Run() {
         // 稳定帧回调用的时间池
         double ticksPool = 0;
         // 本次要 Wait 的超时时长
@@ -245,7 +311,7 @@ namespace xx {
                 // 计算等待时长
                 waitMS = (int) ((ticksPerFrame - elapsedTicks) / 10000.0);
             }
-            // 调用一次 epoll wait.
+            // 调用一次 wait.
             if (int r = Wait(waitMS)) return r;
             // 清除延迟杀死的 items
             if (!deadItems.empty()) {
@@ -258,7 +324,7 @@ namespace xx {
         return 0;
     }
 
-    inline int Looper::Wait(int const& ms) {
+    inline int Context::Wait(int const& ms) {
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
         return 0;
     }

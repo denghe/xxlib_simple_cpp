@@ -537,7 +537,8 @@ namespace xx::Epoll {
             // 填充地址( 就填充拨号用的，不必理会收到的 )
             memcpy(&peer->addr, &addrs[i], sizeof(addr));
             // 发 kcp 版握手包
-            //peer->Send("\1\0\0\0\0", 5);
+            peer->Send("\1\0\0\0\0", 5);
+            peer->Flush();
             // 触发事件回调
             Connect(peer);
         }
