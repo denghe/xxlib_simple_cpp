@@ -105,6 +105,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
         if (!cp) {
             // 未找到
             LOG_INFO("SPeer ReceiveCommand 'kick'. TryGetCPeer failed. serverId = ", serverId, ", clientId = ", clientId);
+            return;
         }
 
         // 延迟踢下线
