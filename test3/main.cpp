@@ -69,22 +69,11 @@ struct Server : EP::Context {
 };
 
 int main(int argc, char const *argv[]) {
-    if (argc < 3) {
-        throw std::logic_error("need 2 args: numThreads  port");
+    if (argc < 2) {
+        throw std::logic_error("need 1 args: port");
     }
-    int n = 1;
-    xx::Convert(argv[1], n);
-    xx::Convert(argv[2], port);
-
-    std::vector<std::thread> ts;
-    for (int i = 0; i < n; ++i) {
-        ts.emplace_back([] { xx::Make<Server>((1u << 16u))->Run(); });
-    }
-    xx::CoutN("running... num threads = ", n);
-    for (auto &&t : ts) {
-        t.join();
-    }
-    return 0;
+    xx::Convert(argv[1], port);
+    return xx::Make<Server>((1u << 16u))->Run();
 }
 
 
