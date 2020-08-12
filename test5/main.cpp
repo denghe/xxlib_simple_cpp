@@ -4,6 +4,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <tuple>
+#include <atomic>
 
 #include "xx_net.h"
 #include "xx_looper.h"
@@ -352,7 +353,8 @@ inline int KcpHandler::Wait(int const &ms) {
     fads2.clear();
     return 0;
     LabEnd:
-    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    std::this_thread::sleep_for(std::chrono::microseconds(1));
     return 0;
 }
 
@@ -389,6 +391,8 @@ inline UdpReader::~UdpReader() {
     Close();
 }
 
+std::atomic<uint64_t> udpRecvCounter = 0;
+
 inline void UdpReader::Run() {
     while (env->running) {
         // 准备数据容器
@@ -406,6 +410,7 @@ inline void UdpReader::Run() {
             throw std::logic_error("recvfrom failed.");
         }
         fad.data.len = len;
+        udpRecvCounter++;
 
         if (len == 4) {
             env->shakeHandler.HandleShake(fd, fad.addr, *(uint32_t *) fad.data.buf);
@@ -617,6 +622,13 @@ int main(int argc, char const *argv[]) {
     xx::Convert(argv[3], numKcpThreads);
 
     Env env(port, numUdps, numKcpThreads);
+
+    while (true) {
+        std::cout << udpRecvCounter << std::endl;
+        udpRecvCounter = 0;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
     std::cin.get();
     return 0;
 }

@@ -16,15 +16,41 @@ sockaddr_in6 addr{};
 
 struct Peer : EP::KcpPeer {
     using EP::KcpPeer::KcpPeer;
-    // 用来发送的内容. 收到回包时对比一下
-    uint32_t msg = 0;
-    inline void Receive() override {
+    xx::Data d;
 
-        ++g_counter;
-        Send(recv.buf, recv.len);       // resend
-        Flush();
-        recv.Clear();
-        SetTimeoutSeconds(10);
+    inline void Receive() override {
+        // 取出指针备用
+        auto buf = recv.buf;
+        auto end = recv.buf + recv.len;
+        uint32_t dataLen = 0;
+
+        // 确保包头长度充足
+        while (buf + sizeof(dataLen) <= end) {
+            // 取长度
+            dataLen = *(uint32_t *) buf;
+
+            // 长度异常则断线退出( 不含地址? 超长? 256k 不够可以改长 )
+            if (dataLen > 1024 * 256) {
+                Close(-21, __LINESTR__" Peer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
+                return;
+            }
+
+            // 数据未接收完 就 跳出
+            if (buf + sizeof(dataLen) + dataLen > end) break;
+
+            // 如果回包内容正确, 就 计数 发新包 续命
+            if ( sizeof(dataLen) + dataLen == d.len && memcmp(buf, d.buf, d.len) == 0) {
+                ++g_counter;
+                Send();
+                SetTimeoutSeconds(10);
+            }
+
+            // 跳到下一个包的开头
+            buf += sizeof(dataLen) + dataLen;
+        }
+
+        // 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
+        recv.RemoveFront(buf - recv.buf);
     }
 
     inline bool Close(int const &reason, char const *const &desc) override {
@@ -35,6 +61,20 @@ struct Peer : EP::KcpPeer {
         }
         return false;
     }
+
+    // 用来发送的内容. 收到回包时对比一下
+    uint64_t msg = 0;
+    inline void Send() {
+        ++msg;
+        xx::DataWriter dw(d);
+        d.len = 0;
+        dw.WriteFixed((uint32_t) 0);
+        dw.WriteFixed((uint32_t) 0xFFFFFFFF);
+        dw.WriteFixed(msg);
+        *(uint32_t *) d.buf = d.len - sizeof(uint32_t);
+        this->EP::KcpPeer::Send(d.buf, d.len);
+        Flush();
+    }
 };
 
 struct Dialer : EP::KcpDialer<Peer> {
@@ -44,15 +84,8 @@ struct Dialer : EP::KcpDialer<Peer> {
         if (!peer) return; // 没连上
         ++g_counter2;
         peer->Hold();
-        xx::Data d;
-        xx::DataWriter dw(d);
-        dw.WriteFixed((uint32_t) 0);
-        dw.WriteFixed((uint32_t) 0xFFFFFFFF);
-        dw.WriteFixed((uint8_t) 123);
-        *(uint32_t *) d.buf = d.len - sizeof(uint32_t);
-        peer->Send(d.buf, d.len);
-        peer->Flush();
         peer->SetTimeoutSeconds(10);
+        peer->Send();
     }
 };
 

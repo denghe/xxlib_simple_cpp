@@ -540,7 +540,7 @@ namespace xx::Epoll {
             // 如果需要发无意义首包刺激对方 accept. 如果是客户端先发数据 则不需要这样的首包
             if (needSendFirstPackage) {
                 // 发 kcp 版握手包
-                peer->Send("\1\0\0\0\0", 5);
+                peer->KcpPeer::Send("\1\0\0\0\0", 5);
                 peer->Flush();
             }
             // 触发事件回调

@@ -141,13 +141,13 @@ namespace xx::Looper {
         virtual int SetFrameRate(double const &frameRate);
 
         // 每帧调用一次 以驱动 timer
-        inline void UpdateTimeoutWheel();
+        void UpdateTimeoutWheel();
 
-        // 开始循环
-        inline int Run();
+        // 开始稳帧循环
+        int Run();
 
         // 提供帧间睡眠功能( 可覆盖放别的, 例如 epoll_wait ). 返回非 0 会导致 Run 退出
-        inline virtual int Wait(int const& ms);
+        virtual int Wait(int const& ms);
     };
 
 
