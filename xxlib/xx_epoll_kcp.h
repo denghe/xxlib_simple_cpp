@@ -132,7 +132,8 @@ namespace xx::Epoll {
 
     template<typename PeerType, class ENABLED = std::is_base_of<KcpPeer, PeerType>>
     struct KcpListener : KcpBase {
-        using KcpBase::KcpBase;
+        // 在构造里改点默认参数以令 udp peer 更适合做服务器端
+        KcpListener(std::shared_ptr<Context> const &ec);
 
         // 1. 判断收到的数据内容, 模拟握手， 最后产生 KcpPeer
         // 2. 定位到 KcpPeer, Input 数据
@@ -297,6 +298,13 @@ namespace xx::Epoll {
         SetTimeout(1);
     }
 
+
+
+    ;
+    template<typename PeerType, class ENABLED>
+    inline KcpListener<PeerType, ENABLED>::KcpListener(std::shared_ptr<Context> const &ec) : KcpBase(ec) {
+        readCountAtOnce = 500;
+    }
 
     template<typename PeerType, class ENABLED>
     inline bool KcpListener<PeerType, ENABLED>::Close(int const &reason, char const *const &desc) {

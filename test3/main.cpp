@@ -48,7 +48,6 @@ struct Server : EP::Context {
         });
 
         xx::MakeTo(listener, shared_from_this());
-        listener->readCountAtOnce = 500;
         listener->Listen(port, nullptr, false, 1784 * 10000, 1784 * 10000);
 
         xx::MakeTo(timer, shared_from_this());
