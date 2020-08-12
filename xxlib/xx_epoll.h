@@ -178,6 +178,9 @@ namespace xx::Epoll {
         // 会复制数据
         inline int Send(char const *const &buf, size_t const &len) { return Send({buf, len}); }
 
+        // 兼容 kcp peer 函数调用需求
+        inline int Flush() { return 0; }
+
         // 判断 peer 是否还活着( 没断 )
         inline bool Alive() { return fd != -1; }
 

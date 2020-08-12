@@ -2,6 +2,7 @@
 #include <thread>
 
 namespace EP = xx::Epoll;
+int port = 0;
 
 struct Peer : EP::KcpPeer {
     using EP::KcpPeer::KcpPeer;
@@ -48,7 +49,7 @@ struct Server : EP::Context {
 
         xx::MakeTo(listener, shared_from_this());
         listener->readCountAtOnce = 500;
-        listener->Listen(5555, nullptr, false, 1784 * 10000, 1784 * 10000);
+        listener->Listen(port, nullptr, false, 1784 * 10000, 1784 * 10000);
 
         xx::MakeTo(timer, shared_from_this());
         timer->SetTimeoutSeconds(1);
@@ -68,8 +69,14 @@ struct Server : EP::Context {
     }
 };
 
-int main() {
+int main(int argc, char const *argv[]) {
+    if (argc < 3) {
+        throw std::logic_error("need 2 args: numThreads  port");
+    }
     int n = 1;
+    xx::Convert(argv[1], n);
+    xx::Convert(argv[2], port);
+
     std::vector<std::thread> ts;
     for (int i = 0; i < n; ++i) {
         ts.emplace_back([] { xx::Make<Server>((1u << 16u))->Run(); });

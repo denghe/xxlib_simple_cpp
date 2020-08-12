@@ -2,18 +2,20 @@
 
 #include "xx_epoll.h"
 #include "ikcp.h"
-#include <string_view>
 
-//// 实现针对 sockaddr_in6 的 hash & operator== 以便于放入字典
+//#include <string_view>
+//// 实现针对 sockaddr_in6 的 hash & operator== 以便于放入字典 免去 tostring 以及更高效算 hash?
 //namespace std {
 //    template<>
 //    struct hash<sockaddr_in6> {
 //        size_t operator()(sockaddr_in6 const& a) const {
+//            // todo: 应该根据 addr 的 type 路由并具体到某一段数据针对性算 hash
 //            return hash<std::string_view>()(std::string_view((char*)&a, sizeof(a)));
 //        }
 //    };
 //}
 //inline bool operator==(sockaddr_in6 const& a, sockaddr_in6 const& b) {
+//    // todo: 应该根据 addr 的 type 路由并具体到某一段数据针对性 memcmp
 //    return !memcmp(&a, &b, sizeof(a));
 //}
 

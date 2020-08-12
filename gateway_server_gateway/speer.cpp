@@ -14,6 +14,7 @@ bool SPeer::Close(int const& reason, char const* const& desc) {
         kv.second->serverIds.erase(serverId);
         // 下发 close( 如果全都没了, 则会导致 client 无法发送任何数据过来，自然超时断掉 )
         kv.second->SendCommand("close", serverId);
+        kv.second->Flush();
     }
     // 从 dps 移除以减持
     GetServer().dps[serverId].second.reset();
@@ -67,6 +68,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
             cp->serverIds.emplace(serverId);
             // 下发 open
             cp->SendCommand("open", serverId);
+            cp->Flush();
         }
         else {
             // 未找到
@@ -85,6 +87,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
             cp->serverIds.erase(serverId);
             // 下发 close
             cp->SendCommand("close", serverId);
+            cp->Flush();
         }
         else {
             // 未找到
@@ -109,6 +112,7 @@ void SPeer::ReceiveCommand(char *const &buf, size_t const &len) {
             LOG_INFO("SPeer ReceiveCommand 'kick' DelayClose. serverId = ", serverId, ", clientId = ", clientId, ", delayMS = ", delayMS);
             // 下发一个 close 指令以便 client 收到后直接主动断开, 响应会比较快速
             cp->SendCommand("close", (uint32_t)0);
+            cp->Flush();
             // 会立即从 cps 移除并向白名单 serverIds 对应 peer 广播断开通知. 这之后不再处理收到的消息, 直到超时自杀
             cp->DelayClose((double) delayMS / 1000);
         } else {
