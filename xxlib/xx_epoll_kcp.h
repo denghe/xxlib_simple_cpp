@@ -45,7 +45,7 @@ namespace xx::Epoll {
         inline bool Alive() { return fd != -1; }
 
         // 工具函数: 用指定参数创建 fd. 成功返回 0
-        int MakeFD(int const &port, char const* const& hostName = nullptr, bool const& reusePort = false, size_t const& rmem_max = 0, size_t const& wmem_max = 0);
+        int MakeFD(int const &port = 0, char const* const& hostName = nullptr, bool const& reusePort = false, size_t const& rmem_max = 0, size_t const& wmem_max = 0);
 
         // 方便直接用这个类
         inline void Timeout() override {}
