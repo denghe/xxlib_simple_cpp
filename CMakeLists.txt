@@ -12,6 +12,7 @@ add_subdirectory(gateway_server_lobby)
 
 add_subdirectory(gateway_client_cpp)
 add_subdirectory(gateway_client_lua)
+add_subdirectory(gateway_tools_ping)
 
 add_subdirectory(simple_http_server)
 
@@ -23,4 +24,3 @@ add_subdirectory(test2)
 add_subdirectory(test3)
 add_subdirectory(test4)
 add_subdirectory(test5)
-add_subdirectory(test6)

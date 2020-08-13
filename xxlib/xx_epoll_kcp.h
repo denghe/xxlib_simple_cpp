@@ -89,7 +89,7 @@ namespace xx::Epoll {
         // 用于收发数据的物理 udp peer( 后面根据标识来硬转为 Listener 或 Dialer )
         std::shared_ptr<KcpBase> owner;
         // 对方的 addr( owner 收到数据时会填充. SendTo 时用到 )
-        sockaddr_in6 addr;
+        sockaddr_in6 addr{};
         // 收数据用堆积容器( Receive 里访问它来处理收到的数据 )
         Data recv;
 
@@ -189,6 +189,7 @@ namespace xx::Epoll {
         (void) ikcp_nodelay(kcp, 1, 10, 2, 1);
         kcp->rx_minrto = 10;
         kcp->stream = 1;
+        ikcp_setmtu(kcp, 470);    // 该参数或许能提速, 因为小包优先
 
         // 给 kcp 绑定 output 功能函数
         ikcp_setoutput(kcp, [](const char *inBuf, int len, ikcpcb *_, void *user) -> int {
@@ -217,6 +218,8 @@ namespace xx::Epoll {
 
     inline int KcpPeer::Send(char const *const &buf, size_t const &len) {
         if (!kcp) return -1;
+        // 据kcp文档讲, 只要在等待期间发生了 ikcp_send, ikcp_input 就要重新 update
+        nextUpdateMS = 0;
         return ikcp_send(kcp, buf, len);
     }
 
@@ -246,6 +249,8 @@ namespace xx::Epoll {
                   xx::ToString(__LINE__, " KcpPeer Input if (int r = ikcp_input(kcp, buf, len_)), r = ", r).c_str());
             return;
         }
+        // 据kcp文档讲, 只要在等待期间发生了 ikcp_send, ikcp_input 就要重新 update
+        nextUpdateMS = 0;
         // 开始处理收到的数据
         do {
             // 如果接收缓存没容量就扩容( 通常发生在首次使用时 )

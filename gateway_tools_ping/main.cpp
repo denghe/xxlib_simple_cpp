@@ -23,12 +23,16 @@ struct NetInfo {
     uint64_t pingSum = 0;
     uint64_t minPing = 10000;
     uint64_t maxPing = 0;
+    uint64_t goodCount = 0;
+    uint64_t lagCount250 = 0;
     uint64_t lagCount500 = 0;
     uint64_t lagCount1000 = 0;
     uint64_t lagCount1500 = 0;
     uint64_t lagCount2000 = 0;
     uint64_t lagCount2500 = 0;
     uint64_t lagCount3000 = 0;
+    uint64_t lagCount5000 = 0;
+    uint64_t lagCount7000 = 0;
     uint64_t dialCount = 0;
 };
 NetInfo tni, kni;
@@ -136,12 +140,16 @@ struct KcpPeer : EP::KcpPeer {
         if (ms > ni->maxPing) ni->maxPing = ms;
         if (ms < ni->minPing) ni->minPing = ms;
         ni->pingSum += ms;
+        if (ms <= 250) ni->goodCount++;
+        if (ms > 250) ni->lagCount250++;
         if (ms > 500) ni->lagCount500++;
         if (ms > 1000) ni->lagCount1000++;
         if (ms > 1500) ni->lagCount1500++;
         if (ms > 2000) ni->lagCount2000++;
         if (ms > 2500) ni->lagCount2500++;
         if (ms > 3000) ni->lagCount3000++;
+        if (ms > 5000) ni->lagCount5000++;
+        if (ms > 7000) ni->lagCount7000++;
         ni->pingCount++;
     }
 
@@ -279,12 +287,16 @@ struct TcpPeer : EP::TcpPeer {
         if (ms > ni->maxPing) ni->maxPing = ms;
         if (ms < ni->minPing) ni->minPing = ms;
         ni->pingSum += ms;
+        if (ms <= 250) ni->goodCount++;
+        if (ms > 250) ni->lagCount250++;
         if (ms > 500) ni->lagCount500++;
         if (ms > 1000) ni->lagCount1000++;
         if (ms > 1500) ni->lagCount1500++;
         if (ms > 2000) ni->lagCount2000++;
         if (ms > 2500) ni->lagCount2500++;
         if (ms > 3000) ni->lagCount3000++;
+        if (ms > 5000) ni->lagCount5000++;
+        if (ms > 7000) ni->lagCount7000++;
         ni->pingCount++;
     }
 
@@ -392,24 +404,16 @@ int main(int argc, char const *argv[]) {
             {
                 auto &&ni = tni;
                 ni.totalRunSeconds += 10;
-                LOG_INFO("TCP: totalRunSeconds = ", ni.totalRunSeconds, ", dialCount = ", ni.dialCount, " pingCount = ",
-                         ni.pingCount, ", pingSum = ",
-                         ni.pingSum, ", minPing = ", ni.minPing, ", maxPing = ", ni.maxPing, ", lag500 = ",
-                         ni.lagCount500, ", lag1000 = ", ni.lagCount1000, ", lag1500 = ", ni.lagCount1500,
-                         ", lag2000 = ", ni.lagCount2000, ", lag2500 = ", ni.lagCount2500, ", lag3000+ = ",
-                         ni.lagCount3000
-                );
+                LOG_INFO("TCP: runSeconds: ", ni.totalRunSeconds, ", dialCount: ", ni.dialCount, ", ping avg = ", (ni.pingSum / ni.pingCount + 1), ", min = ", ni.minPing, ", max = ", ni.maxPing,
+                         ", <250 = ", ni.goodCount, ", 250 = ", ni.lagCount250, ", 500 = ", ni.lagCount500, ", 1000 = ", ni.lagCount1000, ", 1500 = ", ni.lagCount1500, ", 2000 = ", ni.lagCount2000,
+                         ", 2500 = ", ni.lagCount2500, ", 3000 = ", ni.lagCount3000, ", 5000 = ", ni.lagCount5000, ", 7000+ = ", ni.lagCount7000);
             }
             {
                 auto &&ni = kni;
                 ni.totalRunSeconds += 10;
-                LOG_INFO("KCP: totalRunSeconds = ", ni.totalRunSeconds, ", dialCount = ", ni.dialCount, " pingCount = ",
-                         ni.pingCount, ", pingSum = ",
-                         ni.pingSum, ", minPing = ", ni.minPing, ", maxPing = ", ni.maxPing, ", lag500 = ",
-                         ni.lagCount500, ", lag1000 = ", ni.lagCount1000, ", lag1500 = ", ni.lagCount1500,
-                         ", lag2000 = ", ni.lagCount2000, ", lag2500 = ", ni.lagCount2500, ", lag3000+ = ",
-                         ni.lagCount3000
-                );
+                LOG_INFO("KCP: runSeconds: ", ni.totalRunSeconds, ", dialCount: ", ni.dialCount, ", ping avg = ", (ni.pingSum / ni.pingCount + 1), ", min = ", ni.minPing, ", max = ", ni.maxPing,
+                         ", <250 = ", ni.goodCount, ", 250 = ", ni.lagCount250, ", 500 = ", ni.lagCount500, ", 1000 = ", ni.lagCount1000, ", 1500 = ", ni.lagCount1500, ", 2000 = ", ni.lagCount2000,
+                         ", 2500 = ", ni.lagCount2500, ", 3000 = ", ni.lagCount3000, ", 5000 = ", ni.lagCount5000, ", 7000+ = ", ni.lagCount7000);
             }
         }
     });

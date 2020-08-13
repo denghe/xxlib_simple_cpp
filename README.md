@@ -185,14 +185,17 @@ root hard core unlimited
 * hard core unlimited
 ```
 
-修改 linux 收发缓冲区最大长度限制( 主要针对 UDP 端口做服务器的情况 ): /etc/sysctl.conf 增加两行, 保存重启( 下面的数字是 20兆, 能缓存约 11755 个 1784 字节 udp 包 )
+修改 linux 收发缓冲区最大长度限制( 主要针对 UDP 端口做服务器的情况 ): /etc/sysctl.conf 增加两行, 保存重启
 ```
-rmem_max=2097152
-wmem_max=2097152
+net.core.rmem_max=26214400
+* net.core.rmem_default=26214400
+net.core.wmem_max=26214400
+* net.core.wmem_default=26214400
+net.core.netdev_max_backlog=2048
 ```
 临时修改并立即生效的命令行:
 ```
-sudo sysctl -w net.core.rmem_max=20971520 net.core.wmem_max=20971520
+sudo sysctl -w net.core.rmem_max=26214400 net.core.wmem_max=26214400
 ```
 
 
