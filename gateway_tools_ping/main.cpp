@@ -31,7 +31,36 @@ struct NetInfo {
     uint64_t lagCount5000 = 0;
     uint64_t lagCount7000 = 0;
     uint64_t dialCount = 0;
+
+    [[nodiscard]] std::string ToString() const {
+        return xx::ToString("runSeconds: ", totalRunSeconds, ", dialCount: ", dialCount, ", ping avg = ", (pingSum / pingCount + 1), ", min = ", minPing, ", max = ", maxPing,
+                            ", <250 = ", goodCount, ", 250 = ", lagCount250, ", 500 = ", lagCount500, ", 1000 = ", lagCount1000, ", 1500 = ", lagCount1500, ", 2000 = ",
+                            lagCount2000, ", 2500 = ", lagCount2500, ", 3000 = ", lagCount3000, ", 5000 = ", lagCount5000, ", 7000+ = ", lagCount7000);
+    }
+
+    void Clear() {
+        memset(this, 0, sizeof(*this));
+        minPing = 10000;
+    }
+
+    void Calc(int64_t const& ms) {
+        if (ms > maxPing) maxPing = ms;
+        if (ms < minPing) minPing = ms;
+        pingSum += ms;
+        if (ms <= 250) goodCount++;
+        if (ms > 250) lagCount250++;
+        if (ms > 500) lagCount500++;
+        if (ms > 1000) lagCount1000++;
+        if (ms > 1500) lagCount1500++;
+        if (ms > 2000) lagCount2000++;
+        if (ms > 2500) lagCount2500++;
+        if (ms > 3000) lagCount3000++;
+        if (ms > 5000) lagCount5000++;
+        if (ms > 7000) lagCount7000++;
+        pingCount++;
+    }
 };
+
 NetInfo tni, kni;
 
 struct KcpPeer : EP::KcpPeer {
@@ -134,20 +163,7 @@ struct KcpPeer : EP::KcpPeer {
         SendPing();
 
         // 统计
-        if (ms > ni->maxPing) ni->maxPing = ms;
-        if (ms < ni->minPing) ni->minPing = ms;
-        ni->pingSum += ms;
-        if (ms <= 250) ni->goodCount++;
-        if (ms > 250) ni->lagCount250++;
-        if (ms > 500) ni->lagCount500++;
-        if (ms > 1000) ni->lagCount1000++;
-        if (ms > 1500) ni->lagCount1500++;
-        if (ms > 2000) ni->lagCount2000++;
-        if (ms > 2500) ni->lagCount2500++;
-        if (ms > 3000) ni->lagCount3000++;
-        if (ms > 5000) ni->lagCount5000++;
-        if (ms > 7000) ni->lagCount7000++;
-        ni->pingCount++;
+        ni->Calc(ms);
     }
 
     inline void ReceivePackage(uint32_t const &serverId, char *const &buf, size_t const &len) {
@@ -281,20 +297,7 @@ struct TcpPeer : EP::TcpPeer {
         SendPing();
 
         // 统计
-        if (ms > ni->maxPing) ni->maxPing = ms;
-        if (ms < ni->minPing) ni->minPing = ms;
-        ni->pingSum += ms;
-        if (ms <= 250) ni->goodCount++;
-        if (ms > 250) ni->lagCount250++;
-        if (ms > 500) ni->lagCount500++;
-        if (ms > 1000) ni->lagCount1000++;
-        if (ms > 1500) ni->lagCount1500++;
-        if (ms > 2000) ni->lagCount2000++;
-        if (ms > 2500) ni->lagCount2500++;
-        if (ms > 3000) ni->lagCount3000++;
-        if (ms > 5000) ni->lagCount5000++;
-        if (ms > 7000) ni->lagCount7000++;
-        ni->pingCount++;
+        ni->Calc(ms);
     }
 
     inline void ReceivePackage(uint32_t const &serverId, char *const &buf, size_t const &len) {
@@ -396,22 +399,30 @@ int main(int argc, char const *argv[]) {
     bool running = true;
 
     std::thread t([&] {
+        std::ofstream ofs;
+        ofs.open("sum.txt", std::ios_base::app);
+        if (ofs.fail()) {
+            std::cerr << "ERROR!!! open sum.txt failed" << std::endl;
+        }
+        ofs << "start time: " << xx::ToString(xx::Now()) << std::endl;
+        ofs.flush();
         while (running) {
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            {
-                auto &&ni = tni;
-                ni.totalRunSeconds += 10;
-                LOG_SIMPLE("TCP: runSeconds: ", ni.totalRunSeconds, ", dialCount: ", ni.dialCount, ", ping avg = ", (ni.pingSum / ni.pingCount + 1), ", min = ", ni.minPing, ", max = ", ni.maxPing,
-                         ", <250 = ", ni.goodCount, ", 250 = ", ni.lagCount250, ", 500 = ", ni.lagCount500, ", 1000 = ", ni.lagCount1000, ", 1500 = ", ni.lagCount1500, ", 2000 = ", ni.lagCount2000,
-                         ", 2500 = ", ni.lagCount2500, ", 3000 = ", ni.lagCount3000, ", 5000 = ", ni.lagCount5000, ", 7000+ = ", ni.lagCount7000);
+            // 每小时结存一次
+            for (int i = 0; i < 60; ++i) {
+                // 每分钟输出一次
+                std::this_thread::sleep_for(std::chrono::seconds(60));
+                tni.totalRunSeconds += 60;
+                LOG_SIMPLE("TCP: ", tni.ToString());
+                kni.totalRunSeconds += 60;
+                LOG_SIMPLE("KCP: ", kni.ToString());
             }
-            {
-                auto &&ni = kni;
-                ni.totalRunSeconds += 10;
-                LOG_SIMPLE("KCP: runSeconds: ", ni.totalRunSeconds, ", dialCount: ", ni.dialCount, ", ping avg = ", (ni.pingSum / ni.pingCount + 1), ", min = ", ni.minPing, ", max = ", ni.maxPing,
-                         ", <250 = ", ni.goodCount, ", 250 = ", ni.lagCount250, ", 500 = ", ni.lagCount500, ", 1000 = ", ni.lagCount1000, ", 1500 = ", ni.lagCount1500, ", 2000 = ", ni.lagCount2000,
-                         ", 2500 = ", ni.lagCount2500, ", 3000 = ", ni.lagCount3000, ", 5000 = ", ni.lagCount5000, ", 7000+ = ", ni.lagCount7000);
-            }
+            ofs << "TCP: " << tni.ToString() << std::endl;
+            ofs << "KCP: " << kni.ToString() << std::endl;
+            ofs.flush();
+            memset(&tni, 0, sizeof(tni));
+            tni.minPing = 10000;
+            memset(&kni, 0, sizeof(kni));
+            kni.minPing = 10000;
         }
     });
 
