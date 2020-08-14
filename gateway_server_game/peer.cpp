@@ -19,7 +19,7 @@ void Peer::Receive() {
 
         // 长度异常则断线退出( 超长? 256k 不够可以改长 )
         if (UNLIKELY(dataLen > 1024 * 256)) {
-            Close(__LINE__);
+            Close(__LINE__, __LINESTR__ " Peer Receive dataLen > 1024 * 256");
             return;
         }
 
