@@ -6,13 +6,14 @@ using namespace std::chrono;
 
 template<typename T>
 void Test(T& vv) {
-    int num = 100000;
     auto&& now = system_clock::now();
+    int num = 100000;
+    vv.reserve(num);
     for (int i = 0; i < num; ++i) {
         auto&& v = vv.emplace_back();
         v.assign({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 });
     }
-    std::cout << "fill time = " << (system_clock::now() - now).count() << std::endl;
+    std::cout << "fill time = " << duration_cast<nanoseconds>(system_clock::now() - now).count() << std::endl;
     now = system_clock::now();
     uint64_t count = 0;
     for (auto&& v : vv) {
@@ -22,7 +23,7 @@ void Test(T& vv) {
             }
         }
     }
-    std::cout << count << ", count time = " << (system_clock::now() - now).count() << std::endl;
+    std::cout << count << ", count time = " << duration_cast<nanoseconds>(system_clock::now() - now).count() << std::endl;
 }
 
 int main() {
@@ -39,6 +40,7 @@ int main() {
     }
     return 0;
 }
+
 
 
 //#include <memory_resource>

@@ -2,7 +2,6 @@
 #include <thread>
 #include <vector>
 #include <mutex>
-#include <unordered_map>
 #include <tuple>
 #include <atomic>
 
@@ -11,6 +10,7 @@
 #include "xx_data.h"
 #include "xx_chrono.h"
 #include "ikcp.h"
+#include "tsl/hopscotch_map.h"
 
 /*
 
@@ -124,7 +124,7 @@ protected:
     std::mutex mtx;
 
     // 带超时的握手信息字典 key: ip:port   value: conv, nowMS
-    std::unordered_map<std::string, std::pair<uint32_t, int64_t>> shakes;
+    tsl::hopscotch_map<std::string, std::pair<uint32_t, int64_t>> shakes;
 
     // 自增生成 conv 用
     uint32_t convId = 0;
@@ -165,7 +165,7 @@ protected:
     std::vector<FdAddrData> fads1, fads2;
 
     // key: conv。KcpPeer Close 时从该字典移除 key
-    std::unordered_map<uint32_t, KcpPeer *> cps;
+    tsl::hopscotch_map<uint32_t, KcpPeer *> cps;
 
     // kcp update
     int FrameUpdate() override;
@@ -491,6 +491,8 @@ inline void KcpPeer::Input(char const *const &buf, size_t const &len_, bool isFi
         Close(-1, __LINESTR__ "KcpPeer Input if (int r = ikcp_input(kcp, buf, len_))");
         return;
     }
+    // 重置下次 update 计算时间
+    nextUpdateMS = 0;
     // 开始处理收到的数据
     do {
         // 如果接收缓存没容量就扩容( 通常发生在首次使用时 )
@@ -524,6 +526,8 @@ inline void KcpPeer::Input(char const *const &buf, size_t const &len_, bool isFi
 
 inline int KcpPeer::Send(char const *const &buf, size_t const &len) {
     if (!kcp) return -1;
+    // 重置下次 update 计算时间
+    nextUpdateMS = 0;
     return ikcp_send(kcp, buf, len);
 }
 
