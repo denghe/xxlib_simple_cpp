@@ -120,7 +120,7 @@ namespace xx::Epoll {
     }
 
     inline bool HttpPeer::Close(int const &reason, char const* const& desc) {
-        if (!this->Item::Close(reason)) return false;
+        if (!this->Item::Close(reason, desc)) return false;
         // 从 ec->holdItems 延迟移除 以 释放智能指针( 出函数后 )
         DelayUnhold();
         return true;
