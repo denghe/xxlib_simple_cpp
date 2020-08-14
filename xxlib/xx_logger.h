@@ -48,9 +48,9 @@ namespace xx {
 #endif
         std::stringstream ss;
         ss << std::put_time(&tm, format);
-        auto &&e = tp.time_since_epoch();
-        ss << "." << std::chrono::duration_cast<std::chrono::microseconds>(e).count() -
-                     std::chrono::duration_cast<std::chrono::seconds>(e).count() * 1000000LL;
+//        auto &&e = tp.time_since_epoch();
+//        ss << "." << std::chrono::duration_cast<std::chrono::microseconds>(e).count() -
+//                     std::chrono::duration_cast<std::chrono::seconds>(e).count() * 1000000LL;
         return ss.str();
     }
 
@@ -373,24 +373,29 @@ namespace xx {
 
         // dump 单行日志 的前缀部分。可覆盖实现自己的写入格式
         inline virtual void
-        Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName,
-                    char const *const &funcName, std::chrono::system_clock::time_point const &tp,
-                    bool const &isConsole) {
-            if (isConsole) {
-                o << "\033[36m" << ToString(tp) << "\033[37m" << " [" << logLevelColorNames[(int) level]
-                  << "] [file:\033[36m"
-                  << fileName << "\033[37m line:\033[36m" << lineNumber << "\033[37m func:\033[36m" << funcName
-                  << "\033[37m] ";
+        Dump_Prefix(std::ostream &o, LogLevels const &level, int const &lineNumber, char const *const &fileName, char const *const &funcName,
+                    std::chrono::system_clock::time_point const &tp, bool const &isConsole) {
+            if (lineNumber) {
+                if (isConsole) {
+                    o << "\033[36m" << ToString(tp) << "\033[37m" << " [" << logLevelColorNames[(int) level] << "] [file:\033[36m" << fileName << "\033[37m line:\033[36m"
+                      << lineNumber << "\033[37m func:\033[36m" << funcName << "\033[37m] ";
+                } else {
+                    o << ToString(tp) << " [" << logLevelNames[(int) level] << "] [file:" << fileName << " line:" << lineNumber << " func:" << funcName << "] ";
+                }
             } else {
-                o << ToString(tp) << " [" << logLevelNames[(int) level] << "] [file:" << fileName << " line:"
-                  << lineNumber << " func:" << funcName << "] ";
+                // 行号为 0 乃精简模式. 不输出 文件，行号，函数名
+                if (isConsole) {
+                    o << "\033[36m" << ToString(tp) << "\033[37m" << " [" << logLevelColorNames[(int) level] << "\033[37m] ";
+                } else {
+                    o << ToString(tp) << " [" << logLevelNames[(int) level] << "] ";
+                }
             }
         }
     };
 }
 
 inline xx::Logger __xxLogger;
-#if defined(LOG_INFO) ||  defined(LOG_WARN) || defined(LOG_ERROR) || defined(LOG_ERR) || defined(LOG_TRACE) || defined(LOG_DEBUG)
+#if defined(LOG_INFO) || defined(LOG_WARN) || defined(LOG_ERROR) || defined(LOG_ERR) || defined(LOG_TRACE) || defined(LOG_DEBUG)
 #error
 #endif
 
@@ -401,6 +406,7 @@ inline xx::Logger __xxLogger;
 #   define LOG_ERR(...) void()
 #   define LOG_TRACE(...) void()
 #   define LOG_DEBUG(...) void()
+#   define LOG_SIMPLE(...) void()
 #else
 #   define LOG_INFO(...) __xxLogger.Log(xx::LogLevels::INFO, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_WARN(...) __xxLogger.Log(xx::LogLevels::WARN, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
@@ -408,4 +414,5 @@ inline xx::Logger __xxLogger;
 #   define LOG_ERR(...) __xxLogger.Log(xx::LogLevels::ERROR, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_TRACE(...) __xxLogger.Log(xx::LogLevels::TRACE, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
 #   define LOG_DEBUG(...) __xxLogger.Log(xx::LogLevels::DEBUG, __LINE__, xx::CutPath(__FILE__), __FUNCTION__, __VA_ARGS__)
+#   define LOG_SIMPLE(...) __xxLogger.Log(xx::LogLevels::INFO, 0, "", "", __VA_ARGS__)
 #endif

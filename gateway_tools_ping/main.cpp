@@ -59,7 +59,7 @@ struct KcpPeer : EP::KcpPeer {
         Hold();
 
         // 记录日志
-        LOG_INFO(logPrefix, "connected. wait open...");
+        LOG_SIMPLE(logPrefix, "connected. wait open...");
 
         // 设置超时时间
         SetTimeoutSeconds(10);
@@ -128,7 +128,7 @@ struct KcpPeer : EP::KcpPeer {
         // 算 ping, 日志, 续命, 再发
         auto &&now = std::chrono::steady_clock::now();
         auto &&ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastSendTP).count();
-        LOG_INFO(logPrefix, "ping = ", ms);
+        LOG_SIMPLE(logPrefix, "ping = ", ms);
         lastSendTP = now;
         SetTimeoutSeconds(10);
         SendPing();
@@ -156,7 +156,7 @@ struct KcpPeer : EP::KcpPeer {
 
     inline bool Close(int const &reason, char const *const &desc) override {
         if (this->BT::Close(reason, desc)) {
-            LOG_INFO(logPrefix, "Close reason = ", reason, ", desc = ", desc);
+            LOG_SIMPLE(logPrefix, "Close reason = ", reason, ", desc = ", desc);
             DelayUnhold();
             return true;
         }
@@ -206,7 +206,7 @@ struct TcpPeer : EP::TcpPeer {
         Hold();
 
         // 记录日志
-        LOG_INFO(logPrefix, "connected. wait open...");
+        LOG_SIMPLE(logPrefix, "connected. wait open...");
 
         // 设置超时时间
         SetTimeoutSeconds(10);
@@ -275,7 +275,7 @@ struct TcpPeer : EP::TcpPeer {
         // 算 ping, 日志, 续命, 再发
         auto &&now = std::chrono::steady_clock::now();
         auto &&ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastSendTP).count();
-        LOG_INFO(logPrefix, "ping = ", ms);
+        LOG_SIMPLE(logPrefix, "ping = ", ms);
         lastSendTP = now;
         SetTimeoutSeconds(10);
         SendPing();
@@ -303,7 +303,7 @@ struct TcpPeer : EP::TcpPeer {
 
     inline bool Close(int const &reason, char const *const &desc) override {
         if (this->BT::Close(reason, desc)) {
-            LOG_INFO(logPrefix, "Close reason = ", reason, ", desc = ", desc);
+            LOG_SIMPLE(logPrefix, "Close reason = ", reason, ", desc = ", desc);
             DelayUnhold();
             return true;
         }
@@ -319,7 +319,7 @@ struct TcpDialer : EP::TcpDialer<TcpPeer> {
 
     inline void Connect(std::shared_ptr<TcpPeer> const &peer) override {
         if (!peer) {
-            LOG_ERROR("TcpDialer Dial Timeout.");
+            LOG_SIMPLE("TcpDialer Dial Timeout.");
             return; // 没连上
         }
 
@@ -365,12 +365,12 @@ struct Client : EP::Context {
         xx::MakeTo(dialTimer, shared_from_this());
         dialTimer->onTimeout = [this] {
             if (!tcpDialer->Busy() && !tcpDialer->currentPeer.lock()) {
-                LOG_INFO("TcpDialer dial begin.");
+                LOG_SIMPLE("TcpDialer dial begin.");
                 tcpDialer->DialSeconds(5);
             }
 
             if (!kcpDialer->Busy() && kcpDialer->cps.size() < 1) {
-                LOG_INFO("KcpDialer dial begin.");
+                LOG_SIMPLE("KcpDialer dial begin.");
                 kcpDialer->DialSeconds(5);
             }
 
@@ -401,14 +401,14 @@ int main(int argc, char const *argv[]) {
             {
                 auto &&ni = tni;
                 ni.totalRunSeconds += 10;
-                LOG_INFO("TCP: runSeconds: ", ni.totalRunSeconds, ", dialCount: ", ni.dialCount, ", ping avg = ", (ni.pingSum / ni.pingCount + 1), ", min = ", ni.minPing, ", max = ", ni.maxPing,
+                LOG_SIMPLE("TCP: runSeconds: ", ni.totalRunSeconds, ", dialCount: ", ni.dialCount, ", ping avg = ", (ni.pingSum / ni.pingCount + 1), ", min = ", ni.minPing, ", max = ", ni.maxPing,
                          ", <250 = ", ni.goodCount, ", 250 = ", ni.lagCount250, ", 500 = ", ni.lagCount500, ", 1000 = ", ni.lagCount1000, ", 1500 = ", ni.lagCount1500, ", 2000 = ", ni.lagCount2000,
                          ", 2500 = ", ni.lagCount2500, ", 3000 = ", ni.lagCount3000, ", 5000 = ", ni.lagCount5000, ", 7000+ = ", ni.lagCount7000);
             }
             {
                 auto &&ni = kni;
                 ni.totalRunSeconds += 10;
-                LOG_INFO("KCP: runSeconds: ", ni.totalRunSeconds, ", dialCount: ", ni.dialCount, ", ping avg = ", (ni.pingSum / ni.pingCount + 1), ", min = ", ni.minPing, ", max = ", ni.maxPing,
+                LOG_SIMPLE("KCP: runSeconds: ", ni.totalRunSeconds, ", dialCount: ", ni.dialCount, ", ping avg = ", (ni.pingSum / ni.pingCount + 1), ", min = ", ni.minPing, ", max = ", ni.maxPing,
                          ", <250 = ", ni.goodCount, ", 250 = ", ni.lagCount250, ", 500 = ", ni.lagCount500, ", 1000 = ", ni.lagCount1000, ", 1500 = ", ni.lagCount1500, ", 2000 = ", ni.lagCount2000,
                          ", 2500 = ", ni.lagCount2500, ", 3000 = ", ni.lagCount3000, ", 5000 = ", ni.lagCount5000, ", 7000+ = ", ni.lagCount7000);
             }
