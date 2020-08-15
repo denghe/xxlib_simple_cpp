@@ -404,7 +404,7 @@ int main(int argc, char const *argv[]) {
         if (ofs.fail()) {
             std::cerr << "ERROR!!! open sum.txt failed" << std::endl;
         }
-        ofs << "start time: " << xx::ToString(xx::Now()) << std::endl;
+        ofs << "begin time( UTC ): " << xx::ToString(xx::Now()) << std::endl;
         ofs.flush();
         while (running) {
             // 每小时结存一次
@@ -416,6 +416,7 @@ int main(int argc, char const *argv[]) {
                 kni.totalRunSeconds += 60;
                 LOG_SIMPLE("KCP: ", kni.ToString());
             }
+            ofs << "time( UTC ): " << xx::ToString(xx::Now()) << std::endl;
             ofs << "TCP: " << tni.ToString() << std::endl;
             ofs << "KCP: " << kni.ToString() << std::endl;
             ofs.flush();
