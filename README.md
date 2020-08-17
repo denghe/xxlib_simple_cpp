@@ -112,6 +112,7 @@ libsqlite3-dev
 libmariadb-dev
 uuid-dev
 libluajit-5.1-dev
+liblua5.3-dev
 libuv1-dev
 openssh-server net-tools git vim
 

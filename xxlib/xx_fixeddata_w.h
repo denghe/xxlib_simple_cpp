@@ -218,6 +218,15 @@ namespace xx {
             data.len += 1 + sizeof(T);
         }
     };
+	
+	// 适配所有枚举( 转为数字调用上面的函数 )
+    template<size_t size, typename T>
+    struct BufFuncs<size, T, std::enable_if_t<std::is_enum_v<T>>> {
+        typedef std::underlying_type_t<T> UT;
+        static inline void Write(FixedData<size> &data, T const &in) {
+            BufFuncs<size, UT ,void>::Write((UT)in);
+        }
+    };
 
     // 适配 pair<char*, len>
     template<size_t size>
