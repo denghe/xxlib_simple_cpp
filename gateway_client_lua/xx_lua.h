@@ -34,8 +34,7 @@ namespace xx {
                     auto i = (int64_t) d;
                     if ((double) i == d) {
                         dw.Write(LuaTypes::Integer, i);
-                    }
-                    else {
+                    } else {
                         dw.Write(LuaTypes::Double);
                         dw.WriteFixed(d);
                     }
@@ -55,6 +54,14 @@ namespace xx {
                     lua_checkstack(in, 1);
                     lua_pushnil(in);                                            //                      ... t, nil
                     while (lua_next(in, idx) != 0) {                            //                      ... t, k, v
+                        // 先检查下 k, v 是否为不可序列化类型. 如果是就 next
+                        auto &&vt = lua_type(in, -1);
+                        auto &&kt = lua_type(in, -2);
+                        if (kt == LUA_TLIGHTUSERDATA || kt == LUA_TFUNCTION || kt == LUA_TUSERDATA || kt == LUA_TTHREAD
+                            || vt == LUA_TLIGHTUSERDATA || vt == LUA_TFUNCTION || vt == LUA_TUSERDATA || vt == LUA_TTHREAD) {
+                            lua_pop(in, 1);                                     //                      ... t, k
+                            continue;
+                        }
                         Write(dw, in);                                          // 先写 v
                         lua_pop(in, 1);                                         //                      ... t, k
                         Write(dw, in);                                          // 再写 k

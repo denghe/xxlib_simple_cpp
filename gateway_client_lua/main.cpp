@@ -29,7 +29,7 @@ function Dump(o)
     print(ToString(o))
 end
 
-t = { a = 10, b = true, c = { [1] = "xxx", [2] = 1.234 } }
+t = { a = 10, b = true, c = { [1] = "xxx", [2] = 1.234 }, f = function() end, g = function() end, h = function() end, i = function() end }
 
 )++");
 
