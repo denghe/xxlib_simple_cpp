@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "xx_data.h"
 #include <string>
+#include <string_view>
 #include <vector>
 #include <unordered_map>
 #include <map>
@@ -318,6 +319,15 @@ namespace xx {
             out.assign((char*)dr.buf + dr.offset, siz);
             dr.offset += siz;
             return 0;
+		}
+	};
+
+	// 适配 std::string_view ( 写入 变长长度 + 内容 )
+	template<>
+	struct DataFuncs<std::string_view, void> {
+		static inline void Write(DataWriter& dw, std::string_view const& in) {
+			dw.WriteVarIntger(in.size());
+			dw.WriteBuf((char*)in.data(), in.size());
 		}
 	};
 
