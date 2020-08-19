@@ -60,19 +60,27 @@ namespace xx {
 	}
 
 
-	// 得到当前 system 时间点的 epoch (精度为 ms)
+	// 得到当前 system 时间点的 epoch (精度为 毫秒)
 	inline int64_t NowSystemEpochMS() noexcept {
 		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	}
-	// 得到当前 steady 时间点的 epoch (精度为 ms)
+	// 得到当前 steady 时间点的 epoch (精度为 毫秒)
 	inline int64_t NowSteadyEpochMS() noexcept {
 		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	}
 
-    // 得到当前 steady 时间点的 epoch (精度为 seconds. 精确到小数点后 6 位)
+    // 得到当前 steady 时间点的 epoch (精度为秒. 精确到小数点后 6 位)
     inline double NowSteadyEpochSeconds() noexcept {
         return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000.0;
     }
+
+	// 更新并返回和 last 的时间差. last 可用 NowSteadyEpochSeconds 初始化 (精度为秒. 精确到小数点后 6 位)
+	inline double NowSteadyEpochSeconds(double& last) noexcept {
+		auto now = NowSteadyEpochSeconds();
+		auto rtv = now - last;
+		last = now;
+		return rtv;
+	}
 
 
 //	// 当前时间转为字符串并填充

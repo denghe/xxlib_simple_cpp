@@ -1,37 +1,85 @@
 ﻿#include "xx_lua.h"
-#include <cassert>
 #include "xx_string.h"
 #include "xx_chrono.h"
+#include <thread>
 
-int main() {
-    auto &&L = luaL_newstate();
-    assert(L);
-    luaL_openlibs(L);
+int main(int argc, char const *argv[]) {
+    xx::Lua::Context LC;
 
-    assert(lua_gettop(L) == 0);
+    // load
+    LC.DoFile("main.lua");
+    LC.CheckTop(0);
 
-    luaL_dostring(L, R"++(
-function ToString(o)
-    if type(o) == 'table' then
-        local s = '{'
-        for k, v in pairs(o) do
-            s = s .. '[' .. ToString(k).. ']=' .. ToString(v) .. ','
-        end
-        return string.sub(s, 0, #s - 1) .. '}'
-    elseif type(o) == 'string' then
-        return '"'..tostring(o)..'"'
-    else
-        return tostring(o)
-    end
-end
+    // init
+    if (auto r = LC.PCallGlobalFunc("Main")) {
+        std::cout << r.m << std::endl;
+    }
 
-function Dump(o)
-    print(ToString(o))
-end
+    LC.SetGlobalFunc("Test", [](auto L)->int {
+        
+        return 0;
+    });
 
-t = { a = 10, b = true, c = { [1] = "xxx", [2] = 1.234 }, f = function() end, g = function() end, h = function() end, i = function() end }
+    // frame update
+    auto lastSecs = xx::NowSteadyEpochSeconds();
+    for (int i = 0; i < 100; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        auto elapsedSecs = xx::NowSteadyEpochSeconds(lastSecs);
 
-)++");
+        if (auto r = LC.PCallGlobalFunc("UpdateScripts", elapsedSecs)) {
+            std::cout << r.m << std::endl;
+        }
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//
+//    luaL_dofile(L, "test1.lua");
+//    assert(lua_gettop(L) == 1);
+//    assert(lua_type(L, -1) == LUA_TTABLE);
+//
+//    // 找个地方放置 test1.lua return t
+//
+//    //lua_getglobal(L, "t");          // t
+//
+//    xx::Data d;
+//    xx::DataWriter dw(d);
+//    dw.Write(L);
+//    xx::CoutN(d);
+//
+//    lua_pop(L, 1);                  //
+//    assert(lua_gettop(L) == 0);
+//
+//    lua_getglobal(L, "Dump");       // func
+//    assert(lua_type(L, -1) == LUA_TFUNCTION);
+//
+//    xx::DataReader dr(d);
+//    int r = dr.Read(L);             // func, t
+//    assert(r == 0);
+//    assert(lua_gettop(L) == 2);
+//    assert(lua_type(L, -1) == LUA_TTABLE);
+//
+//    if ((r = lua_pcall(L, 1, LUA_MULTRET, 0))) {
+//        auto s = lua_tostring(L, -1);
+//        std::cout << r << " " << (s ? s : "") << std::endl;
+//        lua_pop(L, 1);
+//        return r;
+//    }
 
 
 //    xx::Data d;
@@ -51,40 +99,6 @@ t = { a = 10, b = true, c = { [1] = "xxx", [2] = 1.234 }, f = function() end, g 
 //        d.Clear();
 //    }
 //    xx::CoutN(xx::NowSteadyEpochMS() - ms);
-
-
-    lua_getglobal(L, "t");          // t
-
-    xx::Data d;
-    xx::DataWriter dw(d);
-    dw.Write(L);
-    xx::CoutN(d);
-
-    lua_pop(L, 1);                  //
-    assert(lua_gettop(L) == 0);
-
-    lua_getglobal(L, "Dump");       // func
-    assert(lua_type(L, -1) == LUA_TFUNCTION);
-
-    xx::DataReader dr(d);
-    int r = dr.Read(L);             // func, t
-    assert(r == 0);
-    assert(lua_gettop(L) == 2);
-    assert(lua_type(L, -1) == LUA_TTABLE);
-
-    if ((r = lua_pcall(L, 1, LUA_MULTRET, 0))) {
-        auto s = lua_tostring(L, -1);
-        std::cout << r << " " << (s ? s : "") << std::endl;
-        lua_pop(L, 1);
-        return r;
-    }
-
-
-    lua_close(L);
-    return 0;
-}
-
-
 
 
 //    std::unordered_map<std::string, int> intint;
