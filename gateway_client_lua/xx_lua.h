@@ -540,7 +540,7 @@ namespace xx::Lua {
 
         template<typename...Args>
         void To(Args &...args) {
-            return ::xx::Lua::To(L, args...);
+            return ::xx::Lua::To(L, 1, args...);
         }
 
         void To() {}
