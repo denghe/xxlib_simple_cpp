@@ -135,6 +135,11 @@ function AddScript(t)
     return id
 end
 
+-- 从文件加载一个脚本对象，成功返回 id
+function LoadScript(fn)
+    return AddScript(require(fn)())
+end
+
 -- 卸载一个脚本对象
 function RemoveScript(id)
     scripts[id].Dispose()
@@ -153,9 +158,4 @@ function UpdateScripts(elapsedSeconds)
     for i = #d, 1, -1 do
         scripts[d[i]] = nil
     end
-end
-
--- 加载指定文件，创建脚本对象
-function MakeScript(fn)
-    return require(fn)()
 end

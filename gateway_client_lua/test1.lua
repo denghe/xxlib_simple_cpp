@@ -14,7 +14,9 @@ return function()
     end
 
     t.Update = function(elapsedSeconds)
-        --print("update " .. elapsedSeconds)
+        print("update " .. elapsedSeconds.." "..Now())
+        XXX();
+        print(Arg);
         return true
     end
 

@@ -4,32 +4,61 @@
 #include <thread>
 
 int main(int argc, char const *argv[]) {
-    xx::Lua::Context LC;
+    xx::Lua::Context L;
 
-    // load
-    LC.DoFile("main.lua");
-    LC.CheckTop(0);
+    // 粗犷模式：大 try. 有任何问题都停止&退出并显示错误信息
+    if (auto &&r = L.Try([&] {
 
-    // init
-    if (auto r = LC.PCallGlobalFunc("Main")) {
-        std::cout << r.m << std::endl;
-    }
+        // 映射个 全局 lambda 测试下
+        L.SetGlobalFunc("Now", [&] {
+            return xx::ToString(xx::Now());
+        });
 
-    LC.SetGlobalFunc("Test", [](auto L)->int {
-        
-        return 0;
-    });
+        L.SetGlobalBy("Arg", 123);
 
-    // frame update
-    auto lastSecs = xx::NowSteadyEpochSeconds();
-    for (int i = 0; i < 100; ++i) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        auto elapsedSecs = xx::NowSteadyEpochSeconds(lastSecs);
+        L.SetGlobalFunc("XXX", [&] {
+            xx::CoutN("asdfasdf");
+        });
 
-        if (auto r = LC.PCallGlobalFunc("UpdateScripts", elapsedSecs)) {
-            std::cout << r.m << std::endl;
+        //L.SetGlobalFunc("Calc", [&])
+
+        // 加载入口脚本文件( 如果文件里面有 local 变量，似乎会导致 L 不空 )
+        L.DoFile("main.lua");
+
+        // 调用入口函数
+        auto top = L.GetTop();
+        L.CallGlobalFunc("Main");
+        L.SetTop(top);  // 忽略返回值
+
+        // 模拟一个脚本对象
+        struct Script {
+            std::string name = "test1";
+            int id = 0;
+        } script;
+
+        // 从文件加载脚本. 填充返回的 id
+        top = L.GetTop();
+        L.CallGlobalFunc("LoadScript", script.name);
+        // L.To(script.id);
+        L.SetTop(top);  // 清除返回值
+
+        // 模拟帧循环
+        auto lastSecs = xx::NowSteadyEpochSeconds();
+        for (int i = 0; i < 100; ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            auto elapsedSecs = xx::NowSteadyEpochSeconds(lastSecs);
+
+            top = L.GetTop();
+            // 调用 lua 中声明的 更新所有脚本 函数. 传入已经历的时长
+            L.CallGlobalFunc("UpdateScripts", elapsedSecs);
+            L.SetTop(top);  // 清除返回值
         }
+
+    })) {
+        std::cout << "error: n = " << r.n << ", m = " << r.m << std::endl;
+        return r.n;
     }
+
 
     return 0;
 }
