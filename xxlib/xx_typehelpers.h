@@ -45,41 +45,6 @@ namespace xx {
 	struct IsPod<T, std::enable_if_t<std::is_pod_v<T>>> : std::true_type {};
 
 
-    /************************************************************************************/
-    // lambda / function 类型分析
-
-    template<typename T, typename = void>
-    struct FuncTraits;
-
-    template<typename Rtv, typename...Args>
-    struct FuncTraits<Rtv (*)(Args...)> {
-        using R = Rtv;
-        using C = void;
-        using A = std::tuple<Args...>;
-        using F = std::function<R(Args...)>;
-    };
-
-    template<typename Rtv, typename CT, typename... Args>
-    struct FuncTraits<Rtv (CT::*)(Args...) const> {
-        using R = Rtv;
-        using C = CT;
-        using A = std::tuple<Args...>;
-        using F = std::function<Rtv(Args...)>;
-    };
-
-    template<typename T>
-    struct FuncTraits<T, std::void_t<decltype(&T::operator())> >
-            : public FuncTraits<decltype(&T::operator())> {
-    };
-
-    template<typename T>
-    using FuncR_t = typename FuncTraits<T>::R;
-    template<typename T>
-    using FuncC_t = typename FuncTraits<T>::C;
-    template<typename T>
-    using FuncA_t = typename FuncTraits<T>::A;
-    template<typename T>
-    using FuncF_t = typename FuncTraits<T>::F;
 
 
     /************************************************************************************/

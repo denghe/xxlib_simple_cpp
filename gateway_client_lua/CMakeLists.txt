@@ -16,7 +16,7 @@ add_executable(gateway_client_lua
 target_link_libraries(gateway_client_lua
         pthread
         readline
-        mimalloc
+        #mimalloc
         #lua5.3
         luajit-5.1
         )

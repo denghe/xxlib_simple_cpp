@@ -14,13 +14,9 @@ int main(int argc, char const *argv[]) {
             return xx::ToString(xx::Now());
         });
 
-        L.SetGlobalBy("Arg", 123);
-
-        L.SetGlobalFunc("XXX", [&] {
-            xx::CoutN("asdfasdf");
+        L.SetGlobalFunc("Add", [&](int const &a, int const &b) {
+            std::cout << "Add(" << a << ", " << b << ")" << std::endl;
         });
-
-        //L.SetGlobalFunc("Calc", [&])
 
         // 加载入口脚本文件( 如果文件里面有 local 变量，似乎会导致 L 不空 )
         L.DoFile("main.lua");
@@ -39,7 +35,7 @@ int main(int argc, char const *argv[]) {
         // 从文件加载脚本. 填充返回的 id
         top = L.GetTop();
         L.CallGlobalFunc("LoadScript", script.name);
-        // L.To(script.id);
+        L.To(script.id);
         L.SetTop(top);  // 清除返回值
 
         // 模拟帧循环

@@ -15,8 +15,7 @@ return function()
 
     t.Update = function(elapsedSeconds)
         print("update " .. elapsedSeconds.." "..Now())
-        XXX();
-        print(Arg);
+        Add(1, 2);
         return true
     end
 
