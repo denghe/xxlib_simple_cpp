@@ -8,6 +8,8 @@
 #include "xx_data_rw.h"
 #include "xx_string.h"
 #include <lua.hpp>
+#include "is_lambda.hpp"
+#include "func_type_traits.h"
 
 namespace xx {
     /******************************************************************************************************************/
@@ -148,17 +150,23 @@ namespace xx {
 
 namespace xx::Lua {
 
+    // for easy use
+    template<typename...Args>
+    inline int Error(lua_State *const &L, Args const &... args) {
+        return luaL_error(L, ::xx::ToString(args...).c_str());
+    }
+
     /******************************************************************************************************************/
     // Lua push, to 系列基础适配模板. Push 返回实际入栈的参数个数( 通常是 1. 但如果传入一个队列并展开压栈则不一定 ). To 无返回值.
     // 可能抛 lua 异常( 故这些函数应该间接被 pcall 使用 )
     template<typename T, typename ENABLED = void>
     struct PushToFuncs {
         static inline int Push(lua_State *const &L, T const &in) {
-            return luaL_error(L, "Lua Push error! not support's type %s", typeid(T).name());
+            return Error(L, "Lua Push error! not support's type ", typeid(T).name());
         }
 
         static inline void To(lua_State *const &L, int const &idx, T &out) {
-            luaL_error(L, "Lua Push error! not support's type %s", typeid(T).name());
+            Error(L, "Lua Push error! not support's type ", typeid(T).name());
         }
     };
 
@@ -172,7 +180,7 @@ namespace xx::Lua {
         }
 
         static inline void To(lua_State *const &L, int const &idx, bool &out) {
-            if (!lua_isboolean(L, idx)) luaL_error(L, "error! args[%d] is not bool", idx);
+            if (!lua_isboolean(L, idx)) Error(L, "error! args[", idx, "] is not bool");
             out = (bool) lua_toboolean(L, idx);
         }
     };
@@ -189,7 +197,7 @@ namespace xx::Lua {
         static inline void To(lua_State *const &L, int const &idx, T &out) {
             int isnum = 0;
             out = (T) lua_tointegerx(L, idx, &isnum);
-            if (!isnum) luaL_error(L, "error! args[%d] is not number", idx);
+            if (!isnum) Error(L, "error! args[", idx, "] is not number");
         }
     };
 
@@ -219,7 +227,7 @@ namespace xx::Lua {
         static inline void To(lua_State *const &L, int const &idx, T &out) {
             int isnum = 0;
             out = (T) lua_tonumberx(L, idx, &isnum);
-            if (!isnum) luaL_error(L, "error! args[%d] is not number", idx);
+            if (!isnum) Error(L, "error! args[", idx, "] is not number");
         }
     };
 
@@ -243,7 +251,7 @@ namespace xx::Lua {
         }
 
         static inline void To(lua_State *const &L, int const &idx, std::string &out) {
-            if (!lua_isstring(L, idx)) luaL_error(L, "error! args[%d] is not string", idx);
+            if (!lua_isstring(L, idx)) Error(L, "error! args[", idx, "] is not string");
             size_t len = 0;
             auto ptr = lua_tolstring(L, idx, &len);
             out.assign(ptr, len);
@@ -282,11 +290,18 @@ namespace xx::Lua {
             int n = ::xx::Lua::PushToFuncs<Arg>::Push(L, arg);
             return n + Push(L, args...);
         }
+
+        int Push(lua_State *const &L) {
+            return 0;
+        }
     }
 
     template<typename...Args>
     int Push(lua_State *const &L, Args const &...args) {
         return ::xx::Lua::Detail::Push(L, args...);
+    }
+    int Push(lua_State *const &L) {
+        return 0;
     }
 
     // 适配模板转为函数
@@ -332,30 +347,153 @@ namespace xx::Lua {
     // lambda / function 类型分析
 
     template<typename T, typename = void>
-    struct FuncTraits;
+    struct LambdaTraits;
 
     template<typename Rtv, typename...Args>
-    struct FuncTraits<Rtv (*)(Args const &...)> {
+    struct LambdaTraits<Rtv (*)(Args const &...)> {
         using R = Rtv;
         using A = std::tuple<Args...>;
     };
 
     template<typename Rtv, typename CT, typename... Args>
-    struct FuncTraits<Rtv (CT::*)(Args const &...) const> {
+    struct LambdaTraits<Rtv (CT::*)(Args const &...) const> {
         using R = Rtv;
         using A = std::tuple<Args...>;
     };
 
     template<typename T>
-    struct FuncTraits<T, std::void_t<decltype(&T::operator())> >
-            : public FuncTraits<decltype(&T::operator())> {
+    struct LambdaTraits<T, std::void_t<decltype(&T::operator())> >
+            : public LambdaTraits<decltype(&T::operator())> {
     };
 
     template<typename T>
-    using FuncR_t = typename FuncTraits<T>::R;
+    using LambdaRtv_t = typename LambdaTraits<T>::R;
     template<typename T>
-    using FuncA_t = typename FuncTraits<T>::A;
+    using LambdaArgs_t = typename LambdaTraits<T>::A;
 
+    // 压入一个 T( 内容复制到 userdata, 且注册析构函数 )
+    template<typename T>
+    void PushUserdata(lua_State *const &L, T &&v) {
+        using U = std::decay_t<T>;
+        auto f = (U *) lua_newuserdata(L, sizeof(U));                   // ..., ud
+        new(f) U(std::forward<T>(v));
+        lua_newtable(L);                                                // ..., ud, mt
+        lua_pushstring(L, "__gc");                                      // ..., ud, mt, "__gc"
+        lua_pushvalue(L, -3);                                           // ..., ud, mt, "__gc", ud
+        lua_pushcclosure(L, [](auto L) {                                // ..., ud, mt, "__gc", cc
+            auto f = (U *) lua_touserdata(L, lua_upvalueindex(1));
+            f->~U();
+            return 0;
+        }, 1);
+        lua_rawset(L, -3);                                              // ..., ud, mt
+        lua_setmetatable(L, -2);                                        // ..., ud
+    }
+
+    // 适配 lambda
+    template<typename T>
+    struct PushToFuncs<T, std::enable_if_t<bxlx::is_lambda_v<T>>> {
+        static inline int Push(lua_State *const &L, T const &in) {
+            PushUserdata(L, in);                                        // ..., ud
+            lua_pushcclosure(L, [](auto L) {                            // ..., cc
+                auto f = (T *) lua_touserdata(L, lua_upvalueindex(1));
+                LambdaArgs_t<T> tuple;
+                To(L, 1, tuple);
+                int rtv = 0;
+                std::apply([&](auto const &... args) {
+                    if constexpr(std::is_void_v<LambdaRtv_t<T>>) {
+                        (*f)(args...);
+                    } else {
+                        rtv = xx::Lua::Push(L, (*f)(args...));
+                    }
+                }, tuple);
+                return rtv;
+            }, 1);
+            return 1;
+        }
+    };
+
+
+    // 被 std::function 捕获携带, 当捕获列表析构发生时, 自动从 L 中反注册函数
+    // 需自己确保这些 function 活的比 L 久
+    struct FuncWrapper {
+        // 使用指针值 &*L 做 key( lightuserdata ). 将函数放入注册表
+        std::shared_ptr<lua_State *> p;
+
+        FuncWrapper() = default;
+
+        FuncWrapper(FuncWrapper const &o) = default;
+
+        FuncWrapper &operator=(FuncWrapper const &o) = default;
+
+        FuncWrapper(FuncWrapper &&o) noexcept
+                : p(std::move(o.p)) {
+        }
+
+        inline FuncWrapper &operator=(FuncWrapper &&o) noexcept {
+            std::swap(p, o.p);
+            return *this;
+        }
+
+        FuncWrapper(lua_State *const &L, int const &idx) {
+            if (!lua_isfunction(L, idx)) Error(L, "args[", idx, "] is not a lua function");
+            lua_checkstack(L, 2);
+            p = std::make_shared<lua_State *>(L);
+            lua_pushlightuserdata(L, &*p);                              // ..., func, ..., key
+            lua_pushvalue(L, idx);                                      // ..., func, ..., key, func
+            lua_rawset(L, LUA_REGISTRYINDEX);                           // ..., func, ...
+        }
+
+        // 如果 p 引用计数唯一, 则反注册
+        ~FuncWrapper() {
+            if (p.use_count() != 1) return;
+            auto L = *p;
+            lua_checkstack(L, 2);
+            lua_pushlightuserdata(L, &*p);                              // ..., key
+            lua_pushnil(L);                                             // ..., key, nil
+            lua_rawset(L, LUA_REGISTRYINDEX);                           // ...
+        }
+    };
+
+
+    // todo: 参考 sol2?
+    // 适配 std::function
+    template<typename T>
+    struct PushToFuncs<std::function<T>, void> {
+        static inline int Push(lua_State *const &L, std::function<T> const &in) {
+            PushUserdata(L, in);                                        // ..., ud
+            lua_pushcclosure(L, [](auto L) {                            // ..., cc
+                auto f = (std::function<T> *) lua_touserdata(L, lua_upvalueindex(1));
+                fu::argument_type_of_t<T> tuple;
+                To(L, 1, tuple);
+                int rtv = 0;
+                std::apply([&](auto const &... args) {
+                    if constexpr(std::is_void_v<fu::return_type_of_t<T>>) {
+                        (*f)(args...);
+                    } else {
+                        rtv = xx::Lua::Push(L, (*f)(args...));
+                    }
+                }, tuple);
+                return rtv;
+            }, 1);
+            return 1;
+        }
+
+        static inline void To(lua_State *const &L, int const &idx, std::function<T> &out) {
+            out = [fw = FuncWrapper(L, idx)](auto... args) {
+                auto&& L = *fw.p;
+                auto top = lua_gettop(L);
+                lua_checkstack(L, 1);
+                lua_pushlightuserdata(L, &*fw.p);		                    // ..., key
+                lua_rawget(L, LUA_REGISTRYINDEX);						    // ..., func
+                lua_call(L, Push(L, args...), LUA_MULTRET, 0);              // ..., rtv?
+                if constexpr(!std::is_void_v<fu::return_type_of_t<T>>) {
+                    fu::return_type_of_t<T> rtv;
+                    To(L, top, rtv);
+                    return rtv;
+                }
+            };
+        }
+    };
 
     /******************************************************************************************************************/
     // Exec / PCall 返回值封装, 易于使用
@@ -382,12 +520,112 @@ namespace xx::Lua {
         }
     };
 
+    // 安全执行 lambda。不负责还原 top. 如果中途有 luaL_error 则 返回错误码 和 错误文本。理论上讲所有 lua 调用都该包这个
+    template<typename T>
+    Result Try(lua_State *const &L, T &&func) {
+        Result rtv;
+        if (!lua_checkstack(L, 2)) {
+            rtv.n = -1;
+            rtv.m = "lua_checkstack(L, 1) failed. not enough memory??";
+            return rtv;
+        }
+        lua_pushlightuserdata(L, &func);                                // ..., &func
+        lua_pushcclosure(L, [](auto L) {                                // ..., cfunc
+            auto &&f = (T *) lua_touserdata(L, lua_upvalueindex(1));
+            (*f)();
+            return 0;
+        }, 1);
+        if ((rtv.n = lua_pcall(L, 0, LUA_MULTRET, 0))) {    // ...
+            rtv.m = lua_tostring(L, -1);
+        }
+        return rtv;
+    }
+
+    inline void AssertTop(lua_State *const &L, int const &n, char const *const &msg = "") {
+        auto top = lua_gettop(L);
+        if (top != n) Error(L, "AssertTop( ", n, " ) failed! current top = ", top, msg);
+    }
+
+    template<typename T>
+    inline void SetGlobal(lua_State *const &L, char const *const &key, T const &v) {
+        Push(L, v);
+        lua_setglobal(L, key);
+    }
+
+    template<typename T>
+    inline void SetGlobal(lua_State *const &L, std::string const &key, T const &v) {
+        Push(L, v);
+        lua_setglobal(L, key.c_str());
+    }
+
+    template<typename T>
+    inline void GetGlobal(lua_State *const &L, char const *const &key, T &v) {
+        auto top = lua_gettop(L);
+        lua_getglobal(L, key);                  // ..., v
+        To(L, top + 1, v);
+        lua_settop(L, top);
+    }
+
+    template<typename T>
+    inline void GetGlobal(lua_State *const &L, std::string const &key, T &v) {
+        auto top = lua_gettop(L);
+        lua_getglobal(L, key.c_str());          // ..., v
+        To(L, top + 1, v);
+        lua_settop(L, top);
+    }
+
+    // 安全调用函数( 函数最先压栈，然后是 up values )
+    // [-(nargs + 1), +(nresults|1), -]
+    template<typename...Args>
+    Result PCall(lua_State *const &L, Args const &...args) {
+        Result rtv;
+        int n = Push(L, args...);
+        if ((rtv.n = lua_pcall(L, n, LUA_MULTRET, 0))) {
+            rtv.m = lua_tostring(L, -1);
+            lua_pop(L, 1);
+        }
+        return rtv;
+    }
+
+    // 安全调用指定名称的全局函数( 函数最先压栈，然后是 up values )
+    // [-(nargs + 1), +(nresults|1), -]
+    template<typename...Args>
+    Result PCallGlobalFunc(lua_State *const &L, char const *const &funcName, Args const &...args) {
+        lua_getglobal(L, funcName);
+        return PCall(L, args...);
+    }
+
+    template<typename...Args>
+    Result PCallGlobalFunc(lua_State *const &L, std::string const &funcName, Args const &...args) {
+        lua_getglobal(L, funcName.c_str());
+        return PCall(L, args...);
+    }
+
+    // 不安全调用函数( 函数最先压栈，然后是 up values )
+    // [-(nargs + 1), +nresults, e]
+    template<typename...Args>
+    void Call(lua_State *const &L, Args const &...args) {
+        lua_call(L, Push(L, args...), LUA_MULTRET);
+    }
+
+    // 不安全调用指定名称的全局函数( 函数最先压栈，然后是 up values )
+    // [-(nargs + 1), +(nresults|1), e]
+    template<typename...Args>
+    void CallGlobalFunc(lua_State *const &L, char const *const &funcName, Args const &...args) {
+        lua_getglobal(L, funcName);
+        Call(L, args...);
+    }
+
+    template<typename...Args>
+    void CallGlobalFunc(lua_State *const &L, std::string const &funcName, Args const &...args) {
+        lua_getglobal(L, funcName.c_str());
+        Call(L, args...);
+    }
 
     /******************************************************************************************************************/
     // Lua 简单封装 为方便易用
     struct Context {
         lua_State *L = nullptr;
-        bool needClose = false;
 
         explicit Context(bool const &openLibs = true) {
             L = luaL_newstate();
@@ -395,265 +633,29 @@ namespace xx::Lua {
             if (openLibs) {
                 luaL_openlibs(L);
             }
-            needClose = true;
         }
 
-        explicit Context(lua_State *L) : L(L), needClose(false) {}
+        explicit Context(lua_State *L) : L(L) {}
 
         Context(Context const &) = delete;
 
         Context &operator=(Context const &) = delete;
 
-        Context(Context &&o) noexcept: L(o.L), needClose(o.needClose) {
+        Context(Context &&o) noexcept: L(o.L) {
             o.L = nullptr;
-            o.needClose = false;
         }
 
         Context &operator=(Context &&o) noexcept {
             std::swap(L, o.L);
-            std::swap(needClose, o.needClose);
             return *this;
         }
 
         ~Context() {
-            if (L && needClose) {
-                lua_close(L);
-            }
+            lua_close(L);
         }
 
-        // 方便使用
         inline operator lua_State *() {
             return L;
         }
-
-        // luaL_error
-        template<typename...Args>
-        inline int Error(Args const &... args) {
-            return luaL_error(L, ::xx::ToString(args...).c_str());
-        }
-
-        // 安全执行 lambda。不负责还原 top. 如果中途有 luaL_error 则 返回错误码 和 错误文本。理论上讲所有 lua 调用都该包这个
-        template<typename T>
-        Result Try(T &&func) {
-            Result rtv;
-            if (!lua_checkstack(L, 2)) {
-                rtv.n = -1;
-                rtv.m = "lua_checkstack(L, 1) failed. not enough memory??";
-                return rtv;
-            }
-            lua_pushlightuserdata(L, &func);                                // ..., &func
-            lua_pushcclosure(L, [](auto L) {                                // ..., cfunc
-                // 从 upvalue 区间取出 userdata, 析构
-                auto &&f = (T *) lua_touserdata(L, lua_upvalueindex(1));
-                (*f)();
-                return 0;
-            }, 1);
-            if ((rtv.n = lua_pcall(L, 0, LUA_MULTRET, 0))) {    // ...
-                rtv.m = lua_tostring(L, -1);
-            }
-            return rtv;
-        }
-
-        // [-0, +0, -]
-        inline int GetTop() {
-            return lua_gettop(L);
-        }
-
-        // [-?, +?, -]
-        inline void SetTop(int const &index) {
-            lua_settop(L, index);
-        }
-
-        // [-n, +0, -]
-        inline void Pop(int const &n) {
-            lua_pop(L, n);
-        }
-
-        inline void AssertTop(int const &n, char const *const &msg = "") {
-            auto top = lua_gettop(L);
-            if (top != n) luaL_error(L, "AssertTop( %d ) failed! current top = %d%s", n, top, msg);
-        }
-
-        // [-0, +1, e]
-        inline void GetGlobal(char const *const &key) {
-            lua_getglobal(L, key);
-        }
-
-        inline void GetGlobal(std::string const &key) {
-            lua_getglobal(L, key.c_str());
-        }
-
-        // [-1, +0, e]
-        inline void SetGlobal(char const *const &key) {
-            lua_setglobal(L, key);
-        }
-
-        inline void SetGlobal(std::string const &key) {
-            lua_setglobal(L, key.c_str());
-        }
-
-        template<typename T>
-        inline void SetGlobalBy(char const *const &key, T const &v) {
-            Push(v);
-            lua_setglobal(L, key);
-        }
-
-        template<typename T>
-        inline void SetGlobalBy(std::string const &key, T const &v) {
-            Push(v);
-            lua_setglobal(L, key.c_str());
-        }
-
-
-        template<typename T>
-        inline void GetGlobalTo(char const *const &key, T &v) {
-            auto top = lua_gettop(L);
-            lua_getglobal(L, key);                  // ..., v
-            To(v);
-            lua_settop(L, top);
-        }
-
-        template<typename T>
-        inline void GetGlobalTo(std::string const &key, T &v) {
-            auto top = lua_gettop(L);
-            lua_getglobal(L, key.c_str());          // ..., v
-            To(v);
-            lua_settop(L, top);
-        }
-
-
-        // [-0, +?, m]
-        inline void DoFile(char const *const &fileName) {
-            luaL_dofile(L, fileName);
-        }
-
-        inline void DoFile(std::string const &fileName) {
-            luaL_dofile(L, fileName.c_str());
-        }
-
-        template<typename...Args>
-        int Push(Args const &...args) {
-            return ::xx::Lua::Push(L, args...);
-        }
-
-        int Push() { return 0; }
-
-        template<typename...Args>
-        void To(Args &...args) {
-            return ::xx::Lua::To(L, 1, args...);
-        }
-
-        void To() {}
-
-        // [-n, +1, m]
-        // 先压 up values 再压 cfunc
-        template<typename...Args>
-        inline void PushFunc(lua_CFunction const &func, Args const &...args) {
-            lua_checkstack(L, 1);
-            lua_pushcclosure(L, func, Push(args...));
-        }
-
-        // 设置一个全局闭包函数
-        template<size_t keyLen, typename...Args>
-        inline void SetGlobalCFunc(char const(&key)[keyLen], lua_CFunction const &func, Args const &...args) {
-            PushFunc(func, args...);
-            lua_setglobal(L, key);
-        }
-
-    protected:
-        // 在 L 里弄个 userdata 出来，将 lambda 挪进去，并设置回收函数
-        template<typename F>
-        inline void NewLambda(F &&func) {
-            auto &&f = (F *) lua_newuserdata(L, sizeof(F));     // ..., ud
-            // 将 func 挪进 userdata
-            new(f) F(std::forward<F>(func));
-            lua_newtable(L);                                    // ..., ud, mt
-            lua_pushstring(L, "__gc");                          // ..., ud, mt, "__gc"
-            lua_pushvalue(L, -3);                               // ..., ud, mt, "__gc", ud
-            lua_pushcclosure(L, [](auto L) {                    // ..., ud, mt, "__gc", cc
-                // 从 upvalue 区间取出 userdata 转为入参类型指针 call 之
-                auto f = (F *) lua_touserdata(L, lua_upvalueindex(1));
-                f->~F();
-                return 0;
-            }, 1);
-            lua_rawset(L, -3);                                  // ..., ud, mt
-            lua_setmetatable(L, -2);                            // ..., ud
-        }
-
-    public:
-        // 设置一个全局 lambda std::function 函数
-        template<size_t keyLen, typename T>
-        inline void SetGlobalFunc(char const(&key)[keyLen], T &&func) {
-            NewLambda(std::forward<T>(func));                   // ..., ud
-            lua_pushcclosure(L, [](auto L) {                    // ..., cc
-                // 从 upvalue 区间取出 userdata 转为入参类型指针 call 之
-                auto &&f = (T *) lua_touserdata(L, lua_upvalueindex(1));
-                // 如果 To 出错, 并且 lua 5.3 没有用支持 c++ exception 的方式编译，则 t 无法析构
-                FuncA_t<T> tuple;
-                // 填充. 如果类型不符将报错退出
-                xx::Lua::To(L, 1, tuple);
-                int rtv = 0;
-                // 参数展开 call 函数
-                std::apply([&](auto const &... args) {
-                    if constexpr(std::is_void_v<FuncR_t<T>>) {
-                        (*f)(args...);
-                    } else {
-                        rtv = xx::Lua::Push(L, (*f)(args...));
-                    }
-                }, tuple);
-                return rtv;
-            }, 1);
-            lua_setglobal(L, key);                              // ...
-        }
-
-
-        // 安全调用函数( 函数最先压栈，然后是 up values )
-        // [-(nargs + 1), +(nresults|1), -]
-        template<typename...Args>
-        Result PCall(Args const &...args) {
-            Result rtv;
-            int n = Push(args...);
-            if ((rtv.n = lua_pcall(L, n, LUA_MULTRET, 0))) {
-                rtv.m = lua_tostring(L, -1);
-                lua_pop(L, 1);
-            }
-            return rtv;
-        }
-
-        // 安全调用指定名称的全局函数( 函数最先压栈，然后是 up values )
-        // [-(nargs + 1), +(nresults|1), -]
-        template<typename...Args>
-        Result PCallGlobalFunc(char const *const &funcName, Args const &...args) {
-            GetGlobal(funcName);
-            return PCall(args...);
-        }
-
-        template<typename...Args>
-        Result PCallGlobalFunc(std::string const &funcName, Args const &...args) {
-            GetGlobal(funcName);
-            return PCall(args...);
-        }
-
-        // 不安全调用函数( 函数最先压栈，然后是 up values )
-        // [-(nargs + 1), +nresults, e]
-        template<typename...Args>
-        void Call(Args const &...args) {
-            lua_call(L, Push(args...), LUA_MULTRET);
-        }
-
-        // 不安全调用指定名称的全局函数( 函数最先压栈，然后是 up values )
-        // [-(nargs + 1), +(nresults|1), e]
-        template<typename...Args>
-        void CallGlobalFunc(char const *const &funcName, Args const &...args) {
-            GetGlobal(funcName);
-            Call(args...);
-        }
-
-        template<typename...Args>
-        void CallGlobalFunc(std::string const &funcName, Args const &...args) {
-            GetGlobal(funcName);
-            Call(args...);
-        }
-
     };
 }

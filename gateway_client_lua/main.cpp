@@ -4,27 +4,37 @@
 #include <thread>
 
 int main(int argc, char const *argv[]) {
+    // 直接用 lua_State* 也行
     xx::Lua::Context L;
 
     // 粗犷模式：大 try. 有任何问题都停止&退出并显示错误信息
-    if (auto &&r = L.Try([&] {
+    if (auto &&r = xx::Lua::Try(L, [&] {
+
+        xx::Lua::SetGlobal(L, "A", 123);
+        xx::Lua::SetGlobal(L, "B", "asdf");
 
         // 映射个 全局 lambda 测试下
-        L.SetGlobalFunc("Now", [&] {
+        xx::Lua::SetGlobal(L, "Now", [&] {
             return xx::ToString(xx::Now());
         });
 
-        L.SetGlobalFunc("Add", [&](int const &a, int const &b) {
+        xx::Lua::SetGlobal(L, "Add", [&](int const &a, int const &b) {
             std::cout << "Add(" << a << ", " << b << ")" << std::endl;
         });
 
         // 加载入口脚本文件( 如果文件里面有 local 变量，似乎会导致 L 不空 )
-        L.DoFile("main.lua");
+        luaL_dofile(L, "main.lua");
+
+        // todo
+//        // 调用入口函数
+//        std::function<void()> m;
+//        xx::Lua::GetGlobal(L, "Main", m);
+//        m();
 
         // 调用入口函数
-        auto top = L.GetTop();
-        L.CallGlobalFunc("Main");
-        L.SetTop(top);  // 忽略返回值
+        auto top = lua_gettop(L);
+        xx::Lua::CallGlobalFunc(L, "Main");
+        lua_settop(L, top);     // 忽略返回值
 
         // 模拟一个脚本对象
         struct Script {
@@ -33,10 +43,10 @@ int main(int argc, char const *argv[]) {
         } script;
 
         // 从文件加载脚本. 填充返回的 id
-        top = L.GetTop();
-        L.CallGlobalFunc("LoadScript", script.name);
-        L.To(script.id);
-        L.SetTop(top);  // 清除返回值
+        top = lua_gettop(L);
+        xx::Lua::CallGlobalFunc(L, "LoadScript", script.name);
+        xx::Lua::To(L, 1, script.id);    // 提取返回值
+        lua_settop(L, top);      // 清除返回值
 
         // 模拟帧循环
         auto lastSecs = xx::NowSteadyEpochSeconds();
@@ -44,10 +54,10 @@ int main(int argc, char const *argv[]) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             auto elapsedSecs = xx::NowSteadyEpochSeconds(lastSecs);
 
-            top = L.GetTop();
+            top = lua_gettop(L);
             // 调用 lua 中声明的 更新所有脚本 函数. 传入已经历的时长
-            L.CallGlobalFunc("UpdateScripts", elapsedSecs);
-            L.SetTop(top);  // 清除返回值
+            xx::Lua::CallGlobalFunc(L, "UpdateScripts", elapsedSecs);
+            lua_settop(L, top);      // 清除返回值
         }
 
     })) {

@@ -4,7 +4,7 @@
 #include <luajit-2.1/lua.hpp>
 
 namespace xx {
-// 被 std::function 捕获携带, 当捕获列表析构发生时, 自动从 L 中反注册函数
+    // 被 std::function 捕获携带, 当捕获列表析构发生时, 自动从 L 中反注册函数
     struct Lua_Func {
         // 全局自增函数 id
         inline static int autoIncFuncId = 1;
@@ -14,6 +14,7 @@ namespace xx {
         //int funcId = 0;
         std::shared_ptr<int> funcId;
         lua_State* L = nullptr;
+
 
         inline explicit operator bool() const {
             return (bool) funcId;

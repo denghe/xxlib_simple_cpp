@@ -11,7 +11,7 @@ include_directories(
 
 add_executable(gateway_client_lua
         main.cpp
-        )
+        func_type_traits.h)
 
 target_link_libraries(gateway_client_lua
         pthread
