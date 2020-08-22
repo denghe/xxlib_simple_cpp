@@ -7,8 +7,8 @@
 
 #include "xx_data_rw.h"
 #include "xx_string.h"
+#include "xx_typename_islambda.h"
 #include <lua.hpp>
-#include "is_lambda.hpp"
 #include "func_type_traits.h"
 
 namespace xx {
@@ -156,17 +156,30 @@ namespace xx::Lua {
         return luaL_error(L, ::xx::ToString(args...).c_str());
     }
 
+    // for easy push
+    struct Nil {};
+
     /******************************************************************************************************************/
     // Lua push, to 系列基础适配模板. Push 返回实际入栈的参数个数( 通常是 1. 但如果传入一个队列并展开压栈则不一定 ). To 无返回值.
     // 可能抛 lua 异常( 故这些函数应该间接被 pcall 使用 )
     template<typename T, typename ENABLED = void>
     struct PushToFuncs {
         static inline int Push(lua_State *const &L, T const &in) {
-            return Error(L, "Lua Push error! not support's type ", typeid(T).name());
+            return Error(L, "Lua Push error! not support's type ", xx::TypeName_v<T>);
         }
 
         static inline void To(lua_State *const &L, int const &idx, T &out) {
-            Error(L, "Lua Push error! not support's type ", typeid(T).name());
+            Error(L, "Lua Push error! not support's type ", xx::TypeName_v<T>);
+        }
+    };
+
+    // 适配 nil 写入
+    template<>
+    struct PushToFuncs<Nil, void> {
+        static inline int Push(lua_State *const &L, bool const &in) {
+            lua_checkstack(L, 1);
+            lua_pushnil(L);
+            return 1;
         }
     };
 
@@ -278,6 +291,30 @@ namespace xx::Lua {
         }
     };
 
+    // 适配 std::optional
+    template<typename T>
+    struct PushToFuncs<std::optional<T>, void> {
+        static inline int Push(lua_State *const &L, std::optional<T> const &in) {
+            lua_checkstack(L, 1);
+            if (in.has_value()) {
+                PushToFuncs<T>::Push(in.value());
+            }
+            else {
+                lua_pushnil(L);
+            }
+            return 1;
+        }
+
+        static inline void To(lua_State *const &L, int const &idx, std::optional<T> &out) {
+            if (lua_isnil(L, idx)) {
+                out.reset();
+            }
+            else {
+                PushToFuncs<T>::To(L, idx, out.value());
+            }
+        }
+    };
+
     // 适配模板转为函数
     namespace Detail {
         template<typename Arg, typename...Args>
@@ -344,6 +381,52 @@ namespace xx::Lua {
 
 
     /******************************************************************************************************************/
+    // 常用交互函数封装
+
+    // 向 idx 的 table 写入 k, v
+    template<typename K, typename V>
+    inline void SetField(lua_State *const &L, int const& idx, K const &k, V const &v) {
+        Push(L, k, v);                          // ..., k, v
+        lua_rawset(L, LUA_GLOBALSINDEX);        // ...,
+    }
+
+    // 根据 k 从 idx 的 table 读出 v
+    template<typename K, typename V>
+    inline void GetField(lua_State *const &L, int const& idx, K const &k, V &v) {
+        auto top = lua_gettop(L);
+        Push(L, k);                             // ..., k
+        lua_rawget(L, LUA_GLOBALSINDEX);        // ..., v
+        To(L, top + 1, v);
+        lua_settop(L, top);                     // ...,
+    }
+
+    // 写 k, v 到全局
+    template<typename K, typename V>
+    inline void SetGlobal(lua_State *const &L, K const &k, V const &v) {
+        SetField(L, LUA_GLOBALSINDEX, k, v);
+    }
+
+    // 从全局以 k 读 v
+    template<typename K, typename V>
+    inline void GetGlobal(lua_State *const &L, K const &k, V &v) {
+        GetField(L, LUA_GLOBALSINDEX, k, v);
+    }
+
+    // 写 k, v 到注册表
+    template<typename K, typename V>
+    inline void SetRegistry(lua_State *const &L, K const &k, V const &v) {
+        SetField(L, LUA_REGISTRYINDEX, k, v);
+    }
+
+    // 从注册表以 k 读 v
+    template<typename K, typename V>
+    inline void GetRegistry(lua_State *const &L, K const &k, V const &v) {
+        GetField(L, LUA_REGISTRYINDEX, k, v);
+    }
+
+
+
+    /******************************************************************************************************************/
     // lambda / function 类型分析
 
     template<typename T, typename = void>
@@ -391,7 +474,7 @@ namespace xx::Lua {
 
     // 适配 lambda
     template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<bxlx::is_lambda_v<T>>> {
+    struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<T>>> {
         static inline int Push(lua_State *const &L, T const &in) {
             PushUserdata(L, in);                                        // ..., ud
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
@@ -455,8 +538,8 @@ namespace xx::Lua {
     };
 
 
-    // todo: 参考 sol2?
-    // 适配 std::function
+
+    // 适配 std::function         // todo: 有待继续完善
     template<typename T>
     struct PushToFuncs<std::function<T>, void> {
         static inline int Push(lua_State *const &L, std::function<T> const &in) {
@@ -485,7 +568,7 @@ namespace xx::Lua {
                 lua_checkstack(L, 1);
                 lua_pushlightuserdata(L, &*fw.p);		                    // ..., key
                 lua_rawget(L, LUA_REGISTRYINDEX);						    // ..., func
-                lua_call(L, Push(L, args...), LUA_MULTRET, 0);              // ..., rtv?
+                lua_call(L, ::xx::Lua::Push(L, args...), LUA_MULTRET);      // ..., rtv?
                 if constexpr(!std::is_void_v<fu::return_type_of_t<T>>) {
                     fu::return_type_of_t<T> rtv;
                     To(L, top, rtv);
@@ -541,38 +624,18 @@ namespace xx::Lua {
         return rtv;
     }
 
-    inline void AssertTop(lua_State *const &L, int const &n, char const *const &msg = "") {
+    template<typename...Args>
+    void AssertTop(lua_State *const &L, int const &n, Args const &...args) {
         auto top = lua_gettop(L);
-        if (top != n) Error(L, "AssertTop( ", n, " ) failed! current top = ", top, msg);
+        if (top != n) Error(L, "AssertTop( ", n, " ) failed! current top = ", top, args...);
     }
 
-    template<typename T>
-    inline void SetGlobal(lua_State *const &L, char const *const &key, T const &v) {
-        Push(L, v);
-        lua_setglobal(L, key);
+    // 方便在 do string 的时候拼接字串
+    template<typename...Args>
+    void DoString(lua_State *const &L, Args const &...args) {
+        luaL_dostring(L, xx::ToString(args...).c_str());
     }
 
-    template<typename T>
-    inline void SetGlobal(lua_State *const &L, std::string const &key, T const &v) {
-        Push(L, v);
-        lua_setglobal(L, key.c_str());
-    }
-
-    template<typename T>
-    inline void GetGlobal(lua_State *const &L, char const *const &key, T &v) {
-        auto top = lua_gettop(L);
-        lua_getglobal(L, key);                  // ..., v
-        To(L, top + 1, v);
-        lua_settop(L, top);
-    }
-
-    template<typename T>
-    inline void GetGlobal(lua_State *const &L, std::string const &key, T &v) {
-        auto top = lua_gettop(L);
-        lua_getglobal(L, key.c_str());          // ..., v
-        To(L, top + 1, v);
-        lua_settop(L, top);
-    }
 
     // 安全调用函数( 函数最先压栈，然后是 up values )
     // [-(nargs + 1), +(nresults|1), -]

@@ -1,64 +1,73 @@
 ﻿#include "xx_lua.h"
-#include "xx_string.h"
 #include "xx_chrono.h"
 #include <thread>
 
+namespace XL = xx::Lua;
+
 int main(int argc, char const *argv[]) {
-    // 直接用 lua_State* 也行
-    xx::Lua::Context L;
+    // 等同于出 scope 会 close 的 lua_State*
+    XL::Context L;
 
-    // 粗犷模式：大 try. 有任何问题都停止&退出并显示错误信息
-    if (auto &&r = xx::Lua::Try(L, [&] {
+    // 以 pcall 方式执行 lambda 以便捕获错误
+    if (auto &&r = XL::Try(L, [&] {
 
-        xx::Lua::SetGlobal(L, "A", 123);
-        xx::Lua::SetGlobal(L, "B", "asdf");
+        XL::SetGlobal(L, "A", 123);
+        XL::SetGlobal(L, "B", "asdf");
 
         // 映射个 全局 lambda 测试下
-        xx::Lua::SetGlobal(L, "Now", [&] {
+        XL::SetGlobal(L, "Now", [&] {
             return xx::ToString(xx::Now());
         });
 
-        xx::Lua::SetGlobal(L, "Add", [&](int const &a, int const &b) {
+        XL::SetGlobal(L, "Add", [&](int const &a, int const &b) {
             std::cout << "Add(" << a << ", " << b << ")" << std::endl;
+            // no return
         });
 
-        // 加载入口脚本文件( 如果文件里面有 local 变量，似乎会导致 L 不空 )
-        luaL_dofile(L, "main.lua");
-
-        // todo
-//        // 调用入口函数
-//        std::function<void()> m;
-//        xx::Lua::GetGlobal(L, "Main", m);
-//        m();
+        luaL_dostring(L, R"(
+function Main()
+    print(A, B, Now(), Add(2,3))
+end
+)");
 
         // 调用入口函数
-        auto top = lua_gettop(L);
-        xx::Lua::CallGlobalFunc(L, "Main");
-        lua_settop(L, top);     // 忽略返回值
+        std::function<void()> m;
+        XL::GetGlobal(L, "Main", m);
+        m();
 
-        // 模拟一个脚本对象
-        struct Script {
-            std::string name = "test1";
-            int id = 0;
-        } script;
 
-        // 从文件加载脚本. 填充返回的 id
-        top = lua_gettop(L);
-        xx::Lua::CallGlobalFunc(L, "LoadScript", script.name);
-        xx::Lua::To(L, 1, script.id);    // 提取返回值
-        lua_settop(L, top);      // 清除返回值
-
-        // 模拟帧循环
-        auto lastSecs = xx::NowSteadyEpochSeconds();
-        for (int i = 0; i < 100; ++i) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            auto elapsedSecs = xx::NowSteadyEpochSeconds(lastSecs);
-
-            top = lua_gettop(L);
-            // 调用 lua 中声明的 更新所有脚本 函数. 传入已经历的时长
-            xx::Lua::CallGlobalFunc(L, "UpdateScripts", elapsedSecs);
-            lua_settop(L, top);      // 清除返回值
-        }
+//
+//        // 加载入口脚本文件( 如果文件里面有 local 变量，似乎会导致 L 不空 )
+//        luaL_dofile(L, "main.lua");
+//
+//        // 调用入口函数
+//        auto top = lua_gettop(L);
+//        XL::CallGlobalFunc(L, "Main");
+//        lua_settop(L, top);     // 忽略返回值
+//
+//        // 模拟一个脚本对象
+//        struct Script {
+//            std::string name = "test1";
+//            int id = 0;
+//        } script;
+//
+//        // 从文件加载脚本. 填充返回的 id
+//        top = lua_gettop(L);
+//        XL::CallGlobalFunc(L, "LoadScript", script.name);
+//        XL::To(L, 1, script.id);    // 提取返回值
+//        lua_settop(L, top);      // 清除返回值
+//
+//        // 模拟帧循环
+//        auto lastSecs = xx::NowSteadyEpochSeconds();
+//        for (int i = 0; i < 100; ++i) {
+//            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+//            auto elapsedSecs = xx::NowSteadyEpochSeconds(lastSecs);
+//
+//            top = lua_gettop(L);
+//            // 调用 lua 中声明的 更新所有脚本 函数. 传入已经历的时长
+//            XL::CallGlobalFunc(L, "UpdateScripts", elapsedSecs);
+//            lua_settop(L, top);      // 清除返回值
+//        }
 
     })) {
         std::cout << "error: n = " << r.n << ", m = " << r.m << std::endl;
