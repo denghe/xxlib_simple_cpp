@@ -6,7 +6,7 @@ namespace XL = xx::Lua;
 
 int main(int argc, char const *argv[]) {
     // 等同于出 scope 会 close 的 lua_State*
-    XL::Context L;
+    XL::State L;
 
     // 以 pcall 方式执行 lambda 以便捕获错误
     if (auto &&r = XL::Try(L, [&] {

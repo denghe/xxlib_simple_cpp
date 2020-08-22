@@ -157,7 +157,8 @@ namespace xx::Lua {
     }
 
     // for easy push
-    struct Nil {};
+    struct Nil {
+    };
 
     /******************************************************************************************************************/
     // Lua push, to 系列基础适配模板. Push 返回实际入栈的参数个数( 通常是 1. 但如果传入一个队列并展开压栈则不一定 ). To 无返回值.
@@ -292,7 +293,7 @@ namespace xx::Lua {
 
         static inline void To(lua_State *const &L, int const &idx, T &out) {
             if (!lua_isstring(L, idx)) Error(L, "error! args[", idx, "] is not string");
-            out = (T)lua_tostring(L, idx);
+            out = (T) lua_tostring(L, idx);
         }
     };
 
@@ -303,8 +304,7 @@ namespace xx::Lua {
             lua_checkstack(L, 1);
             if (in.has_value()) {
                 PushToFuncs<T>::Push(in.value());
-            }
-            else {
+            } else {
                 lua_pushnil(L);
             }
             return 1;
@@ -313,8 +313,7 @@ namespace xx::Lua {
         static inline void To(lua_State *const &L, int const &idx, std::optional<T> &out) {
             if (lua_isnil(L, idx)) {
                 out.reset();
-            }
-            else {
+            } else {
                 PushToFuncs<T>::To(L, idx, out.value());
             }
         }
@@ -342,6 +341,7 @@ namespace xx::Lua {
     int Push(lua_State *const &L, Args const &...args) {
         return ::xx::Lua::Detail::Push(L, args...);
     }
+
     int Push(lua_State *const &L) {
         return 0;
     }
@@ -390,14 +390,14 @@ namespace xx::Lua {
 
     // 向 idx 的 table 写入 k, v
     template<typename K, typename V>
-    inline void SetField(lua_State *const &L, int const& idx, K const &k, V const &v) {
+    inline void SetField(lua_State *const &L, int const &idx, K const &k, V const &v) {
         Push(L, k, v);                          // ..., table at idx, ..., k, v
         lua_rawset(L, idx);                     // ..., table at idx, ...
     }
 
     // 根据 k 从 idx 的 table 读出 v
     template<typename K, typename V>
-    inline void GetField(lua_State *const &L, int const& idx, K const &k, V &v) {
+    inline void GetField(lua_State *const &L, int const &idx, K const &k, V &v) {
         auto top = lua_gettop(L);
         Push(L, k);                             // ..., table at idx, ..., k
         lua_rawget(L, idx);                     // ..., table at idx, ..., v
@@ -544,7 +544,6 @@ namespace xx::Lua {
     };
 
 
-
     // 适配 std::function
     template<typename T>
     struct PushToFuncs<std::function<T>, void> {
@@ -569,11 +568,11 @@ namespace xx::Lua {
 
         static inline void To(lua_State *const &L, int const &idx, std::function<T> &out) {
             out = [fw = FuncWrapper(L, idx)](auto... args) {
-                auto&& L = *fw.p;
+                auto &&L = *fw.p;
                 auto top = lua_gettop(L);
                 lua_checkstack(L, 1);
-                lua_pushlightuserdata(L, &*fw.p);		                    // ..., key
-                lua_rawget(L, LUA_REGISTRYINDEX);						    // ..., func
+                lua_pushlightuserdata(L, &*fw.p);                            // ..., key
+                lua_rawget(L, LUA_REGISTRYINDEX);                            // ..., func
                 lua_call(L, ::xx::Lua::Push(L, args...), LUA_MULTRET);      // ..., rtv?
                 if constexpr(!std::is_void_v<fu::return_type_of_t<T>>) {
                     fu::return_type_of_t<T> rtv;
@@ -624,7 +623,7 @@ namespace xx::Lua {
             (*f)();
             return 0;
         }, 1);
-        if ((rtv.n = lua_pcall(L, 0, LUA_MULTRET, 0))) {    // ...
+        if ((rtv.n = lua_pcall(L, 0, LUA_MULTRET, 0))) {                // ...
             rtv.m = lua_tostring(L, -1);
         }
         return rtv;
@@ -692,11 +691,19 @@ namespace xx::Lua {
     }
 
     /******************************************************************************************************************/
-    // Lua 简单封装 为方便易用
-    struct Context {
+    // Lua State 简单封装, 可直接当指针用, 离开范围自动 close
+    struct State {
         lua_State *L = nullptr;
 
-        explicit Context(bool const &openLibs = true) {
+        inline operator lua_State *() {
+            return L;
+        }
+
+        ~State() {
+            lua_close(L);
+        }
+
+        explicit State(bool const &openLibs = true) {
             L = luaL_newstate();
             if (!L) throw std::logic_error("auto &&L = luaL_newstate(); if (!L)");
             if (openLibs) {
@@ -704,27 +711,19 @@ namespace xx::Lua {
             }
         }
 
-        explicit Context(lua_State *L) : L(L) {}
+        explicit State(lua_State *L) : L(L) {}
 
-        Context(Context const &) = delete;
+        State(State const &) = delete;
 
-        Context &operator=(Context const &) = delete;
+        State &operator=(State const &) = delete;
 
-        Context(Context &&o) noexcept: L(o.L) {
+        State(State &&o) noexcept: L(o.L) {
             o.L = nullptr;
         }
 
-        Context &operator=(Context &&o) noexcept {
+        State &operator=(State &&o) noexcept {
             std::swap(L, o.L);
             return *this;
-        }
-
-        ~Context() {
-            lua_close(L);
-        }
-
-        inline operator lua_State *() {
-            return L;
         }
     };
 }
