@@ -8,145 +8,8 @@
 #include "xx_data_rw.h"
 #include "xx_string.h"
 #include "xx_typename_islambda.h"
-#include <lua.hpp>
 #include "func_type_traits.h"
-
-namespace xx {
-    /******************************************************************************************************************/
-    // Lua 简单数据结构 序列化适配( 不支持 table 循环引用, 注意 lua5.1 不支持 int64, 整数需在 int32 范围内 )
-    template<>
-    struct DataFuncs<lua_State *, void> {
-        // lua 可序列化的数据类型列表( 同时也是对应的 typeId ). 不被支持的类型将忽略
-        enum class LuaTypes : uint8_t {
-            Nil, True, False, Integer, Double, String, Table, TableEnd
-        };
-
-        // 外界需确保栈非空.
-        static inline void Write(DataWriter &dw, lua_State *const &in) {
-            switch (auto t = lua_type(in, -1)) {
-                case LUA_TNIL:
-                    dw.Write(LuaTypes::Nil);
-                    return;
-                case LUA_TBOOLEAN:
-                    dw.Write(lua_toboolean(in, -1) ? LuaTypes::True : LuaTypes::False);
-                    return;
-                case LUA_TNUMBER: {
-#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM >= 530
-                    if (lua_isinteger(in, -1)) {
-                        dw.Write(LuaTypes::Integer, (int64_t) lua_tointeger(in, -1));
-                    } else {
-                        dw.Write(LuaTypes::Double);
-                        dw.WriteFixed(lua_tonumber(in, -1));
-                    }
-#else
-                    auto d = lua_tonumber(in, -1);
-                    auto i = (int64_t) d;
-                    if ((double) i == d) {
-                        dw.Write(LuaTypes::Integer, i);
-                    } else {
-                        dw.Write(LuaTypes::Double);
-                        dw.WriteFixed(d);
-                    }
-#endif
-                    return;
-                }
-                case LUA_TSTRING: {
-                    dw.Write(LuaTypes::String);
-                    size_t len;
-                    auto ptr = lua_tolstring(in, -1, &len);
-                    dw.Write(std::string_view(ptr, len));
-                    return;
-                }
-                case LUA_TTABLE: {
-                    dw.Write(LuaTypes::Table);
-                    int idx = lua_gettop(in);                                   // 存 idx 备用
-                    lua_checkstack(in, 1);
-                    lua_pushnil(in);                                            //                      ... t, nil
-                    while (lua_next(in, idx) != 0) {                            //                      ... t, k, v
-                        // 先检查下 k, v 是否为不可序列化类型. 如果是就 next
-                        t = lua_type(in, -1);
-                        if (t == LUA_TLIGHTUSERDATA || t == LUA_TFUNCTION || t == LUA_TUSERDATA || t == LUA_TTHREAD) {
-                            lua_pop(in, 1);                                     //                      ... t, k
-                            continue;
-                        }
-                        t = lua_type(in, -2);
-                        if (t == LUA_TLIGHTUSERDATA || t == LUA_TFUNCTION || t == LUA_TUSERDATA || t == LUA_TTHREAD) {
-                            lua_pop(in, 1);                                     //                      ... t, k
-                            continue;
-                        }
-                        Write(dw, in);                                          // 先写 v
-                        lua_pop(in, 1);                                         //                      ... t, k
-                        Write(dw, in);                                          // 再写 k
-                    }
-                    dw.Write(LuaTypes::TableEnd);
-                    return;
-                }
-                default:
-                    dw.Write(LuaTypes::Nil);
-                    return;
-            }
-        }
-
-        // 如果读失败, 可能会有残留数据已经压入，外界需自己做 lua state 的 cleanup
-        static inline int Read(DataReader &dr, lua_State *&out) {
-            LuaTypes lt;
-            if (int r = dr.Read(lt)) return r;
-            switch (lt) {
-                case LuaTypes::Nil:
-                    lua_checkstack(out, 1);
-                    lua_pushnil(out);
-                    return 0;
-                case LuaTypes::True:
-                    lua_checkstack(out, 1);
-                    lua_pushboolean(out, 1);
-                    return 0;
-                case LuaTypes::False:
-                    lua_checkstack(out, 1);
-                    lua_pushboolean(out, 0);
-                    return 0;
-                case LuaTypes::Integer: {
-                    int64_t i;
-                    if (int r = dr.Read(i)) return r;
-                    lua_checkstack(out, 1);
-                    lua_pushinteger(out, (lua_Integer) i);
-                    return 0;
-                }
-                case LuaTypes::Double: {
-                    lua_Number d;
-                    if (int r = dr.ReadFixed(d)) return r;
-                    lua_checkstack(out, 1);
-                    lua_pushnumber(out, d);
-                    return 0;
-                }
-                case LuaTypes::String: {
-                    size_t len;
-                    if (int r = dr.Read(len)) return r;
-                    lua_checkstack(out, 1);
-                    lua_pushlstring(out, dr.buf + dr.offset, len);
-                    dr.offset += len;
-                    return 0;
-                }
-                case LuaTypes::Table: {
-                    lua_checkstack(out, 4);
-                    lua_newtable(out);                                          // ... t
-                    while (dr.offset < dr.len) {
-                        if (dr.buf[dr.offset] == (char) LuaTypes::TableEnd) {
-                            ++dr.offset;
-                            return 0;
-                        }
-                        if (int r = Read(dr, out)) return r;                    // ... t, v
-                        if (int r = Read(dr, out)) return r;                    // ... t, v, k
-                        lua_pushvalue(out, -2);                                 // ... t, v, k, v
-                        lua_rawset(out, -4);                                    // ... t, v
-                        lua_pop(out, 1);                                        // ... t
-                    }
-                }
-                default:
-                    return __LINE__;
-            }
-        }
-    };
-}
+#include <lua.hpp>
 
 namespace xx::Lua {
 
@@ -159,6 +22,15 @@ namespace xx::Lua {
     // for easy push
     struct Nil {
     };
+
+    // 如果是 luajit 就啥都不用做了
+    int CheckStack(lua_State *const &L, int const& n) {
+#ifndef LUAJIT_VERSION
+        return lua_checkstack(L, n);
+#else
+        return 1;
+#endif
+    }
 
     /******************************************************************************************************************/
     // Lua push, to 系列基础适配模板. Push 返回实际入栈的参数个数( 通常是 1. 但如果传入一个队列并展开压栈则不一定 ). To 无返回值.
@@ -178,7 +50,7 @@ namespace xx::Lua {
     template<>
     struct PushToFuncs<Nil, void> {
         static inline int Push(lua_State *const &L, bool const &in) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             lua_pushnil(L);
             return 1;
         }
@@ -188,7 +60,7 @@ namespace xx::Lua {
     template<>
     struct PushToFuncs<bool, void> {
         static inline int Push(lua_State *const &L, bool const &in) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             lua_pushboolean(L, in ? 1 : 0);
             return 1;
         }
@@ -203,7 +75,7 @@ namespace xx::Lua {
     template<typename T>
     struct PushToFuncs<T, std::enable_if_t<std::is_integral_v<T>>> {
         static inline int Push(lua_State *const &L, T const &in) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             lua_pushinteger(L, in);
             return 1;
         }
@@ -233,7 +105,7 @@ namespace xx::Lua {
     template<typename T>
     struct PushToFuncs<T, std::enable_if_t<std::is_floating_point_v<T>>> {
         static inline int Push(lua_State *const &L, T const &in) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             lua_pushnumber(L, in);
             return 1;
         }
@@ -249,7 +121,7 @@ namespace xx::Lua {
     template<size_t len>
     struct PushToFuncs<char[len], void> {
         static inline int Push(lua_State *const &L, char const(&in)[len]) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             lua_pushlstring(L, in, len - 1);
             return 1;
         }
@@ -259,7 +131,7 @@ namespace xx::Lua {
     template<>
     struct PushToFuncs<std::string, void> {
         static inline int Push(lua_State *const &L, std::string const &in) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             lua_pushlstring(L, in.data(), in.size());
             return 1;
         }
@@ -276,7 +148,7 @@ namespace xx::Lua {
     template<>
     struct PushToFuncs<std::string_view, void> {
         static inline int Push(lua_State *const &L, std::string_view const &in) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             lua_pushlstring(L, in.data(), in.size());
             return 1;
         }
@@ -286,7 +158,7 @@ namespace xx::Lua {
     template<typename T>
     struct PushToFuncs<T, std::enable_if_t<std::is_same_v<T, char *> || std::is_same_v<T, char const *>>> {
         static inline int Push(lua_State *const &L, T const &in) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             lua_pushstring(L, in);
             return 1;
         }
@@ -301,7 +173,7 @@ namespace xx::Lua {
     template<typename T>
     struct PushToFuncs<std::optional<T>, void> {
         static inline int Push(lua_State *const &L, std::optional<T> const &in) {
-            lua_checkstack(L, 1);
+            CheckStack(L, 1);
             if (in.has_value()) {
                 PushToFuncs<T>::Push(in.value());
             } else {
@@ -408,13 +280,27 @@ namespace xx::Lua {
     // 写 k, v 到全局
     template<typename K, typename V>
     inline void SetGlobal(lua_State *const &L, K const &k, V const &v) {
-        SetField(L, LUA_GLOBALSINDEX, k, v);
+        Push(L, v);
+        if constexpr( std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
+            lua_setglobal(L, k.c_str());
+        }
+        else {
+            lua_setglobal(L, k);
+        }
     }
 
     // 从全局以 k 读 v
     template<typename K, typename V>
     inline void GetGlobal(lua_State *const &L, K const &k, V &v) {
-        GetField(L, LUA_GLOBALSINDEX, k, v);
+        auto top = lua_gettop(L);
+        if constexpr( std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
+            lua_getglobal(L, k.c_str());
+        }
+        else {
+            lua_getglobal(L, k);
+        }
+        To(L, top + 1, v);
+        lua_settop(L, top);
     }
 
     // 写 k, v 到注册表
@@ -505,8 +391,8 @@ namespace xx::Lua {
     // 被 std::function 捕获携带, 当捕获列表析构发生时, 自动从 L 中反注册函数
     // 需自己确保这些 function 活的比 L 久
     struct FuncWrapper {
-        // 使用指针值 &*L 做 key( lightuserdata ). 将函数放入注册表
-        std::shared_ptr<lua_State *> p;
+        // 将函数以 luaL_ref 方式放入注册表.
+        std::shared_ptr<std::pair<lua_State *, int>> p;
 
         FuncWrapper() = default;
 
@@ -525,21 +411,17 @@ namespace xx::Lua {
 
         FuncWrapper(lua_State *const &L, int const &idx) {
             if (!lua_isfunction(L, idx)) Error(L, "args[", idx, "] is not a lua function");
-            lua_checkstack(L, 2);
-            p = std::make_shared<lua_State *>(L);
-            lua_pushlightuserdata(L, &*p);                              // ..., func, ..., key
-            lua_pushvalue(L, idx);                                      // ..., func, ..., key, func
-            lua_rawset(L, LUA_REGISTRYINDEX);                           // ..., func, ...
+            CheckStack(L, 1);
+            xx::MakeTo(p);
+            p->first = L;
+            lua_pushvalue(L, idx);                                      // ..., func, ..., func
+            p->second = luaL_ref(L, LUA_REGISTRYINDEX);                 // ..., func, ...
         }
 
         // 如果 p 引用计数唯一, 则反注册
         ~FuncWrapper() {
             if (p.use_count() != 1) return;
-            auto L = *p;
-            lua_checkstack(L, 2);
-            lua_pushlightuserdata(L, &*p);                              // ..., key
-            lua_pushnil(L);                                             // ..., key, nil
-            lua_rawset(L, LUA_REGISTRYINDEX);                           // ...
+            luaL_unref(p->first, LUA_REGISTRYINDEX, p->second);
         }
     };
 
@@ -568,15 +450,16 @@ namespace xx::Lua {
 
         static inline void To(lua_State *const &L, int const &idx, std::function<T> &out) {
             out = [fw = FuncWrapper(L, idx)](auto... args) {
-                auto &&L = *fw.p;
+                auto &&L = fw.p->first;
                 auto top = lua_gettop(L);
-                lua_checkstack(L, 1);
-                lua_pushlightuserdata(L, &*fw.p);                            // ..., key
-                lua_rawget(L, LUA_REGISTRYINDEX);                            // ..., func
-                lua_call(L, ::xx::Lua::Push(L, args...), LUA_MULTRET);      // ..., rtv?
+                CheckStack(L, 1);
+                lua_rawgeti(L, LUA_REGISTRYINDEX, fw.p->second);            // ..., func
+                auto num = ::xx::Lua::Push(L, args...);                     // ..., func, args...
+                lua_call(L, num, LUA_MULTRET);                              // ..., rtv...?
                 if constexpr(!std::is_void_v<fu::return_type_of_t<T>>) {
                     fu::return_type_of_t<T> rtv;
                     xx::Lua::To(L, top + 1, rtv);
+                    lua_settop(L, top);                                     // ...
                     return rtv;
                 }
             };
@@ -612,7 +495,7 @@ namespace xx::Lua {
     template<typename T>
     Result Try(lua_State *const &L, T &&func) {
         Result rtv;
-        if (!lua_checkstack(L, 2)) {
+        if (!CheckStack(L, 2)) {
             rtv.n = -1;
             rtv.m = "lua_checkstack(L, 1) failed. not enough memory??";
             return rtv;
@@ -724,6 +607,145 @@ namespace xx::Lua {
         State &operator=(State &&o) noexcept {
             std::swap(L, o.L);
             return *this;
+        }
+    };
+}
+
+
+
+namespace xx {
+    /******************************************************************************************************************/
+    // Lua 简单数据结构 序列化适配( 不支持 table 循环引用, 注意 lua5.1 不支持 int64, 整数需在 int32 范围内 )
+    template<>
+    struct DataFuncs<lua_State *, void> {
+        // lua 可序列化的数据类型列表( 同时也是对应的 typeId ). 不被支持的类型将忽略
+        enum class LuaTypes : uint8_t {
+            Nil, True, False, Integer, Double, String, Table, TableEnd
+        };
+
+        // 外界需确保栈非空.
+        static inline void Write(DataWriter &dw, lua_State *const &in) {
+            switch (auto t = lua_type(in, -1)) {
+                case LUA_TNIL:
+                    dw.Write(LuaTypes::Nil);
+                    return;
+                case LUA_TBOOLEAN:
+                    dw.Write(lua_toboolean(in, -1) ? LuaTypes::True : LuaTypes::False);
+                    return;
+                case LUA_TNUMBER: {
+#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM >= 530
+                    if (lua_isinteger(in, -1)) {
+                        dw.Write(LuaTypes::Integer, (int64_t) lua_tointeger(in, -1));
+                    } else {
+                        dw.Write(LuaTypes::Double);
+                        dw.WriteFixed(lua_tonumber(in, -1));
+                    }
+#else
+                    auto d = lua_tonumber(in, -1);
+                    auto i = (int64_t) d;
+                    if ((double) i == d) {
+                        dw.Write(LuaTypes::Integer, i);
+                    } else {
+                        dw.Write(LuaTypes::Double);
+                        dw.WriteFixed(d);
+                    }
+#endif
+                    return;
+                }
+                case LUA_TSTRING: {
+                    dw.Write(LuaTypes::String);
+                    size_t len;
+                    auto ptr = lua_tolstring(in, -1, &len);
+                    dw.Write(std::string_view(ptr, len));
+                    return;
+                }
+                case LUA_TTABLE: {
+                    dw.Write(LuaTypes::Table);
+                    int idx = lua_gettop(in);                                   // 存 idx 备用
+                    Lua::CheckStack(in, 1);
+                    lua_pushnil(in);                                            //                      ... t, nil
+                    while (lua_next(in, idx) != 0) {                            //                      ... t, k, v
+                        // 先检查下 k, v 是否为不可序列化类型. 如果是就 next
+                        t = lua_type(in, -1);
+                        if (t == LUA_TLIGHTUSERDATA || t == LUA_TFUNCTION || t == LUA_TUSERDATA || t == LUA_TTHREAD) {
+                            lua_pop(in, 1);                                     //                      ... t, k
+                            continue;
+                        }
+                        t = lua_type(in, -2);
+                        if (t == LUA_TLIGHTUSERDATA || t == LUA_TFUNCTION || t == LUA_TUSERDATA || t == LUA_TTHREAD) {
+                            lua_pop(in, 1);                                     //                      ... t, k
+                            continue;
+                        }
+                        Write(dw, in);                                          // 先写 v
+                        lua_pop(in, 1);                                         //                      ... t, k
+                        Write(dw, in);                                          // 再写 k
+                    }
+                    dw.Write(LuaTypes::TableEnd);
+                    return;
+                }
+                default:
+                    dw.Write(LuaTypes::Nil);
+                    return;
+            }
+        }
+
+        // 如果读失败, 可能会有残留数据已经压入，外界需自己做 lua state 的 cleanup
+        static inline int Read(DataReader &dr, lua_State *&out) {
+            LuaTypes lt;
+            if (int r = dr.Read(lt)) return r;
+            switch (lt) {
+                case LuaTypes::Nil:
+                    Lua::CheckStack(out, 1);
+                    lua_pushnil(out);
+                    return 0;
+                case LuaTypes::True:
+                    Lua::CheckStack(out, 1);
+                    lua_pushboolean(out, 1);
+                    return 0;
+                case LuaTypes::False:
+                    Lua::CheckStack(out, 1);
+                    lua_pushboolean(out, 0);
+                    return 0;
+                case LuaTypes::Integer: {
+                    int64_t i;
+                    if (int r = dr.Read(i)) return r;
+                    Lua::CheckStack(out, 1);
+                    lua_pushinteger(out, (lua_Integer) i);
+                    return 0;
+                }
+                case LuaTypes::Double: {
+                    lua_Number d;
+                    if (int r = dr.ReadFixed(d)) return r;
+                    Lua::CheckStack(out, 1);
+                    lua_pushnumber(out, d);
+                    return 0;
+                }
+                case LuaTypes::String: {
+                    size_t len;
+                    if (int r = dr.Read(len)) return r;
+                    Lua::CheckStack(out, 1);
+                    lua_pushlstring(out, dr.buf + dr.offset, len);
+                    dr.offset += len;
+                    return 0;
+                }
+                case LuaTypes::Table: {
+                    Lua::CheckStack(out, 4);
+                    lua_newtable(out);                                          // ... t
+                    while (dr.offset < dr.len) {
+                        if (dr.buf[dr.offset] == (char) LuaTypes::TableEnd) {
+                            ++dr.offset;
+                            return 0;
+                        }
+                        if (int r = Read(dr, out)) return r;                    // ... t, v
+                        if (int r = Read(dr, out)) return r;                    // ... t, v, k
+                        lua_pushvalue(out, -2);                                 // ... t, v, k, v
+                        lua_rawset(out, -4);                                    // ... t, v
+                        lua_pop(out, 1);                                        // ... t
+                    }
+                }
+                default:
+                    return __LINE__;
+            }
         }
     };
 }

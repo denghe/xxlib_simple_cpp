@@ -8,8 +8,8 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(
         ./
         ../xxlib
-        #/usr/include/lua5.3/
-        /usr/include/luajit-2.1/
+        /usr/include/lua5.3/
+        #/usr/include/luajit-2.1/
 )
 
 add_executable(test7
@@ -18,6 +18,6 @@ add_executable(test7
 
 target_link_libraries(test7
         pthread
-        #lua5.3
-        luajit-5.1
+        lua5.3
+        #luajit-5.1
         )
