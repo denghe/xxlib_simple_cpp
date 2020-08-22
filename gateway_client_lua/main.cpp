@@ -14,26 +14,27 @@ int main(int argc, char const *argv[]) {
         XL::SetGlobal(L, "A", 123);
         XL::SetGlobal(L, "B", "asdf");
 
-        // 映射个 全局 lambda 测试下
-        XL::SetGlobal(L, "Now", [&] {
-            return xx::ToString(xx::Now());
-        });
-
-        XL::SetGlobal(L, "Add", [&](int const &a, int const &b) {
-            std::cout << "Add(" << a << ", " << b << ")" << std::endl;
-            // no return
+        XL::SetGlobal(L, "Now", [&](char* prefix, std::string const& suffix) {
+            return xx::ToString(prefix, xx::Now(), suffix);
         });
 
         luaL_dostring(L, R"(
 function Main()
-    print(A, B, Now(), Add(2,3))
+    return function()
+        return A, B, Now("[", "]")
+    end
 end
 )");
 
-        // 调用入口函数
-        std::function<void()> m;
-        XL::GetGlobal(L, "Main", m);
-        m();
+        // 调用 Main 函数, 返回个 function, 调用之, 拿到返回值
+        using SubFuncRtv = std::tuple<int, std::string, char const*>;
+        using SubFunc = std::function<SubFuncRtv()>;
+        using MainFunc = std::function<SubFunc()>;
+        MainFunc mf;
+        XL::GetGlobal(L, "Main", mf);
+        xx::CoutN(mf()());
+
+
 
 
 //

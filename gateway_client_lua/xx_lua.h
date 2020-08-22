@@ -289,6 +289,11 @@ namespace xx::Lua {
             lua_pushstring(L, in);
             return 1;
         }
+
+        static inline void To(lua_State *const &L, int const &idx, T &out) {
+            if (!lua_isstring(L, idx)) Error(L, "error! args[", idx, "] is not string");
+            out = (T)lua_tostring(L, idx);
+        }
     };
 
     // 适配 std::optional
@@ -386,18 +391,18 @@ namespace xx::Lua {
     // 向 idx 的 table 写入 k, v
     template<typename K, typename V>
     inline void SetField(lua_State *const &L, int const& idx, K const &k, V const &v) {
-        Push(L, k, v);                          // ..., k, v
-        lua_rawset(L, LUA_GLOBALSINDEX);        // ...,
+        Push(L, k, v);                          // ..., table at idx, ..., k, v
+        lua_rawset(L, idx);                     // ..., table at idx, ...
     }
 
     // 根据 k 从 idx 的 table 读出 v
     template<typename K, typename V>
     inline void GetField(lua_State *const &L, int const& idx, K const &k, V &v) {
         auto top = lua_gettop(L);
-        Push(L, k);                             // ..., k
-        lua_rawget(L, LUA_GLOBALSINDEX);        // ..., v
+        Push(L, k);                             // ..., table at idx, ..., k
+        lua_rawget(L, idx);                     // ..., table at idx, ..., v
         To(L, top + 1, v);
-        lua_settop(L, top);                     // ...,
+        lua_settop(L, top);                     // ..., table at idx, ...
     }
 
     // 写 k, v 到全局
@@ -433,15 +438,16 @@ namespace xx::Lua {
     struct LambdaTraits;
 
     template<typename Rtv, typename...Args>
-    struct LambdaTraits<Rtv (*)(Args const &...)> {
+    struct LambdaTraits<Rtv (*)(Args ...)> {
         using R = Rtv;
-        using A = std::tuple<Args...>;
+        using A = std::tuple<std::decay_t<Args>...>;
+
     };
 
     template<typename Rtv, typename CT, typename... Args>
-    struct LambdaTraits<Rtv (CT::*)(Args const &...) const> {
+    struct LambdaTraits<Rtv (CT::*)(Args ...) const> {
         using R = Rtv;
-        using A = std::tuple<Args...>;
+        using A = std::tuple<std::decay_t<Args>...>;
     };
 
     template<typename T>
@@ -539,7 +545,7 @@ namespace xx::Lua {
 
 
 
-    // 适配 std::function         // todo: 有待继续完善
+    // 适配 std::function
     template<typename T>
     struct PushToFuncs<std::function<T>, void> {
         static inline int Push(lua_State *const &L, std::function<T> const &in) {
@@ -571,7 +577,7 @@ namespace xx::Lua {
                 lua_call(L, ::xx::Lua::Push(L, args...), LUA_MULTRET);      // ..., rtv?
                 if constexpr(!std::is_void_v<fu::return_type_of_t<T>>) {
                     fu::return_type_of_t<T> rtv;
-                    To(L, top, rtv);
+                    xx::Lua::To(L, top + 1, rtv);
                     return rtv;
                 }
             };
