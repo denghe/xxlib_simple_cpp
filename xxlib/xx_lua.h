@@ -1,15 +1,22 @@
 #pragma once
 
-// xx::Lua::Context 系列函数应该被确保调用于 pcall 环境, 方能正确响应 luaL_error
-// 经测试发现，默认情况下 luajit 支持 c++ exception, 能析构, lua 5.3 默认不支持, 必须强制以 C++ 方式自己编译
-// 另：听说 luajit 在 push 的时候不需要 checkstack
-// todo: 自己编译支持 C++ exception 的最新 lua 5.x 源代码 集成到项目, 主要供给服务器端使用
+// 与 lua 交互的代码应 Try 执行, 方能正确响应 luaL_error 或 C++ 异常
+// luajit 支持 C++ 异常, 支持 中文变量名, 官方 lua 5.3/4 很多预编译库默认不支持, 必须强制以 C++ 方式自己编译
+// 注意：To 系列 批量操作时，不支持负数 idx ( 递归模板里 + 1 就不对了 )
 
 #include "xx_data_rw.h"
 #include "xx_string.h"
 #include "xx_typename_islambda.h"
-#include "func_type_traits.h"
-#include <lua.hpp>
+#ifndef LUA_COMPILE_AS_CPP
+extern "C" {
+#endif
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
+#ifndef LUA_COMPILE_AS_CPP
+}
+#endif
+
 
 namespace xx::Lua {
 
@@ -244,7 +251,7 @@ namespace xx::Lua {
         static inline int Push(lua_State *const &L, std::tuple<Args...> const &in) {
             int rtv = 0;
             std::apply([&](auto const &... args) {
-                rtv = Push(L, args...);
+                rtv = xx::Lua::Push(L, args...);
             }, in);
             return rtv;
         }
@@ -314,37 +321,6 @@ namespace xx::Lua {
     inline void GetRegistry(lua_State *const &L, K const &k, V const &v) {
         GetField(L, LUA_REGISTRYINDEX, k, v);
     }
-
-
-
-    /******************************************************************************************************************/
-    // lambda / function 类型分析
-
-    template<typename T, typename = void>
-    struct LambdaTraits;
-
-    template<typename Rtv, typename...Args>
-    struct LambdaTraits<Rtv (*)(Args ...)> {
-        using R = Rtv;
-        using A = std::tuple<std::decay_t<Args>...>;
-
-    };
-
-    template<typename Rtv, typename CT, typename... Args>
-    struct LambdaTraits<Rtv (CT::*)(Args ...) const> {
-        using R = Rtv;
-        using A = std::tuple<std::decay_t<Args>...>;
-    };
-
-    template<typename T>
-    struct LambdaTraits<T, std::void_t<decltype(&T::operator())> >
-            : public LambdaTraits<decltype(&T::operator())> {
-    };
-
-    template<typename T>
-    using LambdaRtv_t = typename LambdaTraits<T>::R;
-    template<typename T>
-    using LambdaArgs_t = typename LambdaTraits<T>::A;
 
     // 压入一个 T( 内容复制到 userdata, 且注册析构函数 )
     template<typename T>
@@ -433,11 +409,11 @@ namespace xx::Lua {
             PushUserdata(L, in);                                        // ..., ud
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
                 auto f = (std::function<T> *) lua_touserdata(L, lua_upvalueindex(1));
-                fu::argument_type_of_t<T> tuple;
+                LambdaArgs_t<T> tuple;
                 To(L, 1, tuple);
                 int rtv = 0;
                 std::apply([&](auto const &... args) {
-                    if constexpr(std::is_void_v<fu::return_type_of_t<T>>) {
+                    if constexpr(std::is_void_v<LambdaRtv_t<T>>) {
                         (*f)(args...);
                     } else {
                         rtv = xx::Lua::Push(L, (*f)(args...));
@@ -456,12 +432,15 @@ namespace xx::Lua {
                 lua_rawgeti(L, LUA_REGISTRYINDEX, fw.p->second);            // ..., func
                 auto num = ::xx::Lua::Push(L, args...);                     // ..., func, args...
                 lua_call(L, num, LUA_MULTRET);                              // ..., rtv...?
-                if constexpr(!std::is_void_v<fu::return_type_of_t<T>>) {
-                    fu::return_type_of_t<T> rtv;
+                if constexpr(!std::is_void_v<LambdaRtv_t<T>>) {
+                    LambdaRtv_t<T> rtv;
                     xx::Lua::To(L, top + 1, rtv);
                     lua_settop(L, top);                                     // ...
                     return rtv;
                 }
+				else {
+					lua_settop(L, top);                                     // ...( 保险起见 )
+				}
             };
         }
     };
@@ -616,6 +595,8 @@ namespace xx::Lua {
 namespace xx {
     /******************************************************************************************************************/
     // Lua 简单数据结构 序列化适配( 不支持 table 循环引用, 注意 lua5.1 不支持 int64, 整数需在 int32 范围内 )
+    // 并非规范接口，Read 是从 L 栈顶提取，Write 是新增到 L 栈顶
+
     template<>
     struct DataFuncs<lua_State *, void> {
         // lua 可序列化的数据类型列表( 同时也是对应的 typeId ). 不被支持的类型将忽略
@@ -667,12 +648,12 @@ namespace xx {
                     while (lua_next(in, idx) != 0) {                            //                      ... t, k, v
                         // 先检查下 k, v 是否为不可序列化类型. 如果是就 next
                         t = lua_type(in, -1);
-                        if (t == LUA_TLIGHTUSERDATA || t == LUA_TFUNCTION || t == LUA_TUSERDATA || t == LUA_TTHREAD) {
+                        if (t == LUA_TFUNCTION || t == LUA_TLIGHTUSERDATA || t == LUA_TUSERDATA || t == LUA_TTHREAD) {
                             lua_pop(in, 1);                                     //                      ... t, k
                             continue;
                         }
                         t = lua_type(in, -2);
-                        if (t == LUA_TLIGHTUSERDATA || t == LUA_TFUNCTION || t == LUA_TUSERDATA || t == LUA_TTHREAD) {
+                        if (t == LUA_TFUNCTION || t == LUA_TLIGHTUSERDATA || t == LUA_TUSERDATA || t == LUA_TTHREAD) {
                             lua_pop(in, 1);                                     //                      ... t, k
                             continue;
                         }
@@ -746,6 +727,17 @@ namespace xx {
                 default:
                     return __LINE__;
             }
+        }
+    };
+
+    template<>
+    struct DataFuncs<::xx::Lua::State, void> {
+        static inline void Write(DataWriter &dw, ::xx::Lua::State const &in) {
+            ::xx::DataFuncs<lua_State*, void>::Write(dw, in.L);
+        }
+
+        static inline int Read(DataReader &dr, ::xx::Lua::State &out) {
+            return ::xx::DataFuncs<lua_State*, void>::Read(dr, out.L);
         }
     };
 }

@@ -4,6 +4,7 @@ project(test7)
 set(CMAKE_CXX_STANDARD 17)
 
 #add_definitions("-O0 -g -Wall -Wno-implicit-fallthrough")
+add_definitions("-flto")
 
 include_directories(
         ./

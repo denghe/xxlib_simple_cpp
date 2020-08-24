@@ -1,40 +1,122 @@
-﻿#include "xx_lua.h"
-#include "xx_chrono.h"
-#include <thread>
+﻿#include <xx_lua.h>
+#include <iostream>
+#include <chrono>
 
 namespace XL = xx::Lua;
 
-int main(int argc, char const *argv[]) {
-    // 等同于出 scope 会 close 的 lua_State*
-    XL::State L;
+int main() {
+    xx::Lua::State L;
+    if (auto r = XL::Try(L, [&] {
+        int x = 0;
+        XL::SetGlobal(L, "beep", [&x] { return ++x; });
 
-    // 以 pcall 方式执行 lambda 以便捕获错误
-    if (auto &&r = XL::Try(L, [&] {
-
-        XL::SetGlobal(L, "A", 123);
-        XL::SetGlobal(L, "B", "asdf");
-
-        XL::SetGlobal(L, "Now", [&](char* prefix, std::string const& suffix) {
-            return xx::ToString(prefix, xx::Now(), suffix);
-        });
-
+        auto t = std::chrono::steady_clock::now();
         luaL_dostring(L, R"(
-function Main()
-    return function()
-        return A, B, Now("[", "]")
-    end
+for i = 1, 10000000 do
+    beep()
 end
 )");
+        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t).count() << std::endl;
+        std::cout << x << std::endl;
+        t = std::chrono::steady_clock::now();
 
-        // 调用 Main 函数, 返回个 function, 调用之, 拿到返回值
-        using SubFuncRtv = std::tuple<int, std::string, char const*>;
-        using SubFunc = std::function<SubFuncRtv()>;
-        using MainFunc = std::function<SubFunc()>;
-        MainFunc mf;
-        XL::GetGlobal(L, "Main", mf);
-        xx::CoutN(mf()());
+        std::function<int()> f;
+        XL::GetGlobal(L, "beep", f);
+        for (int i = 0; i < 10000000; ++i) {
+            f();
+        }
+        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t).count() << std::endl;
+        std::cout << x << std::endl;
+    })) {
+        std::cout << "error! " << r.m << std::endl;
+    }
+}
 
 
+
+//#include "xx_lua.h"
+//#include "xx_chrono.h"
+//#include <thread>
+//
+//namespace XL = xx::Lua;
+//
+//struct Foo {
+////    inline int ToNumber(std::string const& s) {
+////        int rtv = 0;
+////        xx::Convert(s.c_str(), rtv);
+////        return rtv;
+////    }
+//    ~Foo() {
+//        xx::CoutN("~Foo");
+//    }
+//};
+//
+//int main(int argc, char const *argv[]) {
+//    // 等同于出 scope 会 close 的 lua_State*
+//    XL::State L;
+//
+//    // 以 pcall 方式执行 lambda 以便捕获错误
+//    if (auto &&r = XL::Try(L, [&] {
+//        Foo f;
+//        throw -1;
+////        luaL_dostring(L, R"(
+////t = {
+////    [1] = "asdf", qwer = 123, xxx = function() end
+////}
+////)");
+////        xx::Data d;
+////        xx::DataWriter dw(d);
+////        xx::CoutN(lua_gettop(L));
+////        lua_getglobal(L, "t");
+////        xx::CoutN(lua_gettop(L));
+////        dw.Write(L.L);
+////        xx::CoutN(d);
+//
+//        xx::Data d{6, 5, 4, 97, 115, 100, 102, 3, 2, 3, 246, 1, 5, 4, 113, 119, 101, 114, 7};
+//        xx::DataReader dr(d);
+//        int rtv = dr.Read(L);
+//        lua_setglobal(L, "t");
+//        luaL_dostring(L, R"(
+//print(type(t))
+//for k, v in pairs(t) do
+//    print(k, v)
+//end
+//)");
+//
+//    })) {
+//        std::cout << "error: n = " << r.n << ", m = " << r.m << std::endl;
+//        return r.n;
+//    }
+//
+//
+//    return 0;
+//}
+
+
+
+
+
+
+//        // 调用 Main 函数, 返回个 function, 调用之, 拿到返回值
+//        using SubFuncRtv = std::tuple<int, std::string, char const*>;
+//        using SubFunc = std::function<SubFuncRtv()>;
+//        using MainFunc = std::function<SubFunc()>;
+//        MainFunc mf;
+//        XL::GetGlobal(L, "Main", mf);
+//        xx::CoutN(mf()());
+
+
+//		auto top = lua_gettop(L);
+//		GetScript("xxxx");		  // ..., t
+//		auto GetFunc = [&](auto key, auto& func){
+//		XL::GetField(L, top+1, key)
+//		XL::To(L, top+1, func)
+//		lua_settop(L, top);
+//		}
+//		GetFunc("Update", updateFunc)
+//		GetFunc("Update", updateFunc)
+//		GetFunc("Update", updateFunc)
+//		GetFunc("Update", updateFunc)
 
 
 //
@@ -70,24 +152,38 @@ end
 //            lua_settop(L, top);      // 清除返回值
 //        }
 
-    })) {
-        std::cout << "error: n = " << r.n << ", m = " << r.m << std::endl;
-        return r.n;
-    }
 
-
-    return 0;
-}
-
-
-
-
-
-
-
-
-
-
+//
+//
+//int main(int argc, char const *argv[]) {
+//    // 等同于出 scope 会 close 的 lua_State*
+//    XL::State L;
+//
+//    // 以 pcall 方式执行 lambda 以便捕获错误
+//    if (auto &&r = XL::Try(L, [&] {
+//
+//        XL::SetGlobal(L, "A", 123);
+//        XL::SetGlobal(L, "B", "asdf");
+//
+//        XL::SetGlobal(L, "Now", [&](char* prefix, std::string const& suffix) {
+//            return xx::ToString(prefix, xx::Now(), suffix);
+//        });
+//
+//        luaL_dostring(L, R"(
+//function Main()
+//    return function()
+//        return A, B, Now("[", "]")
+//    end
+//end
+//)");
+//
+//        // 调用 Main 函数, 返回个 function, 调用之, 拿到返回值
+//        using SubFuncRtv = std::tuple<int, std::string, char const*>;
+//        using SubFunc = std::function<SubFuncRtv()>;
+//        using MainFunc = std::function<SubFunc()>;
+//        MainFunc mf;
+//        XL::GetGlobal(L, "Main", mf);
+//        xx::CoutN(mf()());
 
 
 

@@ -4,7 +4,7 @@
 
 namespace xx {
     /************************************************************************************/
-    // 野扩展( 依赖编译器 )：   TypeName_v   IsLambda_v
+    // TypeName_v
 
     namespace Detail {
         template<typename... T>
@@ -35,6 +35,9 @@ auto __cdecl xx::Detail::NameOf<
     template <typename... T>
     inline constexpr auto TypeName_v = Detail::NameOf<T...>();
 
+    /************************************************************************************/
+    // IsLambda_v
+
     namespace Detail {
         template<typename T>
         constexpr bool IsLambda() {
@@ -62,4 +65,41 @@ auto __cdecl xx::Detail::NameOf<
 
     template<typename T>
     inline constexpr bool IsLambda_v = IsLambda<T>::value;
+
+
+    /************************************************************************************/
+    // LambdaRtv_t   LambdaArgs_t  (lambda / function 类型拆解)
+
+    template<typename T, typename = void>
+    struct LambdaTraits;
+
+    template<typename Rtv, typename...Args>
+    struct LambdaTraits<Rtv (*)(Args ...)> {
+        using R = Rtv;
+        using A = std::tuple<std::decay_t<Args>...>;
+
+    };
+
+    // 适配 写在 std::funcion 里面那种表达式
+    template<typename Rtv, typename...Args>
+    struct LambdaTraits<Rtv(Args ...)> {
+        using R = Rtv;
+        using A = std::tuple<std::decay_t<Args>...>;
+    };
+
+    template<typename Rtv, typename CT, typename... Args>
+    struct LambdaTraits<Rtv (CT::*)(Args ...) const> {
+        using R = Rtv;
+        using A = std::tuple<std::decay_t<Args>...>;
+    };
+
+    template<typename T>
+    struct LambdaTraits<T, std::void_t<decltype(&T::operator())> >
+            : public LambdaTraits<decltype(&T::operator())> {
+    };
+
+    template<typename T>
+    using LambdaRtv_t = typename LambdaTraits<T>::R;
+    template<typename T>
+    using LambdaArgs_t = typename LambdaTraits<T>::A;
 }
