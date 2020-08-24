@@ -1,33 +1,33 @@
-﻿//#include <sol/sol.hpp>
-//#include <iostream>
-//#include <chrono>
-//
-//int main() {
-//    sol::state lua;
-//    int x = 0;
-//    lua.set_function("beep", [&x]{ return ++x; });
-//
-//    auto t = std::chrono::steady_clock::now();
-//    lua.script(R"(
-//for i = 1, 10000000 do
-//    beep()
-//end
-//)");
-//    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now() - t ).count() << std::endl;
-//    std::cout << x << std::endl;
-//    t = std::chrono::steady_clock::now();
-//
-//    sol::function sf = lua["beep"];
-//    std::function<int()> f = sf;
-//    for (int i = 0; i < 10000000; ++i) {
-//        f();
-//    }
-//    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now() - t ).count() << std::endl;
-//    std::cout << x << std::endl;
-//}
+﻿#if 1
+#include <sol/sol.hpp>
+#include <iostream>
+#include <chrono>
 
+int main() {
+    sol::state lua;
+    int x = 0;
+    lua.set_function("beep", [&x]{ return ++x; });
 
+    auto t = std::chrono::steady_clock::now();
+    lua.script(R"(
+for i = 1, 10000000 do
+    beep()
+end
+)");
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now() - t ).count() << std::endl;
+    std::cout << x << std::endl;
+    t = std::chrono::steady_clock::now();
 
+    sol::function sf = lua["beep"];
+    std::function<int()> f = sf;
+    for (int i = 0; i < 10000000; ++i) {
+        f();
+    }
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::steady_clock::now() - t ).count() << std::endl;
+    std::cout << x << std::endl;
+}
+
+#else
 
 #include <xx_lua.h>
 #include <iostream>
@@ -62,3 +62,5 @@ end
         std::cout << "error! " << r.m << std::endl;
     }
 }
+
+#endif
