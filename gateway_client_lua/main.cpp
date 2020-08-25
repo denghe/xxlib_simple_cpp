@@ -1,8 +1,75 @@
-﻿#include <xx_lua.h>
+﻿#include "xx_object.h"
+#include "xx_lua.h"
 #include <iostream>
 #include <chrono>
 
 namespace XL = xx::Lua;
+
+#include "TimeLineConfig_class_lite.h"
+
+
+// 动画基类( spine, 3d, frames )
+// 每种动画都含有多个 动作， 每个动作含有多个 帧，每帧有自己的 锁定点线，碰撞区域，移动距离
+struct AnimBase {
+    // 是否自动循环播放. 不循环则当动画放完时导致 Update return false
+    bool autoRepeat = true;
+
+    // 帧率（每秒帧数）
+    float frameRate = 30;
+
+    // 每帧耗时（秒）
+    float ticksPerFrame = 1.0f / frameRate;
+
+    // 耗时池（稳帧/补帧用）
+    float ticksPool = 0;
+
+    // 当前动画播放到第几帧了
+    int frameIndex = 0;
+
+    // 指向当前 action 的 timeline
+    TimeLineConfig::TimeLine const* timeLine;
+
+    // 改变当前播放的动画
+    virtual void SetAction(std::string const& actionName) = 0;
+
+    // 设置播放参数
+    inline void SetFrameRate(float const& frameRate_ = 30) {
+        frameRate = frameRate_;
+        ticksPerFrame = 1.0f / frameRate_;
+    }
+
+    // 根据已经历的时间长度，前进 N 帧. 返回 false 表示自杀(
+    virtual bool Update(float const& elapsedSeconds) = 0;
+
+    // 判断点是否在某 cdCircle 里面( 编辑器鼠标点选需要 )
+    inline bool IsInside(float const& x, float const& y) {
+        // todo
+        return false;
+    }
+
+    // 判断圆是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
+    inline bool IsIntersect(float const& x, float const& y, float const& r) {
+        // todo
+        return false;
+    }
+
+    // todo: 目标锁定计算 相关
+};
+
+// 模拟一个 lua 动画对象的基类
+struct LuaAnim {
+    lua_State * L;
+    std::string scriptName;
+    //std::function<>
+
+    // 加载脚本并映射函数？
+    LuaAnim(lua_State *const &L, std::string scriptName) : L(L), scriptName(std::move(scriptName)) {};
+
+    virtual void SetAction(std::string const& actionName) {
+    }
+
+};
+
 
 int main() {
     xx::Lua::State L;
@@ -11,22 +78,25 @@ int main() {
         XL::SetGlobal(L, "beep", [&x] { return ++x; });
 
         auto t = std::chrono::steady_clock::now();
+        auto &&Show = [&] {
+            std::cout << "x = " << x << " ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t).count() << std::endl;
+            t = std::chrono::steady_clock::now();
+        };
+
         luaL_dostring(L, R"(
-for i = 1, 10000000 do
+for i = 1, 1000000 do
     beep()
 end
 )");
-        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t).count() << std::endl;
-        std::cout << x << std::endl;
-        t = std::chrono::steady_clock::now();
+        Show();
 
         std::function<int()> f;
         XL::GetGlobal(L, "beep", f);
-        for (int i = 0; i < 10000000; ++i) {
+        for (int i = 0; i < 1000000; ++i) {
             f();
         }
-        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t).count() << std::endl;
-        std::cout << x << std::endl;
+        Show();
+
     })) {
         std::cout << "error! " << r.m << std::endl;
     }

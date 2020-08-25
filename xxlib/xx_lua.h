@@ -7,13 +7,13 @@
 #include "xx_data_rw.h"
 #include "xx_string.h"
 #include "xx_typename_islambda.h"
-#ifndef LUA_COMPILE_AS_CPP
+#ifndef MAKE_LIB
 extern "C" {
 #endif
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
-#ifndef LUA_COMPILE_AS_CPP
+#ifndef MAKE_LIB
 }
 #endif
 
