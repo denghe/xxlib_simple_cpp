@@ -459,5 +459,20 @@ namespace xx {
         }
     };
 
-    // todo: 适配 std::tuple
+    // 适配 std::tuple<T...>
+    template<typename...T>
+    struct DataFuncs<std::tuple<T...>, void> {
+        static inline void Write(DataWriter& dw, std::tuple<T...> const& in) {
+            std::apply([&](auto const &... args) {
+                dw.Write(args...);
+            }, in);
+        }
+        static inline int Read(DataReader& dr, std::tuple<T...>& out) {
+            int rtv = 0;
+            std::apply([&](auto&... args) {
+                rtv = dr.Read(args...);
+            }, out);
+            return rtv;
+        }
+    };
 }

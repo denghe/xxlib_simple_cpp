@@ -38,6 +38,7 @@ namespace xx {
         static inline void Clone1(ObjectHelper &oh, T const &in, T &out) {
             out = in;
         }
+
         static inline void Clone2(ObjectHelper &oh, T const &in, T &out) {
             // do nothing
         }
@@ -444,13 +445,12 @@ namespace xx {
 
         static inline void Clone2(ObjectHelper &oh, std::weak_ptr<T> const &in, std::weak_ptr<T> &out) {
             assert(!out.lock());
-            auto&& sp = in.lock();
+            auto &&sp = in.lock();
             if (!sp) return;
-            auto&& iter = oh.oldNewObjs.find(&*sp);
+            auto &&iter = oh.oldNewObjs.find(&*sp);
             if (iter == oh.oldNewObjs.end()) {
                 out = sp;
-            }
-            else {
+            } else {
                 out = xx::As<T>(iter->second);
             }
         }
@@ -540,7 +540,7 @@ namespace xx {
             d.Reserve(d.len + 5 + len * (sizeof(K) + sizeof(V)));
             d.WriteVarIntger(len);
             if (!len) return;
-            for(auto&& kv : in) {
+            for (auto &&kv : in) {
                 dw.Write(kv.first, kv.second);
             }
         }
@@ -562,7 +562,7 @@ namespace xx {
     template<typename K, typename V>
     struct StringFuncsEx<std::map<K, V>, void> {
         static inline void Append(ObjectHelper &oh, std::map<K, V> const &in) {
-            auto&& s = oh.s;
+            auto &&s = oh.s;
             s.push_back('[');
             if (!in.empty()) {
                 for (auto &kv : in) {
@@ -572,8 +572,7 @@ namespace xx {
                     s.push_back(',');
                 }
                 s[s.size() - 1] = ']';
-            }
-            else {
+            } else {
                 s.push_back(']');
             }
         }
@@ -583,7 +582,7 @@ namespace xx {
     struct CloneFuncs<std::map<K, V>, void> {
         static inline void Clone1(ObjectHelper &oh, std::map<K, V> const &in, std::map<K, V> &out) {
             out.clear();
-            for(auto&& kv : in) {
+            for (auto &&kv : in) {
                 std::pair<K, V> tar;
                 CloneFuncs<K>::Clone1(oh, kv.first, tar.first);
                 CloneFuncs<V>::Clone1(oh, kv.second, tar.second);
@@ -593,9 +592,9 @@ namespace xx {
 
         static inline void Clone2(ObjectHelper &oh, std::map<K, V> const &in, std::map<K, V> &out) {
             assert(in.size() == out.size());
-            for(auto&& kv : in) {
-                auto&& iter = out.find(kv.first);
-                CloneFuncs<K>::Clone2(oh, kv.first, *(K*)&iter->first);
+            for (auto &&kv : in) {
+                auto &&iter = out.find(kv.first);
+                CloneFuncs<K>::Clone2(oh, kv.first, *(K *) &iter->first);
                 CloneFuncs<V>::Clone2(oh, kv.second, iter->second);
             }
         }
@@ -610,7 +609,7 @@ namespace xx {
             d.Reserve(d.len + 5 + len * (sizeof(K) + sizeof(V)));
             d.WriteVarIntger(len);
             if (!len) return;
-            for(auto&& kv : in) {
+            for (auto &&kv : in) {
                 dw.Write(kv.first, kv.second);
             }
         }
@@ -632,7 +631,7 @@ namespace xx {
     template<typename K, typename V>
     struct StringFuncsEx<std::unordered_map<K, V>, void> {
         static inline void Append(ObjectHelper &oh, std::unordered_map<K, V> const &in) {
-            auto&& s = oh.s;
+            auto &&s = oh.s;
             s.push_back('[');
             if (!in.empty()) {
                 for (auto &kv : in) {
@@ -642,8 +641,7 @@ namespace xx {
                     s.push_back(',');
                 }
                 s[s.size() - 1] = ']';
-            }
-            else {
+            } else {
                 s.push_back(']');
             }
         }
@@ -654,7 +652,7 @@ namespace xx {
         static inline void Clone1(ObjectHelper &oh, std::unordered_map<K, V> const &in, std::unordered_map<K, V> &out) {
             auto siz = in.size();
             out.clear();
-            for(auto&& kv : in) {
+            for (auto &&kv : in) {
                 std::pair<K, V> tar;
                 CloneFuncs<K>::Clone1(oh, kv.first, tar.first);
                 CloneFuncs<V>::Clone1(oh, kv.second, tar.second);
@@ -664,14 +662,13 @@ namespace xx {
 
         static inline void Clone2(ObjectHelper &oh, std::unordered_map<K, V> const &in, std::unordered_map<K, V> &out) {
             assert(in.size() == out.size());
-            for(auto&& kv : in) {
-                auto&& iter = out.find(kv.first);
-                CloneFuncs<K>::Clone2(oh, kv.first, *(K*)&iter->first);
+            for (auto &&kv : in) {
+                auto &&iter = out.find(kv.first);
+                CloneFuncs<K>::Clone2(oh, kv.first, *(K *) &iter->first);
                 CloneFuncs<V>::Clone2(oh, kv.second, iter->second);
             }
         }
     };
-
 
 
     // 适配 std::pair
@@ -680,6 +677,7 @@ namespace xx {
         static inline void Write(DataWriterEx &dw, std::pair<K, V> const &in) {
             dw.Write(in.first, in.second);
         }
+
         static inline int Read(DataReaderEx &dr, std::pair<K, V> &out) {
             return dr.Read(out.first, out.second);
         }
@@ -688,7 +686,7 @@ namespace xx {
     template<typename K, typename V>
     struct StringFuncsEx<std::pair<K, V>, void> {
         static inline void Append(ObjectHelper &oh, std::pair<K, V> const &in) {
-            auto&& s = oh.s;
+            auto &&s = oh.s;
             s.push_back('[');
             ::xx::AppendEx(oh, in.first);
             s.push_back(',');
@@ -707,6 +705,72 @@ namespace xx {
         static inline void Clone2(ObjectHelper &oh, std::pair<K, V> const &in, std::pair<K, V> &out) {
             CloneFuncs<K>::Clone2(oh, in.first, out.first);
             CloneFuncs<V>::Clone2(oh, in.second, out.second);
+        }
+    };
+
+    // 适配 std::tuple<T...>
+    template<typename...T>
+    struct DataFuncsEx<std::tuple<T...>, void> {
+        static inline void Write(DataWriterEx &dw, std::tuple<T...> const &in) {
+            std::apply([&](auto const &... args) {
+                dw.Write(args...);
+            }, in);
+        }
+
+        static inline int Read(DataReaderEx &dr, std::tuple<T...> &out) {
+            int rtv = 0;
+            std::apply([&](auto &... args) {
+                rtv = dr.Read(args...);
+            }, out);
+            return rtv;
+        }
+    };
+
+    template<typename...T>
+    struct StringFuncsEx<std::tuple<T...>, void> {
+        static inline void Append(ObjectHelper &oh, std::tuple<T...> const &in) {
+            auto &&s = oh.s;
+            s.push_back('[');
+            std::apply([&](auto const &... args) {
+                std::initializer_list<int> n{((::xx::AppendEx(oh, args, ',')), 0)...};
+                if constexpr(sizeof...(args)) {
+                    s.resize(s.size() - 1);
+                }
+            }, in);
+            s.push_back(']');
+        }
+    };
+
+    namespace Detail {
+        template<class Tuple, std::size_t N>
+        struct TupleForeachClone {
+            static void Clone1(Tuple const &in, Tuple &out) {
+                xx::CloneFuncs<std::tuple_element_t<N - 1, Tuple>, void>::Clone1(std::get<N - 1>(in), std::get<N - 1>(out));
+                TupleForeachClone<Tuple, N - 1>::Clone1(in, out);
+            }
+
+            static void Clone2(Tuple const &in, Tuple &out) {
+                xx::CloneFuncs<std::tuple_element_t<N - 1, Tuple>, void>::Clone2(std::get<N - 1>(in), std::get<N - 1>(out));
+                TupleForeachClone<Tuple, N - 1>::Clone2(in, out);
+            }
+        };
+
+        template<class Tuple>
+        struct TupleForeachClone<Tuple, 1> {
+            static void Clone1(Tuple const &in, Tuple &out) {}
+
+            static void Clone2(Tuple const &in, Tuple &out) {}
+        };
+    }
+
+    template<typename...T>
+    struct CloneFuncs<std::tuple<T...>, void> {
+        static inline void Clone1(ObjectHelper &oh, std::tuple<T...> const &in, std::tuple<T...> &out) {
+            Detail::TupleForeachClone<std::tuple<T...>, std::tuple_size_v<std::tuple<T...>>>::Clone1(in, out);
+        }
+
+        static inline void Clone2(ObjectHelper &oh, std::tuple<T...> const &in, std::tuple<T...> &out) {
+            Detail::TupleForeachClone<std::tuple<T...>, std::tuple_size_v<std::tuple<T...>>>::Clone2(in, out);
         }
     };
 

@@ -7,67 +7,150 @@ namespace XL = xx::Lua;
 
 #include "TimeLineConfig_class_lite.h"
 
-
-// 动画基类( spine, 3d, frames )
-// 每种动画都含有多个 动作， 每个动作含有多个 帧，每帧有自己的 锁定点线，碰撞区域，移动距离
+// 动画基类
+// 每种动画都含有多个 动作， 每个动作有自己的时间线, 含有 锁定点线，碰撞区域，移动距离 等关键帧事件
 struct AnimBase {
-    // 是否自动循环播放. 不循环则当动画放完时导致 Update return false
-    bool autoRepeat = true;
+    // 改变当前播放的动画( 会改变 timeLine 的指向 )
+    virtual void SetAction(std::string const &actionName) = 0;
 
-    // 帧率（每秒帧数）
-    float frameRate = 30;
+    // 动画播放完毕后触发( 非循环播放的情况下 ), 可能切换动画继续播放返回 true，也可能自杀返回 false?
+    virtual bool OnFinish() = 0;
 
-    // 每帧耗时（秒）
-    float ticksPerFrame = 1.0f / frameRate;
+    // 根据传入的 经历时长，调整动画状态. 返回 移动距离
+    virtual float Update(float const &elapsedSeconds) = 0;
 
-    // 耗时池（稳帧/补帧用）
-    float ticksPool = 0;
+    // 判断 点(r==0) 或 圆 是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
+    [[nodiscard]] virtual bool IsIntersect(float const &x, float const &y, float const &r) const = 0;
 
-    // 当前动画播放到第几帧了
-    int frameIndex = 0;
-
-    // 指向当前 action 的 timeline
-    TimeLineConfig::TimeLine const* timeLine;
-
-    // 改变当前播放的动画
-    virtual void SetAction(std::string const& actionName) = 0;
-
-    // 设置播放参数
-    inline void SetFrameRate(float const& frameRate_ = 30) {
-        frameRate = frameRate_;
-        ticksPerFrame = 1.0f / frameRate_;
-    }
-
-    // 根据已经历的时间长度，前进 N 帧. 返回 false 表示自杀(
-    virtual bool Update(float const& elapsedSeconds) = 0;
-
-    // 判断点是否在某 cdCircle 里面( 编辑器鼠标点选需要 )
-    inline bool IsInside(float const& x, float const& y) {
-        // todo
-        return false;
-    }
-
-    // 判断圆是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
-    inline bool IsIntersect(float const& x, float const& y, float const& r) {
-        // todo
-        return false;
-    }
-
-    // todo: 目标锁定计算 相关
+    // 获取目标锁定点
+    [[nodiscard]] virtual TimeLineConfig::LockPoint GetLockPoint() const = 0;
 };
 
-// 模拟一个 lua 动画对象的基类
-struct LuaAnim {
-    lua_State * L;
-    std::string scriptName;
-    //std::function<>
+// 文件类动画基类( spine, 3d, frames )
+struct Anim : AnimBase {
+    // 指向当前 action 的 timeline
+    TimeLineConfig::TimeLine const *timeLine = nullptr;
 
-    // 加载脚本并映射函数？
-    LuaAnim(lua_State *const &L, std::string scriptName) : L(L), scriptName(std::move(scriptName)) {};
+    // 记录 timeline 的下标演进索引
+    int timeLineIndex = 0;
 
-    virtual void SetAction(std::string const& actionName) {
+    // 当前 action 已经历的总时长
+    float totalElapsedSeconds = 0;
+
+    // 指向当前使用的 lockPoints
+    TimeLineConfig::LockPoints const *lockPoints = nullptr;
+
+    // 指向当前使用的 cdCircles
+    TimeLineConfig::CDCircles const *cdCircles = nullptr;
+
+    // 保存当前速度
+    float speed = 0;
+
+    // 保存当前图片名( spine, 3d 用不到 )
+    std::string const *picName = nullptr;
+
+    // 应用当前时间点的数据
+    inline void ApplyTimePoint() {
+        auto &&tp = timeLine->timePoints[timeLineIndex];
+        if (tp.lps.has_value()) {
+            lockPoints = &tp.lps.value();
+        }
+        if (tp.cdcs.has_value()) {
+            cdCircles = &tp.cdcs.value();
+        }
+        if (tp.speed.has_value()) {
+            speed = tp.speed.value();
+        }
+        if (tp.pic.has_value()) {
+            picName = &tp.pic.value();
+        }
     }
 
+    // 只实现了更新指针和计算移动距离。更新显示要覆写
+    inline float Update(float const &elapsedSeconds) override {
+        // todo: 处理 传入时长 大于动画剩余播放时长的问题: call OnFinish?
+        // todo: 从 timeLineIndex 开始遍历，直到经过传入时长？
+        // todo: 如果下个时间点还小于 totalElapsedSeconds 就 ++timeLineIndex 否则就退出
+        float rtv = 0;
+        auto &&tps = timeLine->timePoints;
+        auto &&tpsSize = tps.size();
+        // 本次起始时间点
+        auto lastElapsedSeconds = totalElapsedSeconds;
+        // 本次结束时间点
+        totalElapsedSeconds += elapsedSeconds;
+        auto&& leftElapsedSeconds = totalElapsedSeconds - timeLine->totalSeconds;
+        if (leftElapsedSeconds > 0) {
+            // todo?
+        }
+        LabBegin:
+        // 如果存在下一个时间点 且 位于本次 update 时间段内
+        if (tpsSize > timeLineIndex + 1) {
+            auto &&tp = timeLine->timePoints[timeLineIndex + 1];
+            if (tp.time <= totalElapsedSeconds) {
+                // 计算出和这个时间点的时间差, 算距离
+                auto es = lastElapsedSeconds - tp.time;
+                rtv += speed * es;
+                // 指向下一个时间点
+                ++timeLineIndex;
+                ApplyTimePoint();
+            } else {
+                // 下个时间点不在本次 update 时间段内: 直接算距离并返回
+                auto es = totalElapsedSeconds - lastElapsedSeconds;
+                rtv += speed * es;
+                return rtv;
+            }
+        }
+        else {
+            // 后面没有别的时间点了: 直接算距离
+            auto es = totalElapsedSeconds - lastElapsedSeconds;
+            rtv += speed * es;
+        }
+        // if (leftElapsedSeconds > 0) goto LabBegin;
+
+        return rtv;
+    }
+
+    // 判断 点(r==0) 或 圆 是否和单个 cdCircle 相交
+    inline static bool IsIntersect(TimeLineConfig::CDCircle const &c, float const &x, float const &y, float const &r) {
+        return (c.x - x) * (c.x - x) + (c.y - y) * (c.y - y) <= (c.r + r) * (c.r + r);
+    }
+
+    // 判断 点(r==0) 或 圆 是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
+    [[nodiscard]] inline bool IsIntersect(float const &x, float const &y, float const &r) const override {
+        assert(cdCircles);
+        if (!IsIntersect(cdCircles->maxCDCircle, x, y, r)) return false;
+        for (auto &&c : cdCircles->cdCircles) {
+            if (IsIntersect(c, x, y, r)) return true;
+        }
+        return false;
+    }
+
+    [[nodiscard]] inline TimeLineConfig::LockPoint GetLockPoint() const override {
+        // todo: 需结合屏幕裁剪范围来算, 屏幕尺寸函数自行获取?
+        return lockPoints->mainLockPoint;
+    }
+};
+
+// todo: AnimSpine, AnimFrames, AnimC3b ... 补充实现 Update 的显示更新部分
+
+// Lua 类动画基类, 虚函数调用到和 lua 函数绑定的 std::function
+struct AnimLua : AnimBase {
+    lua_State *L;
+    std::string scriptName;
+    // AnimXxxx 容器? lua 可能创建 n 个 并控制它们. 通常创建 1 个
+
+    // 加载脚本并映射函数
+    AnimLua(lua_State *const &L, std::string scriptName) : L(L), scriptName(std::move(scriptName)) {
+        // todo: load script, bind func
+    };
+
+    std::function<void(std::string const &actionName)> onSetAction;
+
+    void SetAction(std::string const &actionName) override {
+        onSetAction(actionName);
+    }
+
+    // more
 };
 
 
