@@ -66,47 +66,60 @@ struct Anim : AnimBase {
         }
     }
 
+protected:
+    // 内部函数. 被 Update 调用。确保传入的时长不会导致 timeLine 变化. 返回距离
+    inline float UpdateCore(float const &elapsedSeconds) {
+
+    }
+public:
+
     // 只实现了更新指针和计算移动距离。更新显示要覆写
     inline float Update(float const &elapsedSeconds) override {
         // todo: 处理 传入时长 大于动画剩余播放时长的问题: call OnFinish?
         // todo: 从 timeLineIndex 开始遍历，直到经过传入时长？
         // todo: 如果下个时间点还小于 totalElapsedSeconds 就 ++timeLineIndex 否则就退出
         float rtv = 0;
-        auto &&tps = timeLine->timePoints;
-        auto &&tpsSize = tps.size();
-        // 本次起始时间点
-        auto lastElapsedSeconds = totalElapsedSeconds;
+        // 记录起始时间点
+        auto last = totalElapsedSeconds;
+        // 剩余未处理时长
+        auto left = elapsedSeconds;
+        LabRetry:
+        // 如果未处理时长当前时间线消耗不完
+        if (timeLine->totalSeconds < last + left) {
+
+        }
         // 本次结束时间点
         totalElapsedSeconds += elapsedSeconds;
-        auto&& leftElapsedSeconds = totalElapsedSeconds - timeLine->totalSeconds;
-        if (leftElapsedSeconds > 0) {
-            // todo?
+        // 剩余未处理时长
+        auto left = totalElapsedSeconds - timeLine->totalSeconds;
+        // 如果 时间线结束时间点 小于 本次结束时间点
+        if (left > 0) {
+            totalElapsedSeconds = timeLine->totalSeconds;
         }
+        // 计算出 lastTime 到 timeLine 结束时间 的实际间隔
+        auto currET = timeLine->totalSeconds - last;
+        auto &&tps = timeLine->timePoints;
+        auto &&tpsSize = tps.size();
         LabBegin:
         // 如果存在下一个时间点 且 位于本次 update 时间段内
-        if (tpsSize > timeLineIndex + 1) {
-            auto &&tp = timeLine->timePoints[timeLineIndex + 1];
-            if (tp.time <= totalElapsedSeconds) {
-                // 计算出和这个时间点的时间差, 算距离
-                auto es = lastElapsedSeconds - tp.time;
-                rtv += speed * es;
-                // 指向下一个时间点
-                ++timeLineIndex;
-                ApplyTimePoint();
-            } else {
-                // 下个时间点不在本次 update 时间段内: 直接算距离并返回
-                auto es = totalElapsedSeconds - lastElapsedSeconds;
-                rtv += speed * es;
-                return rtv;
-            }
-        }
-        else {
-            // 后面没有别的时间点了: 直接算距离
-            auto es = totalElapsedSeconds - lastElapsedSeconds;
+        auto &&nextIdx = timeLineIndex + 1;
+        if (tpsSize > nextIdx && tps[nextIdx].time <= totalElapsedSeconds) {
+            // 计算出和这个时间点的时间差, 算距离
+            auto es = lastElapsedSeconds - tp.time;
             rtv += speed * es;
+            // 指向下一个时间点
+            ++timeLineIndex;
+            ApplyTimePoint();
+        } else {
+            // 用剩余时长算距离
+            //auto es = totalElapsedSeconds - lastElapsedSeconds;
+            //rtv += speed * es;
         }
-        // if (leftElapsedSeconds > 0) goto LabBegin;
-
+        if (left > 0) {
+            // todo: call OnFinish ?
+            // init vars?
+            goto LabRetry;
+        }
         return rtv;
     }
 
