@@ -234,7 +234,7 @@ namespace xx::MySql {
         return fields[colIdx];
     }
 
-    Reader::Reader(Info &info)
+    inline Reader::Reader(Info &info)
             : info(info) {
     }
 
@@ -517,7 +517,7 @@ namespace xx::MySql {
         return FetchScalar<T>();
     }
 
-    std::vector<Result> Connection::FetchResults() {
+    inline std::vector<Result> Connection::FetchResults() {
         std::vector<Result> rtv;
         bool hasNextResult = false;
         do {
