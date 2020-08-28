@@ -70,20 +70,20 @@ protected:
     inline float UpdateCore(float elapsedSeconds) {
         // 判断下一个 tp 时间是否在范围内. 如果没有下一个 tp 或 时间点不在当前范围，则直接计算并返回
         // 如果有，则计算当前时间点到它的时间的跨度，应用该时间点数据并计算一波，从 elapsedSeconds 扣除该跨度
-        // 如果 elapsedSeconds 还有剩余，则跳转到 判断下一个
+        // 如果 elapsedSeconds 还有剩余，则跳转到开头重复这一过程
         float rtv = 0;
         auto &&tps = timeLine->timePoints;
         LabBegin:
         auto &&nextIdx = timeLineIndex + 1;
-        if (tps.size() > nextIdx && tps[nextIdx].time <= elapsedSeconds) {
+        if (tps.size() > nextIdx && tps[nextIdx].time <= totalElapsedSeconds + elapsedSeconds) {
             auto &&tp = tps[nextIdx];
-            auto es = totalElapsedSeconds - tp.time;
+            auto es = tp.time - totalElapsedSeconds;
             rtv += speed * es;
             elapsedSeconds -= es;
             totalElapsedSeconds = tp.time;
             ++timeLineIndex;
             ApplyTimePoint(tp);
-            if (elapsedSeconds >= 0) goto LabBegin;
+            if (elapsedSeconds >= 0.00001f) goto LabBegin;
         } else {
             totalElapsedSeconds += elapsedSeconds;
             rtv += speed * elapsedSeconds;

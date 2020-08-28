@@ -172,6 +172,10 @@ namespace xx::MySql {
         template<typename ...Args>
         void FetchTo(Args &...args);
 
+        // 填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 tuple
+        template<typename ...Args>
+        void FetchTo(std::tuple<Args...> &tuple);
+
         // 针对只有 1 行 1 列的单结果集快速读取. 出错抛异常
         template<typename T>
         T FetchScalar();
@@ -202,6 +206,10 @@ namespace xx::MySql {
         // 执行查询并填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 args 变量
         template<typename ...Args>
         void ExecuteTo(std::string const &sql, Args &...args);
+
+        // 执行查询并填充 遇到的第一个有数据的结果集的第一行的 sizeof(args...) 个字段的值 到 tuple
+        template<typename ...Args>
+        void ExecuteTo(std::string const &sql, std::tuple<Args...> &tuple);
 
         // 通用抛异常函数
         void Throw(int const &code, std::string &&desc);
@@ -486,14 +494,19 @@ namespace xx::MySql {
         bool filled = false;
         LabRetry:
         auto &&hasMoreResult = Fetch([&](Info &info) {
-            filled = true;
-            return true;
+            // 跳过没有数据行的
+            if (info.numRows) {
+                filled = true;
+                return true;
+            }
+            return false;
         }, [&](Reader &r) {
             // 将出参的指针tuple解包调函数
             std::apply([&](auto &... args) {
                 r.Reads(*args...);
             }, tuple);
-            return true;
+            // 只填充 1 行
+            return false;
         });
         if (!filled) {
             if (hasMoreResult) goto LabRetry;
@@ -502,6 +515,13 @@ namespace xx::MySql {
         if (hasMoreResult) {
             ClearResult();
         }
+    }
+
+    template<typename ...Args>
+    void Connection::FetchTo(std::tuple<Args...> &tuple) {
+        std::apply([&](auto &... args) {
+            FetchTo(args...);
+        }, tuple);
     }
 
     template<typename T>
@@ -546,8 +566,12 @@ namespace xx::MySql {
         bool filled = false;
         LabRetry:
         auto &&hasMoreResult = Fetch([&](Info &info) {
-            filled = true;
-            return true;
+            // 跳过没有数据列的（不一定有数据行）
+            if (info.numFields) {
+                filled = true;
+                return true;
+            }
+            return false;
         }, [&](Reader &r) {
             r.Reads(rtv.emplace_back());
             return true;
@@ -591,6 +615,12 @@ namespace xx::MySql {
     void Connection::ExecuteTo(std::string const &sql, Args &...args) {
         Execute(sql);
         FetchTo(args...);
+    }
+
+    template<typename ...Args>
+    void Connection::ExecuteTo(std::string const &sql, std::tuple<Args...> &tuple) {
+        Execute(sql);
+        FetchTo(tuple);
     }
 
     inline void Connection::Throw(int const &code, std::string &&desc) {
