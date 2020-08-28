@@ -488,7 +488,7 @@ namespace xx::MySql {
     template<typename ...Args>
     void Connection::FetchTo(Args &...args) {
         static_assert(sizeof...(args) > 0);
-        // 可能存在多个结果集，并且前面几个可能都没有数据. 于是需要跳过 直到遇到一个有数据的，读之，扫尾退出
+        // 可能存在多个结果集，并且前面几个可能都没有数据. 于是需要跳过 直到遇到一个有数据的，读一行，扫尾退出
         // 将出参的指针打包存 tuple
         auto &&tuple = std::make_tuple(&args...);
         bool filled = false;
@@ -519,9 +519,27 @@ namespace xx::MySql {
 
     template<typename ...Args>
     void Connection::FetchTo(std::tuple<Args...> &tuple) {
-        std::apply([&](auto &... args) {
-            FetchTo(args...);
-        }, tuple);
+        bool filled = false;
+        LabRetry:
+        auto &&hasMoreResult = Fetch([&](Info &info) {
+            if (info.numRows) {
+                filled = true;
+                return true;
+            }
+            return false;
+        }, [&](Reader &r) {
+            std::apply([&](auto &... args) {
+                r.Reads(args...);
+            }, tuple);
+            return false;
+        });
+        if (!filled) {
+            if (hasMoreResult) goto LabRetry;
+            Throw(__LINE__, "no data found, fetch failed.");
+        }
+        if (hasMoreResult) {
+            ClearResult();
+        }
     }
 
     template<typename T>

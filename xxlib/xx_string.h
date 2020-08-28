@@ -264,6 +264,7 @@ namespace xx {
             s.push_back('[');
             std::apply([&](auto const &... args) {
                 std::initializer_list<int> n{((::xx::Append(s, args, ',')), 0)...};
+                (void(n));
                 if constexpr(sizeof...(args)) {
                     s.resize(s.size() - 1);
                 }

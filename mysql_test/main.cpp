@@ -4,7 +4,7 @@
 // 得先用脚本建库
 
 struct Test {
-    std::string sqlHost = "192.168.1.144";
+    std::string sqlHost = "192.168.1.74";
     int sqlPort = 3306;
     std::string sqlUsername = "root";
     std::string sqlPassword = "1";
@@ -98,6 +98,12 @@ values
                 xx::CoutN(8, " direct show all");
                 auto &&results = conn.ExecuteResults("select * from `acc`; select * from `acc_log`;");
                 xx::CoutN(results);
+            }
+            {
+                xx::CoutN(9, " test tuple");
+                std::tuple<int, std::string> t;
+                conn.ExecuteTo("select 1, 'asdf'", t);
+                xx::CoutN(t);
             }
         }
         catch (std::exception const &e) {
