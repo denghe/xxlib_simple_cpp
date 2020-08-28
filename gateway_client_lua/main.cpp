@@ -50,8 +50,7 @@ struct Anim : AnimBase {
     std::string const *picName = nullptr;
 
     // 应用当前时间点的数据
-    inline void ApplyTimePoint() {
-        auto &&tp = timeLine->timePoints[timeLineIndex];
+    inline void ApplyTimePoint(TimeLineConfig::TimePoint const &tp) {
         if (tp.lps.has_value()) {
             lockPoints = &tp.lps.value();
         }
@@ -67,60 +66,55 @@ struct Anim : AnimBase {
     }
 
 protected:
-    // 内部函数. 被 Update 调用。确保传入的时长不会导致 timeLine 变化. 返回距离
-    inline float UpdateCore(float const &elapsedSeconds) {
-
+    // 内部函数. 被 Update 调用。确保传入的 经历时长 不会超出当前 timeLine 的范围. 返回距离
+    inline float UpdateCore(float elapsedSeconds) {
+        // 判断下一个 tp 时间是否在范围内. 如果没有下一个 tp 或 时间点不在当前范围，则直接计算并返回
+        // 如果有，则计算当前时间点到它的时间的跨度，应用该时间点数据并计算一波，从 elapsedSeconds 扣除该跨度
+        // 如果 elapsedSeconds 还有剩余，则跳转到 判断下一个
+        float rtv = 0;
+        auto &&tps = timeLine->timePoints;
+        LabBegin:
+        auto &&nextIdx = timeLineIndex + 1;
+        if (tps.size() > nextIdx && tps[nextIdx].time <= elapsedSeconds) {
+            auto &&tp = tps[nextIdx];
+            auto es = totalElapsedSeconds - tp.time;
+            rtv += speed * es;
+            elapsedSeconds -= es;
+            totalElapsedSeconds = tp.time;
+            ++timeLineIndex;
+            ApplyTimePoint(tp);
+            if (elapsedSeconds >= 0) goto LabBegin;
+        } else {
+            totalElapsedSeconds += elapsedSeconds;
+            rtv += speed * elapsedSeconds;
+        }
+        return rtv;
     }
+
 public:
 
     // 只实现了更新指针和计算移动距离。更新显示要覆写
     inline float Update(float const &elapsedSeconds) override {
-        // todo: 处理 传入时长 大于动画剩余播放时长的问题: call OnFinish?
-        // todo: 从 timeLineIndex 开始遍历，直到经过传入时长？
-        // todo: 如果下个时间点还小于 totalElapsedSeconds 就 ++timeLineIndex 否则就退出
+        // 判断传入时长是否会超出当前 timeLine 的范围. 如果有超出则切割计算. 当前 timeLine 跑完会触发 OnFinish
         float rtv = 0;
-        // 记录起始时间点
-        auto last = totalElapsedSeconds;
-        // 剩余未处理时长
         auto left = elapsedSeconds;
         LabRetry:
-        // 如果未处理时长当前时间线消耗不完
-        if (timeLine->totalSeconds < last + left) {
-
-        }
-        // 本次结束时间点
-        totalElapsedSeconds += elapsedSeconds;
-        // 剩余未处理时长
-        auto left = totalElapsedSeconds - timeLine->totalSeconds;
-        // 如果 时间线结束时间点 小于 本次结束时间点
-        if (left > 0) {
-            totalElapsedSeconds = timeLine->totalSeconds;
-        }
-        // 计算出 lastTime 到 timeLine 结束时间 的实际间隔
-        auto currET = timeLine->totalSeconds - last;
-        auto &&tps = timeLine->timePoints;
-        auto &&tpsSize = tps.size();
-        LabBegin:
-        // 如果存在下一个时间点 且 位于本次 update 时间段内
-        auto &&nextIdx = timeLineIndex + 1;
-        if (tpsSize > nextIdx && tps[nextIdx].time <= totalElapsedSeconds) {
-            // 计算出和这个时间点的时间差, 算距离
-            auto es = lastElapsedSeconds - tp.time;
-            rtv += speed * es;
-            // 指向下一个时间点
-            ++timeLineIndex;
-            ApplyTimePoint();
-        } else {
-            // 用剩余时长算距离
-            //auto es = totalElapsedSeconds - lastElapsedSeconds;
-            //rtv += speed * es;
+        if (timeLine->totalSeconds < totalElapsedSeconds + left) {
+            left = totalElapsedSeconds + left - timeLine->totalSeconds;
+            rtv += UpdateCore(timeLine->totalSeconds - totalElapsedSeconds);
         }
         if (left > 0) {
-            // todo: call OnFinish ?
-            // init vars?
-            goto LabRetry;
+            if (OnFinish()) goto LabRetry;
         }
         return rtv;
+    }
+
+    inline bool OnFinish() override {
+        // 当前逻辑是 repeat
+        totalElapsedSeconds = 0;
+        timeLineIndex = 0;
+        ApplyTimePoint(timeLine->timePoints[0]);
+        return true;
     }
 
     // 判断 点(r==0) 或 圆 是否和单个 cdCircle 相交
