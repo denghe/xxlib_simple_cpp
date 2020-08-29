@@ -8,8 +8,13 @@ namespace XL = xx::Lua;
 #include "FileExts_class_lite.h"
 // todo: ajson macro
 
+
+// todo: 序列化接口?
 // 动画基类
 struct AnimBase {
+    // 加载物理文件名 并初始化显示
+    virtual void Load(std::string const &cfg) = 0;
+
     // 改变当前播放的动画 并从该动画的开头开始播放
     virtual void SetAction(std::string const &actionName) = 0;
 
@@ -27,10 +32,18 @@ struct AnimBase {
 
     // 获取锁定坐标
     [[nodiscard]] virtual std::tuple<float, float> GetLockPoint() const = 0;
+
+    // todo: 坐标，角度，pathway 设置等等?? 两种模式？ 1. pathway 自动驱动   2. 不指定 pathway，每帧外部改坐标驱动？
 };
+
+// todo: 附加对文件的加载和显示功能?
+// todo: 附加对 pathway 的管理，附加坐标，移动功能?
+
 
 // 文件类动画基类( spine, 3d, frames )
 struct Anim : AnimBase {
+    // todo: onXxxx 以便 Load 的时候 bind 和文件类型相应的 绘制, 快进 操作?
+
     // 指向当前 anim
     std::shared_ptr<FileExts::File_Anim> anim;
 
@@ -38,10 +51,10 @@ struct Anim : AnimBase {
     FileExts::Action *action = nullptr;
 
     // 记录相应时间线的游标/下标
-    int lpsCursor = 0;
-    int cdsCursor = 0;
-    int ssCursor = 0;
-    int fsCursor = 0;
+    size_t lpsCursor = 0;
+    size_t cdsCursor = 0;
+    size_t ssCursor = 0;
+    size_t fsCursor = 0;
 
     // 当前 action 已经历的总时长
     float totalElapsedSeconds = 0;
@@ -54,6 +67,7 @@ protected:
         // 如果 elapsedSeconds 还有剩余，则跳转到开头重复这一过程
         float rtv = 0;
         auto &&ss = action->ss;
+        if (ss.empty()) return rtv;
         LabBegin:
         auto next = ss.data() + ssCursor + 1;   // 跳过越界检查
         if (ss.size() > ssCursor + 1 && next->time <= totalElapsedSeconds + elapsedSeconds) {
@@ -117,12 +131,16 @@ public:
     // 判断 点(r==0) 或 圆 是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
     [[nodiscard]] inline bool IsIntersect(float const &x, float const &y, float const &r) const override {
         if (!action || action->cds.empty()) return false;
-        auto&& cd = action->cds[cdsCursor];
+        auto &&cd = action->cds[cdsCursor];
         if (!IsIntersect(cd.maxCDCircle, x, y, r)) return false;
         for (auto &&c : cd.cdCircles) {
             if (IsIntersect(c, x, y, r)) return true;
         }
         return false;
+    }
+
+    [[nodiscard]] inline bool Lockable() const override {
+        if (!action || action->lps.empty()) return false;
     }
 
     [[nodiscard]] inline std::tuple<float, float> GetLockPoint() const override {
@@ -135,7 +153,11 @@ public:
     }
 };
 
-// todo: AnimSpine, AnimFrames, AnimC3b ... 补充实现 Update 的显示更新部分
+
+
+
+
+
 
 // Lua 类动画基类, 虚函数调用到和 lua 函数绑定的 std::function
 struct AnimLua : AnimBase {
