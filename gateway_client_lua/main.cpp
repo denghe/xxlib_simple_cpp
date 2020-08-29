@@ -5,65 +5,46 @@
 
 namespace XL = xx::Lua;
 
-#include "TimeLineConfig_class_lite.h"
+#include "FileExts_class_lite.h"
+// todo: ajson macro
 
 // 动画基类
-// 每种动画都含有多个 动作， 每个动作有自己的时间线, 含有 锁定点线，碰撞区域，移动距离 等关键帧事件
 struct AnimBase {
-    // 改变当前播放的动画( 会改变 timeLine 的指向 )
+    // 改变当前播放的动画 并从该动画的开头开始播放
     virtual void SetAction(std::string const &actionName) = 0;
 
     // 动画播放完毕后触发( 非循环播放的情况下 ), 可能切换动画继续播放返回 true，也可能自杀返回 false?
     virtual bool OnFinish() = 0;
 
     // 根据传入的 经历时长，调整动画状态. 返回 移动距离
-    virtual float Update(float const &elapsedSeconds) = 0;
+    virtual float Update(float elapsedSeconds) = 0;
 
-    // 判断 点(r==0) 或 圆 是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
+    // 判断 点(r == 0) 或 圆 是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
     [[nodiscard]] virtual bool IsIntersect(float const &x, float const &y, float const &r) const = 0;
 
-    // 获取目标锁定点
-    [[nodiscard]] virtual TimeLineConfig::LockPoint GetLockPoint() const = 0;
+    // 判断是否能被 lock( 有某锁定点在屏幕范围内 )
+    [[nodiscard]] virtual bool Lockable() const = 0;
+
+    // 获取锁定坐标
+    [[nodiscard]] virtual std::tuple<float, float> GetLockPoint() const = 0;
 };
 
 // 文件类动画基类( spine, 3d, frames )
 struct Anim : AnimBase {
-    // 指向当前 action 的 timeline
-    TimeLineConfig::TimeLine const *timeLine = nullptr;
+    // 指向当前 anim
+    std::shared_ptr<FileExts::File_Anim> anim;
 
-    // 记录 timeline 的下标演进索引
-    int timeLineIndex = 0;
+    // 指向当前 action( 位于 anim 中 )
+    FileExts::Action *action = nullptr;
+
+    // 记录相应时间线的游标/下标
+    int lpsCursor = 0;
+    int cdsCursor = 0;
+    int ssCursor = 0;
+    int fsCursor = 0;
 
     // 当前 action 已经历的总时长
     float totalElapsedSeconds = 0;
-
-    // 指向当前使用的 lockPoints
-    TimeLineConfig::LockPoints const *lockPoints = nullptr;
-
-    // 指向当前使用的 cdCircles
-    TimeLineConfig::CDCircles const *cdCircles = nullptr;
-
-    // 保存当前速度
-    float speed = 0;
-
-    // 保存当前图片名( spine, 3d 用不到 )
-    std::string const *picName = nullptr;
-
-    // 应用当前时间点的数据
-    inline void ApplyTimePoint(TimeLineConfig::TimePoint const &tp) {
-        if (tp.lps.has_value()) {
-            lockPoints = &tp.lps.value();
-        }
-        if (tp.cdcs.has_value()) {
-            cdCircles = &tp.cdcs.value();
-        }
-        if (tp.speed.has_value()) {
-            speed = tp.speed.value();
-        }
-        if (tp.pic.has_value()) {
-            picName = &tp.pic.value();
-        }
-    }
 
 protected:
     // 内部函数. 被 Update 调用。确保传入的 经历时长 不会超出当前 timeLine 的范围. 返回距离
@@ -72,21 +53,18 @@ protected:
         // 如果有，则计算当前时间点到它的时间的跨度，应用该时间点数据并计算一波，从 elapsedSeconds 扣除该跨度
         // 如果 elapsedSeconds 还有剩余，则跳转到开头重复这一过程
         float rtv = 0;
-        auto &&tps = timeLine->timePoints;
+        auto &&ss = action->ss;
         LabBegin:
-        auto &&nextIdx = timeLineIndex + 1;
-        if (tps.size() > nextIdx && tps[nextIdx].time <= totalElapsedSeconds + elapsedSeconds) {
-            auto &&tp = tps[nextIdx];
-            auto es = tp.time - totalElapsedSeconds;
-            rtv += speed * es;
+        auto next = ss.data() + ssCursor + 1;   // 跳过越界检查
+        if (ss.size() > ssCursor + 1 && next->time <= totalElapsedSeconds + elapsedSeconds) {
+            auto es = next->time - totalElapsedSeconds;
+            rtv += ss[ssCursor++].speed * es;
             elapsedSeconds -= es;
-            totalElapsedSeconds = tp.time;
-            ++timeLineIndex;
-            ApplyTimePoint(tp);
-            if (elapsedSeconds >= 0.00001f) goto LabBegin;
+            totalElapsedSeconds = next->time;
+            goto LabBegin;
         } else {
             totalElapsedSeconds += elapsedSeconds;
-            rtv += speed * elapsedSeconds;
+            rtv += ss[ssCursor].speed * elapsedSeconds;
         }
         return rtv;
     }
@@ -94,17 +72,29 @@ protected:
 public:
 
     // 只实现了更新指针和计算移动距离。更新显示要覆写
-    inline float Update(float const &elapsedSeconds) override {
-        // 判断传入时长是否会超出当前 timeLine 的范围. 如果有超出则切割计算. 当前 timeLine 跑完会触发 OnFinish
+    inline float Update(float elapsedSeconds) override {
         float rtv = 0;
-        auto left = elapsedSeconds;
-        LabRetry:
-        if (timeLine->totalSeconds < totalElapsedSeconds + left) {
-            left = totalElapsedSeconds + left - timeLine->totalSeconds;
-            rtv += UpdateCore(timeLine->totalSeconds - totalElapsedSeconds);
-        }
-        if (left > 0) {
-            if (OnFinish()) goto LabRetry;
+        LabBegin:
+        // 计算距离
+        // 判断传入时长是否会超出当前 timeLine 的范围. 如果有超出则切割计算
+        auto left = action->totalSeconds - totalElapsedSeconds;
+        if (elapsedSeconds > left) {
+            elapsedSeconds -= left;
+            rtv += UpdateCore(left);
+            if (!OnFinish()) return rtv;
+            goto LabBegin;
+        } else {
+            rtv += UpdateCore(elapsedSeconds);
+            // 同步 锁定，碰撞，帧 游标( 此时 totalElapsedSeconds 已经 + 了 elapsedSeconds )
+            while (action->lps.size() > lpsCursor + 1 && action->lps[lpsCursor + 1].time <= totalElapsedSeconds) {
+                ++lpsCursor;
+            }
+            while (action->cds.size() > cdsCursor + 1 && action->cds[cdsCursor + 1].time <= totalElapsedSeconds) {
+                ++cdsCursor;
+            }
+            while (action->fs.size() > fsCursor + 1 && action->fs[fsCursor + 1].time <= totalElapsedSeconds) {
+                ++fsCursor;
+            }
         }
         return rtv;
     }
@@ -112,29 +102,36 @@ public:
     inline bool OnFinish() override {
         // 当前逻辑是 repeat
         totalElapsedSeconds = 0;
-        timeLineIndex = 0;
-        ApplyTimePoint(timeLine->timePoints[0]);
+        lpsCursor = 0;
+        cdsCursor = 0;
+        ssCursor = 0;
+        fsCursor = 0;
         return true;
     }
 
-    // 判断 点(r==0) 或 圆 是否和单个 cdCircle 相交
-    inline static bool IsIntersect(TimeLineConfig::CDCircle const &c, float const &x, float const &y, float const &r) {
+    // 判断 点(r == 0) 或 圆 是否和单个 cdCircle 相交
+    inline static bool IsIntersect(FileExts::CDCircle const &c, float const &x, float const &y, float const &r) {
         return (c.x - x) * (c.x - x) + (c.y - y) * (c.y - y) <= (c.r + r) * (c.r + r);
     }
 
     // 判断 点(r==0) 或 圆 是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
     [[nodiscard]] inline bool IsIntersect(float const &x, float const &y, float const &r) const override {
-        assert(cdCircles);
-        if (!IsIntersect(cdCircles->maxCDCircle, x, y, r)) return false;
-        for (auto &&c : cdCircles->cdCircles) {
+        if (!action || action->cds.empty()) return false;
+        auto&& cd = action->cds[cdsCursor];
+        if (!IsIntersect(cd.maxCDCircle, x, y, r)) return false;
+        for (auto &&c : cd.cdCircles) {
             if (IsIntersect(c, x, y, r)) return true;
         }
         return false;
     }
 
-    [[nodiscard]] inline TimeLineConfig::LockPoint GetLockPoint() const override {
-        // todo: 需结合屏幕裁剪范围来算, 屏幕尺寸函数自行获取?
-        return lockPoints->mainLockPoint;
+    [[nodiscard]] inline std::tuple<float, float> GetLockPoint() const override {
+        std::tuple<float, float> rtv;
+        if (!action || action->lps.empty()) return rtv;
+        // todo: 需结合坐标以及屏幕裁剪范围来算
+        std::get<0>(rtv) = action->lps[lpsCursor].mainLockPoint.x;
+        std::get<1>(rtv) = action->lps[lpsCursor].mainLockPoint.y;
+        return rtv;
     }
 };
 

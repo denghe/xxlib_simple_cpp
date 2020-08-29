@@ -15,15 +15,16 @@ include_directories(
 # -flto 似乎能大幅度提升性能( 1/3 左右 )
 set(LUA_SRC ${PROJECT_SOURCE_DIR}/../lua-5.4.0/src/onelua.c)
 set_source_files_properties(${LUA_SRC} PROPERTIES LANGUAGE CXX)
-add_definitions("-DMAKE_LIB -flto")
+add_definitions("-DMAKE_LIB -DLUA_USE_LINUX -flto")
 
 add_executable(gateway_client_lua
         main.cpp
-        TimeLineConfig_class_lite.cpp
+        FileExts_class_lite.cpp
         ${LUA_SRC}
         )
 
 target_link_libraries(gateway_client_lua
+        dl
         #mimalloc
         pthread
         readline
