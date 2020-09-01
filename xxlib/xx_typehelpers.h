@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <stdexcept>
 
 // 先放这
 #define LIKELY(x)       __builtin_expect(!!(x), 1)
@@ -23,10 +24,10 @@ inline void ThrowRuntimeError(char const* const& s) {
     throw std::runtime_error(s);
 }
 inline void ThrowLogicError(std::string const& s) {
-    throw std::runtime_error(s);
+    throw std::logic_error(s);
 }
 inline void ThrowLogicError(char const* const& s) {
-    throw std::runtime_error(s);
+    throw std::logic_error(s);
 }
 
 namespace xx {

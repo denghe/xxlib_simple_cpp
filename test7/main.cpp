@@ -1,125 +1,114 @@
-﻿#include <iostream>
-#include <vector>
-#include <cstring>
-#include <array>
-
-constexpr size_t numRows = 20, numCols = 50;
-std::array<std::array<char, 51>, numRows> img = {
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123+-----+12345678901234567890123456789",
-        "01234567890123|     |12345678901234567890123456789",
-        "01234567890123|     |12345678901234567890123456789",
-        "01234567890123|     |12345678901234567890123456789",
-        "01234567890123+-----+12345678901234567890123456789",
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123456789012345678+-----+67890123456789",
-        "01234567890123456789012345678|     |67890123456789",
-        "01234567890123456789012345678|     |67890123456789",
-        "01234567890123456789012345678|     |67890123456789",
-        "01234567890123456789012345678+-----+67890123456789",
-        "01234567890123456789012345678901234567890123456789",
-        "01234567890123456789012345678901234567890123456789",
-};
-constexpr size_t numRows2 = 5, numCols2 = 7;
-std::array<std::array<char, 8>, numRows2> img2 = {
-        "+-----+",
-        "|     |",
-        "|     |",
-        "|     |",
-        "+-----+",
-};
-
-template<typename IMG>
-void Dump(IMG const &img_, size_t const &numRows_, size_t const &numCols_) {
-    for (int i = 0; i < numRows_; ++i) {
-        for (int j = 0; j < numCols_; ++j) {
-            std::cout << img_[i][j];
-        }
-        std::cout << std::endl;
-    }
-}
-
-template<typename IMG1, typename IMG2>
-void Find1(std::vector<std::pair<size_t, size_t>> &rtv, IMG1 const &img_, size_t const &numRows_, size_t const &numCols_, IMG2 const &img2_, size_t const &numRows2_,
-           size_t const &numCols2_) {
-    rtv.clear();
-    for (int i = 0; i < numRows_ - numRows2_; ++i) {
-        for (int j = 0; j < numCols_ - numCols2_; ++j) {
-            for (int k = 0; k < numRows2_; ++k) {
-                if (memcmp(&img_[i + k][j], &img2_[k][0], numCols2_ * sizeof(img2_[k][0])) != 0) {
-                    goto LabContinue;
-                }
-            }
-            rtv.emplace_back(i, j);
-            LabContinue:;
-        }
-    }
-}
-
-
-template<typename IMG1, typename IMG2, typename VEC>
-void Find2(std::vector<std::pair<size_t, size_t>> &rtv, IMG1 &tmp, VEC &tmp2, IMG1 const &img_, size_t const &numRows_, size_t const &numCols_, IMG2 const &img2_,
-           size_t const &numRows2_, size_t const &numCols2_) {
-    rtv.clear();
-    memcpy(&tmp, &img_, sizeof(tmp));
-    for (int i = 0; i < numRows_ - numRows2_; ++i) {
-        auto bak = tmp[i][0];
-        for (int k = 1; k < numCols2_; ++k) {
-            tmp[i][0] ^= tmp[i][k];
-        }
-        for (int j = 1; j < numCols_ - numCols2_; ++j) {
-            auto a = bak;
-            bak = tmp[i][j];
-            tmp[i][j] ^= a;
-            tmp[i][j] ^= tmp[i][j + numCols2_];
-        }
-    }
-    for (int i = 0; i < numRows2_; ++i) {
-        tmp2[i] = img2_[i][0];
-        for (int j = 1; j < numCols2_; ++j) {
-            tmp2[i] ^= img2_[i][j];
-        }
-    }
-    for (int i = 0; i < numRows_ - numRows2_; ++i) {
-        for (int j = 0; j < numCols_ - numCols2_; ++j) {
-            for (int k = 0; k < numRows2_; ++k) {
-                if (tmp[i + k][j] != tmp2[k]) {
-                    goto LabContinue;
-                }
-            }
-            for (int k = 0; k < numRows2_; ++k) {
-                if (memcmp(&img_[i + k][j], &img2_[k][0], numCols2_ * sizeof(img2_[k][0])) != 0) {
-                    goto LabContinue;
-                }
-            }
-            rtv.emplace_back(i, j);
-            LabContinue:;
-        }
-    }
-}
+﻿#include "xx_point.h"
 
 int main() {
-    Dump(img, numRows, numCols);
-    Dump(img2, numRows2, numCols2);
-    std::vector<std::pair<size_t, size_t>> rtv;
-    Find1(rtv, img, numRows, numCols, img2, numRows2, numCols2);
-    for (auto &&ij : rtv) {
-        std::cout << ij.first << "," << ij.second << std::endl;
-    }
-    decltype(img) tmp;
-    std::decay_t<decltype(img[0][0])> vec[numRows2];
-    Find2(rtv, tmp, vec, img, numRows, numCols, img2, numRows2, numCols2);
-    for (auto &&ij : rtv) {
-        std::cout << ij.first << "," << ij.second << std::endl;
-    }
+    auto&& pathway = xx::PathwayMaker({0,0}).RotateTo(M_PI_4).Forward(10).End();
+    xx::CoutN(pathway.use_count(), " ", *pathway);
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//#include <iostream>
+//#include <vector>
+//#include <cstring>
+//#include <array>
+//
+//constexpr size_t numRows = 20, numCols = 50;
+//std::array<std::array<char, 51>, numRows> img = {
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123+-----+12345678901234567890123456789",
+//        "01234567890123|     |12345678901234567890123456789",
+//        "01234567890123|     |12345678901234567890123456789",
+//        "01234567890123|     |12345678901234567890123456789",
+//        "01234567890123+-----+12345678901234567890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123456789012345678+-----+67890123456789",
+//        "01234567890123456789012345678|     |67890123456789",
+//        "01234567890123456789012345678|     |67890123456789",
+//        "01234567890123456789012345678|     |67890123456789",
+//        "01234567890123456789012345678+-----+67890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//        "01234567890123456789012345678901234567890123456789",
+//};
+//constexpr size_t numRows2 = 5, numCols2 = 7;
+//std::array<std::array<char, 8>, numRows2> img2 = {
+//        "+-----+",
+//        "|     |",
+//        "|     |",
+//        "|     |",
+//        "+-----+",
+//};
+//
+//template<typename IMG>
+//void Dump(IMG const &img_, size_t const &numRows_, size_t const &numCols_) {
+//    for (int i = 0; i < numRows_; ++i) {
+//        for (int j = 0; j < numCols_; ++j) {
+//            std::cout << img_[i][j];
+//        }
+//        std::cout << std::endl;
+//    }
+//}
+//
+//template<typename IMG1, typename IMG2>
+//void Find1(std::vector<std::pair<size_t, size_t>> &rtv, IMG1 const &img_, size_t const &numRows_, size_t const &numCols_, IMG2 const &img2_, size_t const &numRows2_,
+//           size_t const &numCols2_) {
+//    rtv.clear();
+//    for (int i = 0; i < numRows_ - numRows2_; ++i) {
+//        for (int j = 0; j < numCols_ - numCols2_; ++j) {
+//            for (int k = 0; k < numRows2_; ++k) {
+//                if (memcmp(&img_[i + k][j], &img2_[k][0], numCols2_ * sizeof(img2_[k][0])) != 0) {
+//                    goto LabContinue;
+//                }
+//            }
+//            rtv.emplace_back(i, j);
+//            LabContinue:;
+//        }
+//    }
+//}
+//
+//
+//int main() {
+//    Dump(img, numRows, numCols);
+//    Dump(img2, numRows2, numCols2);
+//    std::vector<std::pair<size_t, size_t>> rtv;
+//    Find1(rtv, img, numRows, numCols, img2, numRows2, numCols2);
+//    for (auto &&ij : rtv) {
+//        std::cout << ij.first << "," << ij.second << std::endl;
+//    }
+//    return 0;
+//}
 
 
 
