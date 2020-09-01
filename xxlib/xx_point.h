@@ -196,7 +196,7 @@ namespace xx {
     template<>
     struct StringFuncs<Pathway, void> {
         static inline void Append(std::string &s, Pathway const &in) {
-            xx::Append(s, "{\"isLoop\"", in.isLoop, ",\"points\"", in.points, '}');
+            xx::Append(s, "{\"isLoop\":", in.isLoop, ",\"points\":", in.points, '}');
         }
     };
 
@@ -393,8 +393,11 @@ namespace xx {
     }
 
     inline PathwayMaker &PathwayMaker::Forward(float const &d) {
-        auto a = pathway->points.back().a;
-        pathway->points.emplace_back(xx::Rotate(xx::Point{d, 0}, a)).a = a;
+        auto&& p = pathway->points.back();
+        p.d = d;
+        auto a = p.a;
+        auto pos = p.pos;
+        pathway->points.emplace_back(xx::Rotate(xx::Point{d, 0}, a) + pos).a = a;
         return *this;
     }
 

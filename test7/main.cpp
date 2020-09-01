@@ -1,8 +1,13 @@
 ﻿#include "xx_point.h"
 
 int main() {
-    auto &&pathway = xx::PathwayMaker({0, 0}).RotateTo(M_PI_4).Forward(10).End();
-    xx::CoutN(pathway.use_count(), " ", *pathway);
+    auto &&pathway = xx::PathwayMaker({0, 0})
+            .RotateTo(M_PI_4)
+            .Forward(10)
+            .RotateBy(M_PI_4)
+            .Forward(10)
+            .Loop();
+    xx::CoutN(*pathway);
     return 0;
 }
 
