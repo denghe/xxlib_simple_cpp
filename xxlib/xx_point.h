@@ -108,11 +108,20 @@ namespace xx {
         // 改变最后个点角度( = )
         PathwayMaker &RotateTo(float const &a);
 
+        // 改变最后个点角度指向目标坐标
+        PathwayMaker &RotateTo(xx::Point const &tarPos);
+
         // 改变最后个点角度( + )
         PathwayMaker &RotateBy(float const &a);
 
         // 令最后个点针对 tarPos 计算 a, d, 追加形成新的点，新点.a = 最后个点.a，新点.d = 0
         PathwayMaker &To(xx::Point const &tarPos);
+
+        // RotateTo + Forward
+        PathwayMaker &ForwardTo(xx::Point const &tarPos, float const &d);
+
+        // 从最后个点弹跳前进一段距离，遇到边界会反弹( 类似台球 ). 会在改变角度时形成新的节点
+        PathwayMaker &BounceForward(float d, float const& rectX, float const& rectY, float const& rectW, float const& rectH);
 
         // 令最后个点针对第一个点计算 a, d，标记循环 并返回 pathway 容器
         std::shared_ptr<Pathway> Loop();
@@ -393,7 +402,7 @@ namespace xx {
     }
 
     inline PathwayMaker &PathwayMaker::Forward(float const &d) {
-        auto&& p = pathway->points.back();
+        auto &&p = pathway->points.back();
         p.d = d;
         auto a = p.a;
         auto pos = p.pos;
@@ -405,6 +414,12 @@ namespace xx {
         pathway->points.back().a = a;
         return *this;
     }
+
+    inline PathwayMaker &PathwayMaker::RotateTo(xx::Point const &tarPos) {
+        pathway->points.back().a = GetAngle(pathway->points.back().pos, tarPos);
+        return *this;
+    }
+
     inline PathwayMaker &PathwayMaker::RotateBy(float const &a) {
         pathway->points.back().a += a;
         return *this;
@@ -417,6 +432,20 @@ namespace xx {
         pathway->points.emplace_back(tarPos).a = a;
         return *this;
     }
+
+    PathwayMaker &PathwayMaker::ForwardTo(xx::Point const &tarPos, float const &d) {
+        pathway->points.back().a = GetAngle(pathway->points.back().pos, tarPos);
+        Forward(d);
+        return *this;
+    }
+
+    PathwayMaker &PathwayMaker::BounceForward(float d, float const& rectX, float const& rectY, float const& rectW, float const& rectH) {
+        // todo：根据 rect 求出 4 条边界的坐标，依次和 当前点 前进 d 产生的 线段 判断 相交？
+        // 如果有交点，根据边界方位，计算反弹角度? 令 d 减去 出发点到交点的距离？
+        // 如果 d 还有剩，使用新的角度前进并找交点？
+        return *this;
+    }
+
 
     inline std::shared_ptr<Pathway> PathwayMaker::Loop() {
         auto &&p1 = pathway->points.back();
