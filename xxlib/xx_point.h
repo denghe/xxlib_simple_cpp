@@ -68,9 +68,6 @@ namespace xx {
 
     // 移动路线
     struct Pathway {
-        // 存储创建时读入的文件名
-        std::string fileName;
-
         // 是否闭合( 是 则 最后一个点 的下一个指向 第一个点 )
         bool isLoop = false;
 
@@ -187,11 +184,11 @@ namespace xx {
     template<>
     struct DataFuncs<Pathway, void> {
         static inline void Write(DataWriter &dw, Pathway const &in) {
-            dw.Write(in.fileName, in.isLoop, in.points);
+            dw.Write(in.isLoop, in.points);
         }
 
         static inline int Read(DataReader &dr, Pathway &out) {
-            return dr.Read(out.fileName, out.isLoop, out.points);
+            return dr.Read(out.isLoop, out.points);
         }
     };
 
@@ -199,7 +196,7 @@ namespace xx {
     template<>
     struct StringFuncs<Pathway, void> {
         static inline void Append(std::string &s, Pathway const &in) {
-            xx::Append(s, "{\"fileName\":", in.fileName, ",\"isLoop\"", in.isLoop, ",\"points\"", in.points, '}');
+            xx::Append(s, "{\"isLoop\"", in.isLoop, ",\"points\"", in.points, '}');
         }
     };
 
