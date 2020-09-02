@@ -6,8 +6,29 @@ int main() {
             .Forward(10)
             .RotateBy(M_PI_4)
             .Forward(10)
+//            .End();
             .Loop();
     xx::CoutN(*pathway);
+    size_t i;
+    float d;
+    xx::Point pos;
+    float a;
+    bool r;
+    pathway->Begin(i, d, pos, a);
+    xx::CoutN("pos = ", pos, ", a = ", a);
+//    do {
+//        r = pathway->Forward(3, i, d, pos, a);
+//        xx::CoutN("pos = ", pos, ", a = ", a);
+//    } while (!r);
+//    do {
+//        r = pathway->Backward(4, i, d, pos, a);
+//        xx::CoutN("pos = ", pos, ", a = ", a);
+//    } while (!r);
+    for (int j = 0; j < 20; ++j) {
+        pathway->Backward(4, i, d, pos, a);
+        xx::CoutN("pos = ", pos, ", a = ", a);
+    };
+
     return 0;
 }
 
@@ -19,6 +40,71 @@ int main() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//#include <iostream>
+//#include <variant>
+//#include "xx_sharedlist.h"
+//
+//struct Value : std::variant<double, xx::SharedList<Value>> {
+//    friend std::ostream& operator << (std::ostream& os, Value& v) {
+//        switch(v.index()) {
+//            case 0:
+//                os << std::get<0>(v);
+//                break;
+//            case 1:
+//                os << "[";
+//                for(auto&& item : std::get<1>(v)) {
+//                    os << item << ", ";
+//                }
+//                os << "]";
+//                break;
+//        }
+//        return os;
+//    }
+//};
+//
+//struct Value_i : Value {
+//    int i{};
+//};
+//
+//struct KeyValue {
+//    Value_i k_i;
+//    Value v;
+//};
+//
+//int main() {
+//    std::cout << (sizeof(Value)) << std::endl;
+//    std::cout << (sizeof(KeyValue)) << std::endl;
+//
+//
+//    Value v{123};
+//    Value v2;
+//    auto&& v2_ = v2.emplace<1>();
+//    auto&& v2_1 = v2_.Emplace();
+//    v2_1.emplace<0>(123);
+//    auto&& v2_2 = v2_.Emplace();
+//    v2_2.emplace<1>();
+//    std::cout << v << std::endl;
+//    std::cout << v2 << std::endl;
+//    return 0;
+//}
 
 
 

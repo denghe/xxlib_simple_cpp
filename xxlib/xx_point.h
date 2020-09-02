@@ -81,15 +81,21 @@ namespace xx {
 
         Pathway &operator=(Pathway const &) = delete;
 
-        // 前进: 传入 一共要移动的距离长度( 正数 )，当前点下标，当前点已移动距离，回填坐标 & 角度
+        // 前进: 传入 移动距离( 正数 )，当前点下标，当前点已移动距离，回填坐标 & 角度
         // 返回是否已移动到终点( isLoop == false )
-        bool MoveForward(float total, size_t &i, float &d, xx::Point &pos, float &a) const;
+        bool Forward(float total, size_t &i, float &d, xx::Point &pos, float &a) const;
 
-        // 前进: 传入 一共要移动的距离长度( 正数 )，当前点下标，当前点剩余距离，回填坐标 & 角度
-        // 后退: 返回是否已移动到起点( isLoop == false )
-        bool MoveBack(float total, size_t &i, float &d, xx::Point &pos, float &a) const;
+        // 后退: 传入 移动距离( 正数 )，当前点下标，当前点剩余距离，回填坐标 & 角度
+        // 返回是否已移动到起点( isLoop == false )
+        bool Backward(float total, size_t &i, float &d, xx::Point &pos, float &a) const;
 
-        // 填充 角度 和 距离
+        // 获取起点的数据
+        void Begin(size_t &i, float &d, xx::Point &pos, float &a) const;
+
+        // 获取终点的数据
+        void End(size_t &i, float &d, xx::Point &pos, float &a) const;
+
+        // 针对手工填充了坐标的数据，填充 角度 和 距离
         void FillDA();
     };
 
@@ -121,7 +127,7 @@ namespace xx {
         PathwayMaker &ForwardTo(xx::Point const &tarPos, float const &d);
 
         // 从最后个点弹跳前进一段距离，遇到边界会反弹( 类似台球 ). 会在改变角度时形成新的节点
-        PathwayMaker &BounceForward(float d, float const& rectX, float const& rectY, float const& rectW, float const& rectH);
+        PathwayMaker &BounceForward(float d, float const &rectX, float const &rectY, float const &rectW, float const &rectH);
 
         // 令最后个点针对第一个点计算 a, d，标记循环 并返回 pathway 容器
         std::shared_ptr<Pathway> Loop();
@@ -320,12 +326,12 @@ namespace xx {
     }
 
 
-    inline bool Pathway::MoveForward(float total, size_t &i, float &d, xx::Point &pos, float &a) const {
+    inline bool Pathway::Forward(float total, size_t &i, float &d, xx::Point &pos, float &a) const {
         auto siz = points.size();
         LabBegin:
         auto left = points[i].d - d;
         // 总距离大于当前点剩余距离：从 total 中减去, 剩余距离清0, i 指向下一个点
-        if (total > left) {
+        if (total >= left) {
             ++i;
             total -= left;
             d = 0;
@@ -352,10 +358,10 @@ namespace xx {
         return false;
     }
 
-    inline bool Pathway::MoveBack(float total, size_t &i, float &d, xx::Point &pos, float &a) const {
+    inline bool Pathway::Backward(float total, size_t &i, float &d, xx::Point &pos, float &a) const {
         auto siz = points.size();
         LabBegin:
-        if (total > d) {
+        if (total >= d) {
             if (isLoop) {
                 i = i ? (i - 1) : (siz - 1);
                 total -= d;
@@ -378,6 +384,20 @@ namespace xx {
         return false;
     }
 
+
+    void Pathway::Begin(size_t &i, float &d, xx::Point &pos, float &a) const {
+        i = 0;
+        d = 0;
+        pos = points[0].pos;
+        a = points[0].a;
+    }
+
+    void Pathway::End(size_t &i, float &d, xx::Point &pos, float &a) const {
+        i = points.size() - 1;
+        d = points[i].d;
+        pos = points[i].pos;
+        a = points[i].a;
+    }
 
     inline void Pathway::FillDA() {
         auto n = points.size() - 1;
@@ -439,7 +459,7 @@ namespace xx {
         return *this;
     }
 
-    PathwayMaker &PathwayMaker::BounceForward(float d, float const& rectX, float const& rectY, float const& rectW, float const& rectH) {
+    PathwayMaker &PathwayMaker::BounceForward(float d, float const &rectX, float const &rectY, float const &rectW, float const &rectH) {
         // todo：根据 rect 求出 4 条边界的坐标，依次和 当前点 前进 d 产生的 线段 判断 相交？
         // 如果有交点，根据边界方位，计算反弹角度? 令 d 减去 出发点到交点的距离？
         // 如果 d 还有剩，使用新的角度前进并找交点？

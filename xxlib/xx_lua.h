@@ -614,7 +614,7 @@ namespace xx {
                     dw.Write(lua_toboolean(in, -1) ? LuaTypes::True : LuaTypes::False);
                     return;
                 case LUA_TNUMBER: {
-#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM >= 530
+#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM >= 503
                     if (lua_isinteger(in, -1)) {
                         dw.Write(LuaTypes::Integer, (int64_t) lua_tointeger(in, -1));
                     } else {
