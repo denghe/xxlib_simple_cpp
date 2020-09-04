@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // 与 lua 交互的代码应 Try 执行, 方能正确响应 luaL_error 或 C++ 异常
 // luajit 支持 C++ 异常, 支持 中文变量名, 官方 lua 5.3/4 很多预编译库默认不支持, 必须强制以 C++ 方式自己编译

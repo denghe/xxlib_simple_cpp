@@ -476,4 +476,24 @@ namespace xx {
         std::cout.flush();
     }
 
+
+    /************************************************************************************/
+    // 各种工具函数
+    /************************************************************************************/
+
+    // 获取 1, 2 级文件扩展名
+    inline std::pair<std::string_view, std::string_view> GetFileNameExts(std::string const& fn) {
+        std::pair<std::string_view, std::string_view> rtv;
+        auto dotPos = fn.rfind('.');
+        auto extLen = fn.size() - dotPos;
+        rtv.first = std::string_view(fn.data() + dotPos, extLen);
+        if (dotPos) {
+            dotPos = fn.rfind('.', dotPos - 1);
+            if(dotPos != std::string::npos) {
+                extLen = fn.size() - dotPos - extLen;
+                rtv.second = std::string_view(fn.data() + dotPos, extLen);
+            }
+        }
+        return rtv;
+    }
 }

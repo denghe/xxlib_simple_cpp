@@ -63,6 +63,13 @@ namespace xx {
 
         template<typename T>
         explicit PathwayPoint(T const &p) : pos(p.x, p.y) {}
+
+        template<typename T>
+        PathwayPoint& operator=(T const& p) {
+            pos.x = p.x;
+            pos.y = p.y;
+            return *this;
+        }
     };
 
 
@@ -385,14 +392,14 @@ namespace xx {
     }
 
 
-    void Pathway::Begin(size_t &i, float &d, xx::Point &pos, float &a) const {
+    inline void Pathway::Begin(size_t &i, float &d, xx::Point &pos, float &a) const {
         i = 0;
         d = 0;
         pos = points[0].pos;
         a = points[0].a;
     }
 
-    void Pathway::End(size_t &i, float &d, xx::Point &pos, float &a) const {
+    inline void Pathway::End(size_t &i, float &d, xx::Point &pos, float &a) const {
         i = points.size() - 1;
         d = points[i].d;
         pos = points[i].pos;
@@ -453,13 +460,13 @@ namespace xx {
         return *this;
     }
 
-    PathwayMaker &PathwayMaker::ForwardTo(xx::Point const &tarPos, float const &d) {
+    inline  PathwayMaker &PathwayMaker::ForwardTo(xx::Point const &tarPos, float const &d) {
         pathway->points.back().a = GetAngle(pathway->points.back().pos, tarPos);
         Forward(d);
         return *this;
     }
 
-    PathwayMaker &PathwayMaker::BounceForward(float d, float const &rectX, float const &rectY, float const &rectW, float const &rectH) {
+    inline PathwayMaker &PathwayMaker::BounceForward(float d, float const &rectX, float const &rectY, float const &rectW, float const &rectH) {
         // todo：根据 rect 求出 4 条边界的坐标，依次和 当前点 前进 d 产生的 线段 判断 相交？
         // 如果有交点，根据边界方位，计算反弹角度? 令 d 减去 出发点到交点的距离？
         // 如果 d 还有剩，使用新的角度前进并找交点？
