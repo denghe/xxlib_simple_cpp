@@ -1,214 +1,51 @@
-﻿#include "xx_object.h"
-#include "xx_lua.h"
+﻿#include "xx_lua.h"
 #include <iostream>
 #include <chrono>
 
 namespace XL = xx::Lua;
 
-#include "FileExts_class_lite.h"
-// todo: ajson macro
+struct Foo {
+    int i = 123;
+    std::string s = "asdf";
 
-
-// todo: 序列化接口?
-// 动画基类
-struct AnimBase {
-    // 加载物理文件名 并初始化显示
-    virtual void Load(std::string const &cfg) = 0;
-
-    // 改变当前播放的动画 并从该动画的开头开始播放
-    virtual void SetAction(std::string const &actionName) = 0;
-
-    // 动画播放完毕后触发( 非循环播放的情况下 ), 可能切换动画继续播放返回 true，也可能自杀返回 false?
-    virtual bool OnFinish() = 0;
-
-    // 根据传入的 经历时长，调整动画状态. 返回 移动距离
-    virtual float Update(float elapsedSeconds) = 0;
-
-    // 判断 点(r == 0) 或 圆 是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
-    [[nodiscard]] virtual bool IsIntersect(float const &x, float const &y, float const &r) const = 0;
-
-    // 判断是否能被 lock( 有某锁定点在屏幕范围内 )
-    [[nodiscard]] virtual bool Lockable() const = 0;
-
-    // 获取锁定坐标
-    [[nodiscard]] virtual std::tuple<float, float> GetLockPoint() const = 0;
-
-    // todo: 坐标，角度，pathway 设置等等?? 两种模式？ 1. pathway 自动驱动   2. 不指定 pathway，每帧外部改坐标驱动？
-};
-
-// todo: 附加对文件的加载和显示功能?
-// todo: 附加对 pathway 的管理，附加坐标，移动功能?
-
-
-// 文件类动画基类( spine, 3d, frames )
-struct Anim : AnimBase {
-    // todo: onXxxx 以便 Load 的时候 bind 和文件类型相应的 绘制, 快进 操作?
-
-    // 指向当前 anim
-    std::shared_ptr<FileExts::File_Anim> anim;
-
-    // 指向当前 action( 位于 anim 中 )
-    FileExts::Action *action = nullptr;
-
-    // 记录相应时间线的游标/下标
-    size_t lpsCursor = 0;
-    size_t cdsCursor = 0;
-    size_t ssCursor = 0;
-    size_t fsCursor = 0;
-
-    // 当前 action 已经历的总时长
-    float totalElapsedSeconds = 0;
-
-protected:
-    // 内部函数. 被 Update 调用。确保传入的 经历时长 不会超出当前 timeLine 的范围. 返回距离
-    inline float UpdateCore(float elapsedSeconds) {
-        // 判断下一个 tp 时间是否在范围内. 如果没有下一个 tp 或 时间点不在当前范围，则直接计算并返回
-        // 如果有，则计算当前时间点到它的时间的跨度，应用该时间点数据并计算一波，从 elapsedSeconds 扣除该跨度
-        // 如果 elapsedSeconds 还有剩余，则跳转到开头重复这一过程
-        float rtv = 0;
-        auto &&ss = action->ss;
-        if (ss.empty()) return rtv;
-        LabBegin:
-        auto next = ss.data() + ssCursor + 1;   // 跳过越界检查
-        if (ss.size() > ssCursor + 1 && next->time <= totalElapsedSeconds + elapsedSeconds) {
-            auto es = next->time - totalElapsedSeconds;
-            rtv += ss[ssCursor++].speed * es;
-            elapsedSeconds -= es;
-            totalElapsedSeconds = next->time;
-            goto LabBegin;
-        } else {
-            totalElapsedSeconds += elapsedSeconds;
-            rtv += ss[ssCursor].speed * elapsedSeconds;
-        }
-        return rtv;
-    }
-
-public:
-
-    // 只实现了更新指针和计算移动距离。更新显示要覆写
-    inline float Update(float elapsedSeconds) override {
-        float rtv = 0;
-        LabBegin:
-        // 计算距离
-        // 判断传入时长是否会超出当前 timeLine 的范围. 如果有超出则切割计算
-        auto left = action->totalSeconds - totalElapsedSeconds;
-        if (elapsedSeconds > left) {
-            elapsedSeconds -= left;
-            rtv += UpdateCore(left);
-            if (!OnFinish()) return rtv;
-            goto LabBegin;
-        } else {
-            rtv += UpdateCore(elapsedSeconds);
-            // 同步 锁定，碰撞，帧 游标( 此时 totalElapsedSeconds 已经 + 了 elapsedSeconds )
-            while (action->lps.size() > lpsCursor + 1 && action->lps[lpsCursor + 1].time <= totalElapsedSeconds) {
-                ++lpsCursor;
-            }
-            while (action->cds.size() > cdsCursor + 1 && action->cds[cdsCursor + 1].time <= totalElapsedSeconds) {
-                ++cdsCursor;
-            }
-            while (action->fs.size() > fsCursor + 1 && action->fs[fsCursor + 1].time <= totalElapsedSeconds) {
-                ++fsCursor;
-            }
-        }
-        return rtv;
-    }
-
-    inline bool OnFinish() override {
-        // 当前逻辑是 repeat
-        totalElapsedSeconds = 0;
-        lpsCursor = 0;
-        cdsCursor = 0;
-        ssCursor = 0;
-        fsCursor = 0;
-        return true;
-    }
-
-    // 判断 点(r == 0) 或 圆 是否和单个 cdCircle 相交
-    inline static bool IsIntersect(FileExts::CDCircle const &c, float const &x, float const &y, float const &r) {
-        return (c.x - x) * (c.x - x) + (c.y - y) * (c.y - y) <= (c.r + r) * (c.r + r);
-    }
-
-    // 判断 点(r==0) 或 圆 是否和某 cdCircle 相交( touch, bullet hit 判断需要 )
-    [[nodiscard]] inline bool IsIntersect(float const &x, float const &y, float const &r) const override {
-        if (!action || action->cds.empty()) return false;
-        auto &&cd = action->cds[cdsCursor];
-        if (!IsIntersect(cd.maxCDCircle, x, y, r)) return false;
-        for (auto &&c : cd.cdCircles) {
-            if (IsIntersect(c, x, y, r)) return true;
-        }
-        return false;
-    }
-
-    [[nodiscard]] inline bool Lockable() const override {
-        if (!action || action->lps.empty()) return false;
-    }
-
-    [[nodiscard]] inline std::tuple<float, float> GetLockPoint() const override {
-        std::tuple<float, float> rtv;
-        if (!action || action->lps.empty()) return rtv;
-        // todo: 需结合坐标以及屏幕裁剪范围来算
-        std::get<0>(rtv) = action->lps[lpsCursor].mainLockPoint.x;
-        std::get<1>(rtv) = action->lps[lpsCursor].mainLockPoint.y;
-        return rtv;
+    inline std::string Exec() const {
+        return std::to_string(i) + s;
     }
 };
-
-
-
-
-
-
-
-// Lua 类动画基类, 虚函数调用到和 lua 函数绑定的 std::function
-struct AnimLua : AnimBase {
-    lua_State *L;
-    std::string scriptName;
-    // AnimXxxx 容器? lua 可能创建 n 个 并控制它们. 通常创建 1 个
-
-    // 加载脚本并映射函数
-    AnimLua(lua_State *const &L, std::string scriptName) : L(L), scriptName(std::move(scriptName)) {
-        // todo: load script, bind func
+// 适配 Foo*
+namespace xx::Lua {
+    template<>
+    struct MetatableFillFuncs<Foo *, void> {
+        static inline void Fill(lua_State *const &L) {
+            SetField(L, "Exec", [](Foo *const &in) { return in->Exec(); });
+            SetField(L, "GetI", [](Foo *const &in) { return in->i; });
+            SetField(L, "GetS", [](Foo *const &in) { return in->s; });
+            SetField(L, "SetI", [](Foo *const &in, int const &i) { in->i = i; });
+            SetField(L, "SetS", [](Foo *const &in, char const *const &s) { in->s = s; });
+        }
     };
-
-    std::function<void(std::string const &actionName)> onSetAction;
-
-    void SetAction(std::string const &actionName) override {
-        onSetAction(actionName);
-    }
-
-    // more
-};
-
+}
 
 int main() {
-    xx::Lua::State L;
+    Foo f;
+    auto L = luaL_newstate();
+    luaL_openlibs(L);
+
     if (auto r = XL::Try(L, [&] {
-        int x = 0;
-        XL::SetGlobal(L, "beep", [&x] { return ++x; });
-
-        auto t = std::chrono::steady_clock::now();
-        auto &&Show = [&] {
-            std::cout << "x = " << x << " ms = " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t).count() << std::endl;
-            t = std::chrono::steady_clock::now();
-        };
-
-        luaL_dostring(L, R"(
-for i = 1, 1000000 do
-    beep()
-end
-)");
-        Show();
-
-        std::function<int()> f;
-        XL::GetGlobal(L, "beep", f);
-        for (int i = 0; i < 1000000; ++i) {
-            f();
-        }
-        Show();
-
+        throw -1;
+        lua_call(L, 0, 0);
+        //XL::SetGlobal(L, "f", &f);
+//        luaL_dostring(L, R"(
+//--f:SetI(12345)
+//--print(f:GetS(), f:Exec())
+//--print(f.GetI)
+//for asdfsadf
+//print(f.GetI())
+//)");
     })) {
         std::cout << "error! " << r.m << std::endl;
     }
+    lua_close(L);
 }
 
 

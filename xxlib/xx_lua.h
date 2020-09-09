@@ -7,12 +7,15 @@
 #include "xx_data_rw.h"
 #include "xx_string.h"
 #include "xx_typename_islambda.h"
+
 #ifndef MAKE_LIB
 extern "C" {
 #endif
+
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
+
 #ifndef MAKE_LIB
 }
 #endif
@@ -31,13 +34,65 @@ namespace xx::Lua {
     };
 
     // 如果是 luajit 就啥都不用做了
-    int CheckStack(lua_State *const &L, int const& n) {
+    int CheckStack(lua_State *const &L, int const &n) {
 #ifndef LUAJIT_VERSION
         return lua_checkstack(L, n);
 #else
         return 1;
 #endif
     }
+
+
+    /******************************************************************************************************************/
+    template<typename T, typename ENABLED = void>
+    struct MetatableFillFuncs {
+        static inline void Fill(lua_State *const &L) {}
+    };
+
+    template<typename T, typename ENABLED = void>
+    struct MetatablePushFuncs;
+
+    template<typename T>
+    struct MetatablePushFuncs<T, void> {
+        inline static int refId = -1;
+
+        static inline int Push(lua_State *const &L) {
+            if (refId == -1) {
+                CheckStack(L, 1);
+                lua_createtable(L, 0, 20);                                      // ..., mt
+
+                if constexpr(!std::is_pod_v<T>) {
+                    lua_pushstring(L, "__gc");                                  // ..., mt, "__gc"
+                    lua_pushcclosure(L, [](auto L) {                            // ..., mt, "__gc", cc
+                        auto f = (T *) lua_touserdata(L, -1);
+                        f->~T();
+                        return 0;
+                    }, 0);
+                    lua_rawset(L, -3);                                          // ..., mt
+                }
+
+                if constexpr(!xx::IsLambda_v<T>) {
+                    lua_pushstring(L, "__index");                               // ..., mt, "__index"
+                    lua_pushvalue(L, -2);                                       // ..., mt, "__index", mt
+                    lua_rawset(L, -3);                                          // ..., mt
+                }
+
+                MetatableFillFuncs<T, void>::Fill(L);                           // ..., mt
+
+                lua_pushvalue(L, -1);                                           // ..., mt, mt
+                refId = luaL_ref(L, LUA_REGISTRYINDEX);                         // ..., mt
+            } else {
+                lua_rawgeti(L, LUA_REGISTRYINDEX, refId);                       // ..., mt
+            }
+            return 1;
+        }
+    };
+
+    template<typename T>
+    int PushMetatable(lua_State *const &L, bool const &_gc = true, bool const &_index = true) {
+        return MetatablePushFuncs<T>::Push(L, _gc, _index);
+    }
+
 
     /******************************************************************************************************************/
     // Lua push, to 系列基础适配模板. Push 返回实际入栈的参数个数( 通常是 1. 但如果传入一个队列并展开压栈则不一定 ). To 无返回值.
@@ -274,6 +329,14 @@ namespace xx::Lua {
         lua_rawset(L, idx);                     // ..., table at idx, ...
     }
 
+    // 向 栈顶 的 table 写入 k, v
+    template<typename K, typename V>
+    inline void SetField(lua_State *const &L, K const &k, V const &v) {
+        Push(L, k, v);                          // ..., table at idx, ..., k, v
+        lua_rawset(L, -3);                      // ..., table at idx, ...
+    }
+
+
     // 根据 k 从 idx 的 table 读出 v
     template<typename K, typename V>
     inline void GetField(lua_State *const &L, int const &idx, K const &k, V &v) {
@@ -288,10 +351,9 @@ namespace xx::Lua {
     template<typename K, typename V>
     inline void SetGlobal(lua_State *const &L, K const &k, V const &v) {
         Push(L, v);
-        if constexpr( std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
+        if constexpr(std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
             lua_setglobal(L, k.c_str());
-        }
-        else {
+        } else {
             lua_setglobal(L, k);
         }
     }
@@ -300,10 +362,9 @@ namespace xx::Lua {
     template<typename K, typename V>
     inline void GetGlobal(lua_State *const &L, K const &k, V &v) {
         auto top = lua_gettop(L);
-        if constexpr( std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
+        if constexpr(std::is_same_v<K, std::string> || std::is_same_v<K, std::string_view>) {
             lua_getglobal(L, k.c_str());
-        }
-        else {
+        } else {
             lua_getglobal(L, k);
         }
         To(L, top + 1, v);
@@ -322,21 +383,14 @@ namespace xx::Lua {
         GetField(L, LUA_REGISTRYINDEX, k, v);
     }
 
-    // 压入一个 T( 内容复制到 userdata, 且注册析构函数 )
+    // 压入一个 T( 内容复制到 userdata, 且注册 mt )
     template<typename T>
     void PushUserdata(lua_State *const &L, T &&v) {
         using U = std::decay_t<T>;
+        CheckStack(L, 2);
         auto f = (U *) lua_newuserdata(L, sizeof(U));                   // ..., ud
         new(f) U(std::forward<T>(v));
-        lua_newtable(L);                                                // ..., ud, mt
-        lua_pushstring(L, "__gc");                                      // ..., ud, mt, "__gc"
-        lua_pushvalue(L, -3);                                           // ..., ud, mt, "__gc", ud
-        lua_pushcclosure(L, [](auto L) {                                // ..., ud, mt, "__gc", cc
-            auto f = (U *) lua_touserdata(L, lua_upvalueindex(1));
-            f->~U();
-            return 0;
-        }, 1);
-        lua_rawset(L, -3);                                              // ..., ud, mt
+        MetatablePushFuncs<U>::Push(L);                                 // ..., ud, mt
         lua_setmetatable(L, -2);                                        // ..., ud
     }
 
@@ -437,13 +491,63 @@ namespace xx::Lua {
                     xx::Lua::To(L, top + 1, rtv);
                     lua_settop(L, top);                                     // ...
                     return rtv;
+                } else {
+                    lua_settop(L, top);                                     // ...( 保险起见 )
                 }
-				else {
-					lua_settop(L, top);                                     // ...( 保险起见 )
-				}
             };
         }
     };
+
+
+    // 适配 T*
+    template<typename T>
+    struct PushToFuncs<T *, std::enable_if_t<!std::is_same_v<std::decay_t<T>, char> && !std::is_same_v<std::decay_t<T>, char const>>> {
+        using U = T *;
+
+        static inline int Push(lua_State *const &L, U const &in) {
+            PushUserdata(L, in);                                                        // ..., ud
+            return 1;
+        }
+
+        static inline void To(lua_State *const &L, int const &idx, U &out) {
+            if (!lua_isuserdata(L, idx)) goto LabError;
+            CheckStack(L, 2);
+            lua_getmetatable(L, idx);                                                   // ... tar(idx) ..., mt
+            lua_rawgeti(L, LUA_REGISTRYINDEX, MetatablePushFuncs<U>::refId);            // ... tar(idx) ..., mt, mt
+            if (!lua_rawequal(L, -1, -2)) goto LabError;
+            lua_pop(L, 2);                                                              // ... tar(idx) ...
+            out = *(U *) lua_touserdata(L, idx);
+            return;
+            LabError:
+            Error(L, "error! args[", idx, "] is not ", xx::TypeName_v<U>);
+        }
+    };
+
+    // 适配 std::shared_ptr<T>
+    template<typename T>
+    struct PushToFuncs<std::shared_ptr<T>, void> {
+        using U = std::shared_ptr<T>;
+
+        static inline int Push(lua_State *const &L, U const &in) {
+            PushUserdata(L, in);                                                        // ..., ud
+            return 1;
+        }
+
+        static inline void To(lua_State *const &L, int const &idx, U &out) {
+            if (!lua_isuserdata(L, idx)) goto LabError;
+            CheckStack(L, 2);
+            lua_getmetatable(L, idx);                                                   // ... tar(idx) ..., mt
+            lua_rawseti(L, LUA_REGISTRYINDEX, MetatablePushFuncs<U>::refId);            // ... tar(idx) ..., mt, mt
+            if (!lua_rawequal(L, -1, -2)) goto LabError;
+            lua_pop(L, 2);                                                              // ... tar(idx) ...
+            out = *(U *) lua_touserdata(L, idx);
+            return;
+            LabError:
+            Error(L, "error! args[", idx, "] is not ", xx::TypeName_v<U>);
+        }
+    };
+
+
 
     /******************************************************************************************************************/
     // Exec / PCall 返回值封装, 易于使用
@@ -591,7 +695,6 @@ namespace xx::Lua {
 }
 
 
-
 namespace xx {
     /******************************************************************************************************************/
     // Lua 简单数据结构 序列化适配( 不支持 table 循环引用, 注意 lua5.1 不支持 int64, 整数需在 int32 范围内 )
@@ -733,11 +836,11 @@ namespace xx {
     template<>
     struct DataFuncs<::xx::Lua::State, void> {
         static inline void Write(DataWriter &dw, ::xx::Lua::State const &in) {
-            ::xx::DataFuncs<lua_State*, void>::Write(dw, in.L);
+            ::xx::DataFuncs<lua_State *, void>::Write(dw, in.L);
         }
 
         static inline int Read(DataReader &dr, ::xx::Lua::State &out) {
-            return ::xx::DataFuncs<lua_State*, void>::Read(dr, out.L);
+            return ::xx::DataFuncs<lua_State *, void>::Read(dr, out.L);
         }
     };
 }

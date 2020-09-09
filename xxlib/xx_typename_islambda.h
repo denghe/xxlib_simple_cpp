@@ -77,7 +77,6 @@ auto __cdecl xx::Detail::NameOf<
     struct LambdaTraits<Rtv (*)(Args ...)> {
         using R = Rtv;
         using A = std::tuple<std::decay_t<Args>...>;
-
     };
 
     // 适配 写在 std::funcion 里面那种表达式
