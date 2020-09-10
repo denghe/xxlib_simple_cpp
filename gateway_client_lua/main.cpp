@@ -28,24 +28,15 @@ namespace xx::Lua {
 
 int main() {
     Foo f;
-    auto L = luaL_newstate();
-    luaL_openlibs(L);
-
-    if (auto r = XL::Try(L, [&] {
-        throw -1;
-        lua_call(L, 0, 0);
-        //XL::SetGlobal(L, "f", &f);
-//        luaL_dostring(L, R"(
-//--f:SetI(12345)
-//--print(f:GetS(), f:Exec())
-//--print(f.GetI)
-//for asdfsadf
-//print(f.GetI())
-//)");
-    })) {
-        std::cout << "error! " << r.m << std::endl;
-    }
-    lua_close(L);
+    XL::State L;
+    auto r = XL::Try(L, [&] {
+        XL::SetGlobal(L, "f", &f);
+        XL::DoString(L, R"(
+print(f:GetI())
+print(f.Exec())
+)");
+    });
+    std::cout << r.m << std::endl;
 }
 
 

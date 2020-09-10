@@ -561,9 +561,12 @@ namespace xx::Lua {
 
         Result &operator=(Result const &) = default;
 
-        Result(Result &&o) : n(std::exchange(o.n, 0)), m(std::move(o.m)) {}
+        template<typename M>
+        Result(int const &n, M &&m) : n(n), m(std::forward<M>(m)) {}
 
-        Result &operator=(Result &&o) {
+        Result(Result &&o) noexcept: n(std::exchange(o.n, 0)), m(std::move(o.m)) {}
+
+        Result &operator=(Result &&o) noexcept {
             std::swap(n, o.n);
             std::swap(m, o.m);
             return *this;
@@ -574,26 +577,6 @@ namespace xx::Lua {
         }
     };
 
-    // 安全执行 lambda。不负责还原 top. 如果中途有 luaL_error 则 返回错误码 和 错误文本。理论上讲所有 lua 调用都该包这个
-    template<typename T>
-    Result Try(lua_State *const &L, T &&func) {
-        Result rtv;
-        if (!CheckStack(L, 2)) {
-            rtv.n = -1;
-            rtv.m = "lua_checkstack(L, 1) failed. not enough memory??";
-            return rtv;
-        }
-        lua_pushlightuserdata(L, &func);                                // ..., &func
-        lua_pushcclosure(L, [](auto L) {                                // ..., cfunc
-            auto &&f = (T *) lua_touserdata(L, lua_upvalueindex(1));
-            (*f)();
-            return 0;
-        }, 1);
-        if ((rtv.n = lua_pcall(L, 0, LUA_MULTRET, 0))) {                // ...
-            rtv.m = lua_tostring(L, -1);
-        }
-        return rtv;
-    }
 
     template<typename...Args>
     void AssertTop(lua_State *const &L, int const &n, Args const &...args) {
@@ -601,24 +584,54 @@ namespace xx::Lua {
         if (top != n) Error(L, "AssertTop( ", n, " ) failed! current top = ", top, args...);
     }
 
-    // 方便在 do string 的时候拼接字串
+    // 方便在 do string 的时候拼接字串. 如果有语法错误，也会报错退出。
     template<typename...Args>
     void DoString(lua_State *const &L, Args const &...args) {
-        luaL_dostring(L, xx::ToString(args...).c_str());
+        if (LUA_OK != luaL_loadstring(L, xx::ToString(args...).c_str())) {
+            lua_error(L);
+        };
+        lua_call(L, 0, 0);
     }
 
+    inline Result PCallCore(lua_State *const &L, int const &top, int const &n) {
+        Result rtv;
+        if ((rtv.n = lua_pcall(L, n, LUA_MULTRET, 0))) {                // ... ( func? errmsg? )
+            if (lua_isstring(L, -1)) {
+                rtv.m = lua_tostring(L, -1);
+            } else if (rtv.n == -1) {
+                rtv.m = "cpp exception";
+            } else {
+                rtv.m = "lua_error forget arg?";
+            }
+            lua_settop(L, top);
+        }
+        return rtv;
+    }
 
-    // 安全调用函数( 函数最先压栈，然后是 up values )
+    // 安全调用函数( 函数最先压栈，然后是 up values ). 出错将还原 top
     // [-(nargs + 1), +(nresults|1), -]
     template<typename...Args>
     Result PCall(lua_State *const &L, Args const &...args) {
-        Result rtv;
-        int n = Push(L, args...);
-        if ((rtv.n = lua_pcall(L, n, LUA_MULTRET, 0))) {
-            rtv.m = lua_tostring(L, -1);
-            lua_pop(L, 1);
+        auto top = lua_gettop(L);
+        int n = 0;
+        if constexpr(sizeof...(args)) {
+            n = Push(L, args...);
         }
-        return rtv;
+        return PCallCore(L, top, n);
+    }
+
+    // 安全执行 lambda。出错将还原 top
+    template<typename T>
+    Result Try(lua_State *const &L, T &&func) {
+        if (!CheckStack(L, 2)) return {-2, "lua_checkstack(L, 1) failed."};
+        auto top = lua_gettop(L);
+        lua_pushlightuserdata(L, &func);                                // ..., &func
+        lua_pushcclosure(L, [](auto L) {                                // ..., cfunc
+            auto &&f = (T *) lua_touserdata(L, lua_upvalueindex(1));
+            (*f)();
+            return 0;
+        }, 1);
+        return PCallCore(L, top, 0);
     }
 
     // 安全调用指定名称的全局函数( 函数最先压栈，然后是 up values )
@@ -671,9 +684,11 @@ namespace xx::Lua {
 
         explicit State(bool const &openLibs = true) {
             L = luaL_newstate();
-            if (!L) throw std::logic_error("auto &&L = luaL_newstate(); if (!L)");
+            if (!L) throw std::runtime_error("auto &&L = luaL_newstate(); if (!L)");
             if (openLibs) {
-                luaL_openlibs(L);
+                if (auto r = Try(L, [&] { luaL_openlibs(L); })) {
+                    throw std::runtime_error(r.m);
+                }
             }
         }
 

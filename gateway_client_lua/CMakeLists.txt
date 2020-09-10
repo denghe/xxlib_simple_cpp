@@ -6,8 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(
         ../xxlib
         ../lua-5.4.0/src
-        #/usr/include/lua5.3/
-        #/usr/include/luajit-2.1/
+        #/usr/include/luajit-2.1
 )
 
 # 强制以 c++ 方式编译 lua 以支持 c++ 异常 和析构
@@ -15,8 +14,7 @@ include_directories(
 # -flto 似乎能大幅度提升性能( 1/3 左右 )
 set(LUA_SRC ${PROJECT_SOURCE_DIR}/../lua-5.4.0/src/onelua.c)
 set_source_files_properties(${LUA_SRC} PROPERTIES LANGUAGE CXX)
-#add_definitions("-DMAKE_LIB -DLUA_USE_LINUX -flto")
-add_definitions("-DMAKE_LIB")
+add_definitions("-DMAKE_LIB -DLUA_USE_LINUX -flto")
 
 add_executable(gateway_client_lua
         main.cpp
@@ -25,10 +23,8 @@ add_executable(gateway_client_lua
         )
 
 target_link_libraries(gateway_client_lua
-        #dl
-        #mimalloc
+        dl
         pthread
         readline
-        #lua5.3
         #luajit-5.1
         )
