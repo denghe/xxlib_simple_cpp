@@ -5,39 +5,115 @@
 namespace XL = xx::Lua;
 
 struct Foo {
-    int i = 123;
-    std::string s = "asdf";
+    int a = 1;
 
-    inline std::string Exec() const {
-        return std::to_string(i) + s;
+    inline int Add(int const &b) const {
+        return a + b;
     }
 };
-// 适配 Foo*
+// 适配 Foo* 的元表填充
 namespace xx::Lua {
-    template<>
-    struct MetatableFillFuncs<Foo *, void> {
+    template<typename T>
+    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<Foo *, T>
+                                         || std::is_same_v<std::shared_ptr<Foo>, T>
+                                         || std::is_same_v<std::unique_ptr<Foo>, T>>> {
         static inline void Fill(lua_State *const &L) {
-            SetField(L, "Exec", [](Foo *const &in) { return in->Exec(); });
-            SetField(L, "GetI", [](Foo *const &in) { return in->i; });
-            SetField(L, "GetS", [](Foo *const &in) { return in->s; });
-            SetField(L, "SetI", [](Foo *const &in, int const &i) { in->i = i; });
-            SetField(L, "SetS", [](Foo *const &in, char const *const &s) { in->s = s; });
+            Meta<T>(L)
+                    .Func("Add", &Foo::Add)
+                    .Prop("A", &Foo::a)
+                    .Lambda("Clear", [](T &o) {
+                        o->a = 0;
+                    });
         }
     };
 }
 
+template<typename T>
+struct UDPtr {
+    T *p = nullptr;
+//    explicit UDPtr(T* const&p) : p(p) {}
+//    explicit UDPtr(T & v) : p(&v) {}
+//    inline UDPtr& operator=(T & v) { p = &v; }
+//    inline UDPtr& operator=(T* const& p_) { p = p_; }
+    inline operator T &() { return *p; }
+};
+
+//template<typename T>
+//struct IsUserdata : std::false_type {};
+//template<typename T>
+//struct IsUserdata<T> : std::true_type {};
+//template<typename T>
+//struct IsUserdata<T&> : std::true_type {};
+//template<typename T>
+//struct IsUserdata<T const&> : std::true_type {};
+//template<typename T>
+//constexpr bool IsUserdata_v = IsUserdata<T>::value;
+
+
+namespace xx::Lua {
+    template<typename T>
+    struct PushToFuncs<UDPtr<T>, void> {
+        static const bool isUserdata = false;
+
+        using U = UDPtr<T>;
+        static inline void To(lua_State *const &L, int const &idx, U &out) {
+            if (!lua_isuserdata(L, idx)) goto LabError;
+            CheckStack(L, 2);
+            lua_getmetatable(L, idx);                                                   // ... tar(idx) ..., mt
+            lua_rawgeti(L, LUA_REGISTRYINDEX, MetaRefIds<T>::refId);                    // ... tar(idx) ..., mt, mt
+            if (!lua_rawequal(L, -1, -2)) goto LabError;
+            lua_pop(L, 2);                                                              // ... tar(idx) ...
+            out.p = (T *) lua_touserdata(L, idx);
+            return;
+            LabError:
+            Error(L, "error! args[", idx, "] is not ", xx::TypeName_v<T>);
+        }
+    };
+}
+
+
+
+void ffff(std::unique_ptr<int> const& i) {
+    xx::CoutN(*i);
+}
+
 int main() {
-    Foo f;
+    auto i = std::make_unique<int>(123);
+    ffff(UDPtr(i));
+
+    //Foo f;
+    //auto f = std::make_shared<Foo>();
+    auto f = std::make_unique<Foo>();
     XL::State L;
     auto r = XL::Try(L, [&] {
-        XL::SetGlobal(L, "f", &f);
-        XL::DoString(L, R"(
-print(f:GetI())
-print(f.Exec())
-)");
+        XL::SetGlobal(L, "f", std::move(f));
+//        Ptr<std::unique_ptr<Foo>> p;
+//        XL::GetGlobal(L, "f", p);
+
+
+//        XL::DoString(L, R"(
+//f:Clear()
+//print(f:GetA())
+//f:SetA(3)
+//print(f:Add(2))
+//)");
     });
     std::cout << r.m << std::endl;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

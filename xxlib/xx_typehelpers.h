@@ -56,6 +56,10 @@ namespace xx {
 
     template<typename T>
     struct IsOptional<std::optional<T>> : std::true_type {};
+    template<typename T>
+    struct IsOptional<std::optional<T>&> : std::true_type {};
+    template<typename T>
+    struct IsOptional<std::optional<T> const&> : std::true_type {};
 
     template<typename T>
     constexpr bool IsOptional_v = IsOptional<T>::value;
@@ -65,6 +69,10 @@ namespace xx {
 
     template<typename T>
     struct IsVector<std::vector<T>> : std::true_type {};
+    template<typename T>
+    struct IsVector<std::vector<T>&> : std::true_type {};
+    template<typename T>
+    struct IsVector<std::vector<T> const&> : std::true_type {};
 
     template<typename T>
     constexpr bool IsVector_v = IsVector<T>::value;
@@ -74,6 +82,10 @@ namespace xx {
 
     template<typename T>
     struct IsShared<std::shared_ptr<T>> : std::true_type {};
+    template<typename T>
+    struct IsShared<std::shared_ptr<T>&> : std::true_type {};
+    template<typename T>
+    struct IsShared<std::shared_ptr<T> const&> : std::true_type {};
 
     template<typename T>
     constexpr bool IsShared_v = IsShared<T>::value;
@@ -83,6 +95,10 @@ namespace xx {
 
     template<typename T>
     struct IsWeak<std::weak_ptr<T>> : std::true_type {};
+    template<typename T>
+    struct IsWeak<std::weak_ptr<T>&> : std::true_type {};
+    template<typename T>
+    struct IsWeak<std::weak_ptr<T> const&> : std::true_type {};
 
     template<typename T>
     constexpr bool IsWeak_v = IsWeak<T>::value;
@@ -92,9 +108,34 @@ namespace xx {
 
     template<typename T>
     struct IsUnique<std::unique_ptr<T>> : std::true_type {};
+    template<typename T>
+    struct IsUnique<std::unique_ptr<T>&> : std::true_type {};
+    template<typename T>
+    struct IsUnique<std::unique_ptr<T> const&> : std::true_type {};
 
     template<typename T>
     constexpr bool IsUnique_v = IsUnique<T>::value;
+
+    template<typename T>
+    struct IsFunction : std::false_type {};
+
+    template<typename T>
+    struct IsFunction<std::function<T>> : std::true_type {
+        using FT = T;
+    };
+    template<typename T>
+    struct IsFunction<std::function<T>&> : std::true_type {
+        using FT = T;
+    };
+    template<typename T>
+    struct IsFunction<std::function<T> const&> : std::true_type {
+        using FT = T;
+    };
+
+    template<typename T>
+    constexpr bool IsFunction_v = IsFunction<T>::value;
+    template<typename T>
+    using FunctionType_t = typename IsFunction<T>::FT;
 
 
     /************************************************************************************/
