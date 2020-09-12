@@ -1,5 +1,6 @@
 ﻿#include "xx_lua.h"
 #include <iostream>
+#include "function2.hpp"
 #include <chrono>
 
 namespace XL = xx::Lua;
@@ -22,10 +23,19 @@ namespace xx::Lua {
 }
 
 int main() {
-    auto f = std::make_unique<Foo>();
+    std::vector<fu2::unique_function<void()>> funcs;
+    {
+        auto p = std::make_unique<int>(123);
+        funcs.emplace_back([p = std::move(p)] () mutable {
+            std::cout << *p << std::endl;
+        });
+    };
+    funcs[0]();
+
+
     XL::State L;
     auto r = XL::Try(L, [&] {
-        XL::SetGlobal(L, "f", std::move(f));
+        XL::SetGlobal(L, "f", std::make_unique<Foo>());
         XL::DoString(L, R"(
 f:Clear()
 print(f:GetA())
@@ -33,7 +43,7 @@ f:SetA(3)
 print(f:Add(2))
 )");
     });
-    //        XL::GetGlobal(L, "f", p);
+    //        XL::GetGlobal(L, "f", ??);
     std::cout << r.m << std::endl;
 }
 
