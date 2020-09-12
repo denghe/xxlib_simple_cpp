@@ -99,8 +99,6 @@ namespace xx::Lua {
     // 可能抛 lua 异常( 故这些函数应该间接被 pcall 使用 )
     template<typename T, typename ENABLED = void>
     struct PushToFuncs {
-        static const bool isUserdata = false;
-
         static inline int Push(lua_State *const &L, T &&in) {
             return Error(L, "Lua Push error! not support's type ", xx::TypeName_v<T>);
         }
@@ -399,17 +397,15 @@ namespace xx::Lua {
     // 适配 lambda
     template<typename T>
     struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<T>>> {
-        static const bool isUserdata = true;
-
         static inline int Push(lua_State *const &L, T &&in) {
             PushUserdata(L, std::forward<T>(in));                       // ..., ud
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
                 auto f = (T *) lua_touserdata(L, lua_upvalueindex(1));
-                LambdaArgs_t<T> tuple;
+                FuncA_t<T> tuple;
                 To(L, 1, tuple);
                 int rtv = 0;
                 std::apply([&](auto &... args) {
-                    if constexpr(std::is_void_v<LambdaRtv_t<T>>) {
+                    if constexpr(std::is_void_v<FuncR_t<T>>) {
                         (*f)(args...);
                     } else {
                         rtv = xx::Lua::Push(L, (*f)(args...));
@@ -462,8 +458,6 @@ namespace xx::Lua {
     // 适配 std::function
     template<typename T>
     struct PushToFuncs<T, std::enable_if_t<xx::IsFunction_v<T>>> {
-        static const bool isUserdata = true;
-
         using U = FunctionType_t<T>;
 
         static inline int Push(lua_State *const &L, T &&in) {
@@ -471,11 +465,11 @@ namespace xx::Lua {
             CheckStack(L, 1);
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
                 auto &&f = *(std::function<T> *) lua_touserdata(L, lua_upvalueindex(1));
-                LambdaArgs_t<U> tuple;
+                FuncA_t<U> tuple;
                 ::xx::Lua::To(L, 1, tuple);
                 int rtv = 0;
                 std::apply([&](auto &... args) {
-                    if constexpr(std::is_void_v<LambdaRtv_t<U>>) {
+                    if constexpr(std::is_void_v<FuncR_t<U>>) {
                         f(args...);
                     } else {
                         rtv = xx::Lua::Push(L, f(args...));
@@ -494,8 +488,8 @@ namespace xx::Lua {
                 lua_rawgeti(L, LUA_REGISTRYINDEX, fw.p->second);            // ..., func
                 auto num = ::xx::Lua::Push(L, args...);                     // ..., func, args...
                 lua_call(L, num, LUA_MULTRET);                              // ..., rtv...?
-                if constexpr(!std::is_void_v<LambdaRtv_t<U>>) {
-                    LambdaRtv_t<FunctionType_t<T>> rtv;
+                if constexpr(!std::is_void_v<FuncR_t<U>>) {
+                    FuncR_t<FunctionType_t<T>> rtv;
                     xx::Lua::To(L, top + 1, rtv);
                     lua_settop(L, top);                                     // ...
                     return rtv;
@@ -512,8 +506,6 @@ namespace xx::Lua {
     struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<T> && (!std::is_same_v<std::decay_t<T>, char> && !std::is_same_v<std::decay_t<T>, char const>)
                                            || xx::IsShared_v<T>
                                            || xx::IsUnique_v<T>>> {
-        static const bool isUserdata = true;
-
         static inline int Push(lua_State *const &L, T &&in) {
             PushUserdata(L, std::forward<T>(in));                                       // ..., ud
             return 1;
@@ -544,6 +536,13 @@ namespace xx::Lua {
         }
     };
 
+    // 适配 RefWrapper
+    template<typename T>
+    struct PushToFuncs<RefWrapper<T>, void> {
+        static inline void To(lua_State *const &L, int const &idx, RefWrapper<T> &out) {
+            PushToFuncs<T>::ToPtr(L, idx, out.p);
+        }
+    };
 
     // 适配 std::unordered_map<K, V>. 写入时体现为 table
     template<typename K, typename V>
@@ -766,11 +765,11 @@ namespace xx::Lua {
                 auto &&c = GetSelf<C>(L);
                 if (!c) Error(L, "args[1] is nullptr?");
                 auto &&f = *(T *) lua_touserdata(L, lua_upvalueindex(1));
-                LambdaArgs_t<T> tuple;
+                FuncA_t<T> tuple;
                 To(L, 2, tuple);
                 int rtv = 0;
                 std::apply([&](auto &... args) {
-                    if constexpr(std::is_void_v<LambdaRtv_t<T>>) {
+                    if constexpr(std::is_void_v<FuncR_t<T>>) {
                         if constexpr(std::is_same_v<C, T>) {
                             (c.*f)(std::move(args)...);
                         } else {
@@ -799,7 +798,7 @@ namespace xx::Lua {
                     return (*self).*o;
                 }
             });
-            SetField(L, xx::ToString("Set", name), [o](C &self, MemberPointerRtv_t<T> const &v) {
+            SetField(L, xx::ToString("Set", name), [o](C &self, MemberPointerR_t<T> const &v) {
                 if constexpr(std::is_same_v<C, T>) {
                     self.*o = v;
                 } else {

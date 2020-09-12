@@ -116,6 +116,10 @@ namespace xx {
     template<typename T>
     constexpr bool IsUnique_v = IsUnique<T>::value;
 
+
+    /************************************************************************************/
+    // IsFunction_v  FunctionType_t 引用类型参数容器类型路由
+
     template<typename T>
     struct IsFunction : std::false_type {};
 
@@ -136,6 +140,94 @@ namespace xx {
     constexpr bool IsFunction_v = IsFunction<T>::value;
     template<typename T>
     using FunctionType_t = typename IsFunction<T>::FT;
+
+
+    /************************************************************************************/
+    // RefC_t 引用类型参数容器类型路由
+
+    template<typename T>
+    struct RefWrapper {
+        T *p = nullptr;
+
+        RefWrapper() = default;
+
+        RefWrapper(T &v) : p(&v) {}
+
+        inline operator T &() { return *p; }
+    };
+
+    template<typename T, class = void>
+    struct RefTraits {
+        using C = std::decay_t<T>;
+    };
+
+    template<typename T>
+    struct RefTraits<T, std::enable_if_t<std::is_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>>> {
+        using C = RefWrapper<std::decay_t<T>>;
+    };
+
+    template<typename T>
+    using RefC_t = typename RefTraits<T>::C;
+
+
+    /************************************************************************************/
+    // FuncR_t   FuncA_t  FuncC_t  lambda / function 类型拆解
+
+    template<typename T, class = void>
+    struct FuncTraits;
+
+    template<typename Rtv, typename...Args>
+    struct FuncTraits<Rtv (*)(Args ...)> {
+        using R = Rtv;
+        using A = std::tuple<RefC_t<Args>...>;
+        using C = void;
+    };
+
+    template<typename Rtv, typename...Args>
+    struct FuncTraits<Rtv(Args ...)> {
+        using R = Rtv;
+        using A = std::tuple<RefC_t<Args>...>;
+        using C = void;
+    };
+
+    template<typename Rtv, typename CT, typename... Args>
+    struct FuncTraits<Rtv (CT::*)(Args ...) const> {
+        using R = Rtv;
+        using A = std::tuple<RefC_t<Args>...>;
+        using C = CT;
+    };
+
+    template<typename T>
+    struct FuncTraits<T, std::void_t<decltype(&T::operator())> >
+            : public FuncTraits<decltype(&T::operator())> {
+    };
+
+    template<typename T>
+    using FuncR_t = typename FuncTraits<T>::R;
+
+    template<typename T>
+    using FuncA_t = typename FuncTraits<T>::A;
+
+    template<typename T>
+    using FuncC_t = typename FuncTraits<T>::C;
+
+
+    /************************************************************************************/
+    // MemberPointerRtv_t   MemberPointerClass_t  成员变量指针 类型拆解
+
+    template<typename T>
+    struct MemberPointerTraits;
+
+    template<typename Rtv, typename CT>
+    struct MemberPointerTraits<Rtv(CT::*)> {
+        using R = Rtv;
+        using C = CT;
+    };
+
+    template<typename T>
+    using MemberPointerR_t = typename MemberPointerTraits<T>::R;
+    template<typename T>
+    using MemberPointerC_t = typename MemberPointerTraits<T>::C;
 
 
     /************************************************************************************/
