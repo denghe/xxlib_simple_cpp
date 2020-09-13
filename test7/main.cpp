@@ -1,43 +1,13 @@
-﻿#include "xx_point.h"
+﻿#include <sol/sol.hpp>
+#include <iostream>
+#include <chrono>
 
 int main() {
-    std::string fn1 = "1.c3b.ext";
-    std::string fn2 = "2.atlas.ext";
-    std::string fn3 = "3.frames";
-
-    xx::CoutN(xx::GetFileNameExts(fn1));
-    xx::CoutN(xx::GetFileNameExts(fn2));
-    xx::CoutN(xx::GetFileNameExts(fn3));
-
-//
-//    auto &&pathway = xx::PathwayMaker({0, 0})
-//            .RotateTo(M_PI_4)
-//            .Forward(10)
-//            .RotateBy(M_PI_4)
-//            .Forward(10)
-////            .End();
-//            .Loop();
-//    xx::CoutN(*pathway);
-//    size_t i;
-//    float d;
-//    xx::Point pos;
-//    float a;
-//    bool r;
-//    pathway->Begin(i, d, pos, a);
-//    xx::CoutN("pos = ", pos, ", a = ", a);
-////    do {
-////        r = pathway->Forward(3, i, d, pos, a);
-////        xx::CoutN("pos = ", pos, ", a = ", a);
-////    } while (!r);
-////    do {
-////        r = pathway->Backward(4, i, d, pos, a);
-////        xx::CoutN("pos = ", pos, ", a = ", a);
-////    } while (!r);
-//    for (int j = 0; j < 20; ++j) {
-//        pathway->Backward(4, i, d, pos, a);
-//        xx::CoutN("pos = ", pos, ", a = ", a);
-//    };
-
+    sol::state lua;
+    int x = 0;
+    lua["beep"] = [&x]{ return ++x; };
+    lua.script("beep()");
+    std::cout << x << std::endl;
     return 0;
 }
 
