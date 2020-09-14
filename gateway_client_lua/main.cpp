@@ -4,31 +4,42 @@
 namespace XL = xx::Lua;
 
 struct Foo {
+    Foo() = default;
+
+    Foo(Foo const &) = delete;
+
+    Foo &operator=(Foo const &) = delete;
+
+    ~Foo() {
+        xx::CoutN("~Foo");
+    }
+
     int a = 1;
+    std::function<void()> func;
 
     inline int Add(int const &b) const { return a + b; }
+
+    inline void CallFunc() const { if (func)func(); }
 };
 
 using Foo_u = std::unique_ptr<Foo>;
 
 namespace xx::Lua {
-    template<typename T>
-    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<Foo, T> || std::is_same_v<Foo_u, T>>> {
-        inline static char const *const name = std::is_same_v<Foo, T> ? "Foo" : "Foo_u";
+    template<>
+    struct MetaFuncs<Foo_u, void> {
+        inline static char const *const name = "Foo";
 
         static inline void Fill(lua_State *const &L) {
-            Meta<T>(L)
+            Meta<Foo_u>(L)
                     .Func("Add", &Foo::Add)
+                    .Func("CallFunc", &Foo::CallFunc)
                     .Prop("GetA", "SetA", &Foo::a)
-                    .Lambda("Clear", [](T &o) {
-                        ToPtr(o)->a = 0;
+                    .Prop("GetFunc", "SetFunc", &Foo::func)
+                    .Lambda("Clear", [](Foo_u &o) {
+                        o->a = 0;
                     })
                     .Lambda("Create", []() {
-                        if constexpr(std::is_same_v<Foo, T>) {
-                            return Foo();
-                        } else {
-                            return std::make_unique<Foo>();
-                        }
+                        return std::make_unique<Foo>();
                     });
         }
     };
@@ -38,22 +49,22 @@ int main() {
     XL::State L;
     auto r = XL::Try(L, [&] {
         XL::SetGlobalMeta<Foo_u>(L);
-        XL::SetGlobalMeta<Foo>(L);
         XL::DoString(L, R"(
 local f = Foo.Create()
 f:Clear()
 print(f:GetA())
 f:SetA(3)
 print(f:Add(2))
-
-f = Foo_u.Create()
-f:Clear()
-print(f:GetA())
-f:SetA(3)
-print(f:Add(2))
+f:SetFunc(function() print("func") end)
+f:CallFunc()
+func = f:GetFunc()
+f = nil
+collectgarbage("collect")
 )");
+        XL::CallGlobalFunc(L, "func");
     });
-    std::cout << r.m << std::endl;
+    if (r) xx::CoutN(r.m);
+    else xx::CoutN("end.");
 }
 
 

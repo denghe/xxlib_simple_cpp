@@ -465,7 +465,7 @@ namespace xx::Lua {
             PushUserdata(L, std::forward<T>(in));                       // ..., ud
             CheckStack(L, 1);
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
-                auto &&f = *(std::function<T> *) lua_touserdata(L, lua_upvalueindex(1));
+                auto &&f = *(T *) lua_touserdata(L, lua_upvalueindex(1));
                 FuncA_t<U> tuple;
                 ::xx::Lua::To(L, 1, tuple);
                 int rtv = 0;
@@ -773,7 +773,7 @@ namespace xx::Lua {
                         if constexpr(!isPtrType) {
                             (c.*f)(std::move(args)...);
                         } else {
-                            ((*c) * f)(std::move(args)...);
+                            ((*c).*f)(std::move(args)...);
                         }
                     } else {
                         if constexpr(!isPtrType) {
@@ -791,18 +791,19 @@ namespace xx::Lua {
 
         template<typename T>
         Meta &Prop(char const *const &getName, T const &o) {
-            SetField(L, getName, [o](C &self) {
+            SetField(L, (char*)getName, [o](C &self) {
                 if constexpr(!isPtrType) {
                     return self.*o;
                 } else {
                     return (*self).*o;
                 }
             });
+            return *this;
         }
         template<typename T>
         Meta &Prop(char const *const &getName, char const *const &setName, T const &o) {
-            Prop(getName, o);
-            SetField(L, setName, [o](C &self, MemberPointerR_t<T> const &v) {
+            Prop<T>(getName, o);
+            SetField(L, (char*)setName, [o](C &self, MemberPointerR_t<T> const &v) {
                 if constexpr(!isPtrType) {
                     self.*o = v;
                 } else {

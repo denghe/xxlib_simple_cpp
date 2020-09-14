@@ -171,7 +171,7 @@ namespace xx {
 
     /************************************************************************************/
     // IsPointerClass_v  是否为指针类 T*, shared_ptr, unique_ptr
-    // ToPtr(T?? v) 返回指针版 v
+    // ToPointer(T?? v) 返回指针版 v
     template<typename T>
     constexpr bool IsPointerClass_v = std::is_pointer_v<T> || IsShared_v<T> || IsUnique_v<T>;
 
@@ -192,7 +192,7 @@ namespace xx {
     };
 
     template<typename T>
-    auto ToPtr(T &&v) {
+    auto ToPointer(T &&v) {
         return ToPointerFuncs<T>::Convert(std::forward<T>(v));
     }
 
