@@ -1,4 +1,5 @@
 ﻿#pragma once
+
 #include <type_traits>
 #include <cstddef>
 #include <optional>
@@ -17,33 +18,38 @@
 /************************************************************************************/
 // throw 包一层，方便 coredump 里通过堆栈信息看到 throw 的内容
 /************************************************************************************/
-inline void ThrowRuntimeError(std::string const& s) {
+inline void ThrowRuntimeError(std::string const &s) {
     throw std::runtime_error(s);
 }
-inline void ThrowRuntimeError(char const* const& s) {
+
+inline void ThrowRuntimeError(char const *const &s) {
     throw std::runtime_error(s);
 }
-inline void ThrowLogicError(std::string const& s) {
+
+inline void ThrowLogicError(std::string const &s) {
     throw std::logic_error(s);
 }
-inline void ThrowLogicError(char const* const& s) {
+
+inline void ThrowLogicError(char const *const &s) {
     throw std::logic_error(s);
 }
 
 namespace xx {
     struct Data;
 
-	/************************************************************************************/
-	// std::is_pod 的自定义扩展, 用于标识一个类可以在容器中被r memcpy | memmove
+    /************************************************************************************/
+    // std::is_pod 的自定义扩展, 用于标识一个类可以在容器中被r memcpy | memmove
 
-	template<typename T, typename ENABLED = void>
-	struct IsPod : std::false_type {};
+    template<typename T, typename ENABLED = void>
+    struct IsPod : std::false_type {
+    };
 
-	template<typename T>
-	constexpr bool IsPod_v = IsPod<T>::value;
+    template<typename T>
+    constexpr bool IsPod_v = IsPod<T>::value;
 
-	template<typename T>
-	struct IsPod<T, std::enable_if_t<std::is_pod_v<T>>> : std::true_type {};
+    template<typename T>
+    struct IsPod<T, std::enable_if_t<std::is_pod_v<T>>> : std::true_type {
+    };
 
 
 
@@ -52,66 +58,86 @@ namespace xx {
     // 模板类型识别系列
 
     template<typename T>
-    struct IsOptional : std::false_type {};
+    struct IsOptional : std::false_type {
+    };
 
     template<typename T>
-    struct IsOptional<std::optional<T>> : std::true_type {};
+    struct IsOptional<std::optional<T>> : std::true_type {
+    };
     template<typename T>
-    struct IsOptional<std::optional<T>&> : std::true_type {};
+    struct IsOptional<std::optional<T> &> : std::true_type {
+    };
     template<typename T>
-    struct IsOptional<std::optional<T> const&> : std::true_type {};
+    struct IsOptional<std::optional<T> const &> : std::true_type {
+    };
 
     template<typename T>
     constexpr bool IsOptional_v = IsOptional<T>::value;
 
     template<typename T>
-    struct IsVector : std::false_type {};
+    struct IsVector : std::false_type {
+    };
 
     template<typename T>
-    struct IsVector<std::vector<T>> : std::true_type {};
+    struct IsVector<std::vector<T>> : std::true_type {
+    };
     template<typename T>
-    struct IsVector<std::vector<T>&> : std::true_type {};
+    struct IsVector<std::vector<T> &> : std::true_type {
+    };
     template<typename T>
-    struct IsVector<std::vector<T> const&> : std::true_type {};
+    struct IsVector<std::vector<T> const &> : std::true_type {
+    };
 
     template<typename T>
     constexpr bool IsVector_v = IsVector<T>::value;
 
     template<typename T>
-    struct IsShared : std::false_type {};
+    struct IsShared : std::false_type {
+    };
 
     template<typename T>
-    struct IsShared<std::shared_ptr<T>> : std::true_type {};
+    struct IsShared<std::shared_ptr<T>> : std::true_type {
+    };
     template<typename T>
-    struct IsShared<std::shared_ptr<T>&> : std::true_type {};
+    struct IsShared<std::shared_ptr<T> &> : std::true_type {
+    };
     template<typename T>
-    struct IsShared<std::shared_ptr<T> const&> : std::true_type {};
+    struct IsShared<std::shared_ptr<T> const &> : std::true_type {
+    };
 
     template<typename T>
     constexpr bool IsShared_v = IsShared<T>::value;
 
     template<typename T>
-    struct IsWeak : std::false_type {};
+    struct IsWeak : std::false_type {
+    };
 
     template<typename T>
-    struct IsWeak<std::weak_ptr<T>> : std::true_type {};
+    struct IsWeak<std::weak_ptr<T>> : std::true_type {
+    };
     template<typename T>
-    struct IsWeak<std::weak_ptr<T>&> : std::true_type {};
+    struct IsWeak<std::weak_ptr<T> &> : std::true_type {
+    };
     template<typename T>
-    struct IsWeak<std::weak_ptr<T> const&> : std::true_type {};
+    struct IsWeak<std::weak_ptr<T> const &> : std::true_type {
+    };
 
     template<typename T>
     constexpr bool IsWeak_v = IsWeak<T>::value;
 
     template<typename T>
-    struct IsUnique : std::false_type {};
+    struct IsUnique : std::false_type {
+    };
 
     template<typename T>
-    struct IsUnique<std::unique_ptr<T>> : std::true_type {};
+    struct IsUnique<std::unique_ptr<T>> : std::true_type {
+    };
     template<typename T>
-    struct IsUnique<std::unique_ptr<T>&> : std::true_type {};
+    struct IsUnique<std::unique_ptr<T> &> : std::true_type {
+    };
     template<typename T>
-    struct IsUnique<std::unique_ptr<T> const&> : std::true_type {};
+    struct IsUnique<std::unique_ptr<T> const &> : std::true_type {
+    };
 
     template<typename T>
     constexpr bool IsUnique_v = IsUnique<T>::value;
@@ -121,18 +147,19 @@ namespace xx {
     // IsFunction_v  FunctionType_t 引用类型参数容器类型路由
 
     template<typename T>
-    struct IsFunction : std::false_type {};
+    struct IsFunction : std::false_type {
+    };
 
     template<typename T>
     struct IsFunction<std::function<T>> : std::true_type {
         using FT = T;
     };
     template<typename T>
-    struct IsFunction<std::function<T>&> : std::true_type {
+    struct IsFunction<std::function<T> &> : std::true_type {
         using FT = T;
     };
     template<typename T>
-    struct IsFunction<std::function<T> const&> : std::true_type {
+    struct IsFunction<std::function<T> const &> : std::true_type {
         using FT = T;
     };
 
@@ -141,6 +168,33 @@ namespace xx {
     template<typename T>
     using FunctionType_t = typename IsFunction<T>::FT;
 
+
+    /************************************************************************************/
+    // IsPointerClass_v  是否为指针类 T*, shared_ptr, unique_ptr
+    // ToPtr(T?? v) 返回指针版 v
+    template<typename T>
+    constexpr bool IsPointerClass_v = std::is_pointer_v<T> || IsShared_v<T> || IsUnique_v<T>;
+
+    template<typename T, class = void>
+    struct ToPointerFuncs;
+
+    template<typename T>
+    struct ToPointerFuncs<T, std::enable_if_t<IsPointerClass_v<T>>> {
+        static inline auto Convert(T &&v) {
+            return &*v;
+        }
+    };
+    template<typename T>
+    struct ToPointerFuncs<T, std::enable_if_t<!IsPointerClass_v<T>>> {
+        static inline std::remove_reference_t<T>* Convert(T &&v) {
+            return &v;
+        }
+    };
+
+    template<typename T>
+    auto ToPtr(T &&v) {
+        return ToPointerFuncs<T>::Convert(std::forward<T>(v));
+    }
 
     /************************************************************************************/
     // RefC_t 引用类型参数容器类型路由
@@ -286,7 +340,7 @@ namespace xx {
     }
 
     template<typename T, typename U>
-    bool Is(std::shared_ptr<U> const& v) noexcept {
+    bool Is(std::shared_ptr<U> const &v) noexcept {
         return std::dynamic_pointer_cast<T>(v) != nullptr;
     }
 
@@ -328,13 +382,13 @@ namespace xx {
     // malloc 系列
 
     template<typename T>
-    T* Malloc() {
-        return (T*)malloc(sizeof(T));
+    T *Malloc() {
+        return (T *) malloc(sizeof(T));
     }
-    
+
     template<typename T>
-    T*& MallocTo(T*& v) {
-        v = (T*)malloc(sizeof(T));
+    T *&MallocTo(T *&v) {
+        v = (T *) malloc(sizeof(T));
         return v;
     }
 

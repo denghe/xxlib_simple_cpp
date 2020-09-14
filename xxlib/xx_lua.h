@@ -47,51 +47,53 @@ namespace xx::Lua {
     // 类型 metatable 填充函数适配模板
     template<typename T, typename ENABLED = void>
     struct MetaFuncs {
+        inline static char const *const name = TypeName_v<T>.data();
+
         static inline void Fill(lua_State *const &L) {}
     };
 
-
-    /******************************************************************************************************************/
-    // 类型 metatable 引用 id 容器模板
-
-    template<typename T, typename ENABLED = void>
-    struct MetaRefIds;
-
+    // 压入指定类型的 metatable( 以 MetaFuncs<T>::name 为 key, 存放与注册表。没有找到就创建并放入 )
     template<typename T>
-    struct MetaRefIds<T, void> {
-        inline static int refId = -1;
+    void PushMeta(lua_State *const &L) {
+        CheckStack(L, 1);
+        lua_rawgetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);              // ..., mt?
+        if (lua_isnil(L, -1)) {
+            lua_pop(L, 1);                                                  // ...
+            CheckStack(L, 4);
+            lua_createtable(L, 0, 20);                                      // ..., mt
 
-        static inline int Push(lua_State *const &L) {
-            if (refId == -1) {
-                CheckStack(L, 1);
-                lua_createtable(L, 0, 20);                                      // ..., mt
-
-                if constexpr(!std::is_pod_v<T>) {
-                    lua_pushstring(L, "__gc");                                  // ..., mt, "__gc"
-                    lua_pushcclosure(L, [](auto L) {                            // ..., mt, "__gc", cc
-                        auto f = (T *) lua_touserdata(L, -1);
-                        f->~T();
-                        return 0;
-                    }, 0);
-                    lua_rawset(L, -3);                                          // ..., mt
-                }
-
-                if constexpr(!xx::IsLambda_v<T>) {
-                    lua_pushstring(L, "__index");                               // ..., mt, "__index"
-                    lua_pushvalue(L, -2);                                       // ..., mt, "__index", mt
-                    lua_rawset(L, -3);                                          // ..., mt
-                }
-
-                MetaFuncs<T, void>::Fill(L);                                    // ..., mt
-
-                lua_pushvalue(L, -1);                                           // ..., mt, mt
-                refId = luaL_ref(L, LUA_REGISTRYINDEX);                         // ..., mt
-            } else {
-                lua_rawgeti(L, LUA_REGISTRYINDEX, refId);                       // ..., mt
+            // 如果类型需要析构就自动生成 __gc
+            if constexpr(std::is_destructible_v<T>) {
+                lua_pushstring(L, "__gc");                                  // ..., mt, "__gc"
+                lua_pushcclosure(L, [](auto L) {                            // ..., mt, "__gc", cc
+                    auto f = (T *) lua_touserdata(L, -1);
+                    f->~T();
+                    return 0;
+                }, 0);
+                lua_rawset(L, -3);                                          // ..., mt
             }
-            return 1;
+
+            // 如果类型不是可执行的
+            if constexpr(!IsLambda_v<T> && !IsFunction_v<T>) {
+                lua_pushstring(L, "__index");                               // ..., mt, "__index"
+                lua_pushvalue(L, -2);                                       // ..., mt, "__index", mt
+                lua_rawset(L, -3);                                          // ..., mt
+            }
+
+            MetaFuncs<T, void>::Fill(L);                                    // ..., mt
+
+            lua_pushvalue(L, -1);                                           // ..., mt, mt
+            lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);          // ..., mt
         }
-    };
+    }
+
+    // 以 MetaFuncs<T>::name 为 key，将 T 的 metatable 压入 global
+    template<typename T>
+    void SetGlobalMeta(lua_State *const &L) {
+        if (MetaFuncs<T>::name == TypeName_v<T>.data()) Error(L, "SetGlobalMeta: forget set MetaFuncs<T>::name ?? T == ", TypeName_v<T>);
+        PushMeta<T>(L);
+        lua_setglobal(L, MetaFuncs<T>::name);
+    }
 
 
     /******************************************************************************************************************/
@@ -99,13 +101,11 @@ namespace xx::Lua {
     // 可能抛 lua 异常( 故这些函数应该间接被 pcall 使用 )
     template<typename T, typename ENABLED = void>
     struct PushToFuncs {
-        static inline int Push(lua_State *const &L, T &&in) {
-            return Error(L, "Lua Push error! not support's type ", xx::TypeName_v<T>);
-        }
+        static int Push(lua_State *const &L, T &&in);
 
-        static inline void To(lua_State *const &L, int const &idx, T &out) {
-            Error(L, "Lua Push error! not support's type ", xx::TypeName_v<T>);
-        }
+        static void ToPtr(lua_State *const &L, int const &idx, T *&out);
+
+        static void To(lua_State *const &L, int const &idx, T &out);
     };
 
     // 适配 nil 写入
@@ -385,13 +385,14 @@ namespace xx::Lua {
 
     // 压入一个 T( 内容复制到 userdata, 且注册 mt )
     template<typename T>
-    void PushUserdata(lua_State *const &L, T &&v) {
+    int PushUserdata(lua_State *const &L, T &&v) {
         using U = std::decay_t<T>;
         CheckStack(L, 2);
         auto p = lua_newuserdata(L, sizeof(U));                         // ..., ud
         new(p) U(std::forward<T>(v));
-        MetaRefIds<U>::Push(L);                                         // ..., ud, mt
+        PushMeta<U>(L);                                                 // ..., ud, mt
         lua_setmetatable(L, -2);                                        // ..., ud
+        return 1;
     }
 
     // 适配 lambda
@@ -497,42 +498,6 @@ namespace xx::Lua {
                     lua_settop(L, top);                                     // ...( 保险起见 )
                 }
             };
-        }
-    };
-
-
-    // 适配 T*, std::shared_ptr<T>, std::unique_ptr<T>
-    template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<std::is_pointer_v<T> && (!std::is_same_v<std::decay_t<T>, char> && !std::is_same_v<std::decay_t<T>, char const>)
-                                           || xx::IsShared_v<T>
-                                           || xx::IsUnique_v<T>>> {
-        static inline int Push(lua_State *const &L, T &&in) {
-            PushUserdata(L, std::forward<T>(in));                                       // ..., ud
-            return 1;
-        }
-
-        static inline void ToPtr(lua_State *const &L, int const &idx, T* &out) {
-            if (!lua_isuserdata(L, idx)) goto LabError;
-            CheckStack(L, 2);
-            lua_getmetatable(L, idx);                                                   // ... tar(idx) ..., mt
-            lua_rawgeti(L, LUA_REGISTRYINDEX, MetaRefIds<T>::refId);                    // ... tar(idx) ..., mt, mt
-            if (!lua_rawequal(L, -1, -2)) goto LabError;
-            lua_pop(L, 2);                                                              // ... tar(idx) ...
-            out = (T *) lua_touserdata(L, idx);
-            return;
-            LabError:
-            Error(L, "error! args[", idx, "] is not ", xx::TypeName_v<T>);
-        }
-
-        static inline void To(lua_State *const &L, int const &idx, T &out) {
-            T* p = nullptr;
-            ToPtr(L, idx, p);
-            if constexpr(std::is_copy_assignable_v<T>) {
-                out = *p;
-            }
-            else {
-                out = std::move(*p);
-            }
         }
     };
 
@@ -739,10 +704,43 @@ namespace xx::Lua {
         if (top < 1) Error(L, "miss args[1] ?");
         if (!lua_isuserdata(L, 1)) Error(L, "args[1] is not ", xx::TypeName_v<T>);
         lua_getmetatable(L, 1);                                             // self, ..., mt
-        lua_rawgeti(L, LUA_REGISTRYINDEX, MetaRefIds<T>::refId);            // self, ..., mt, mt
+        PushMeta<T>(L);                                                     // self, ..., mt, mt
         if (!lua_rawequal(L, -1, -2)) Error(L, "args[1] is not ", xx::TypeName_v<T>);
         lua_pop(L, 2);                                                      // self, ...
         return *(T *) lua_touserdata(L, 1);
+    }
+
+    /******************************************************************************************************************/
+    // PushToFuncs 的函数实现( 放在最后便于使用上面一些工具函数 )
+
+    template<typename T, typename ENABLED>
+    int PushToFuncs<T, ENABLED>::Push(lua_State *const &L, T &&in) {
+        return PushUserdata(L, std::forward<T>(in));
+    }
+
+    template<typename T, typename ENABLED>
+    void PushToFuncs<T, ENABLED>::ToPtr(lua_State *const &L, int const &idx, T *&out) {
+        if (!lua_isuserdata(L, idx)) goto LabError;
+        CheckStack(L, 2);
+        lua_getmetatable(L, idx);                                           // ... tar(idx) ..., mt
+        PushMeta<T>(L);                                                     // ... tar(idx) ..., mt, mt
+        if (!lua_rawequal(L, -1, -2)) goto LabError;
+        lua_pop(L, 2);                                                      // ... tar(idx) ...
+        out = (T *) lua_touserdata(L, idx);
+        return;
+        LabError:
+        Error(L, "error! args[", idx, "] is not ", xx::TypeName_v<T>);
+    }
+
+    template<typename T, typename ENABLED>
+    void PushToFuncs<T, ENABLED>::To(lua_State *const &L, int const &idx, T &out) {
+        T *p = nullptr;
+        ToPtr(L, idx, p);
+        if constexpr(std::is_copy_assignable_v<T>) {
+            out = *p;
+        } else {
+            out = std::move(*p);
+        }
     }
 
 
@@ -750,7 +748,7 @@ namespace xx::Lua {
     // 元表辅助填充类
 
     // 如果 C 和 T 不一致，则将 C 视为指针类，访问成员时 .* 变为 ->*
-    template<typename C>
+    template<typename C, bool isPtrType = std::is_pointer_v<C> || IsShared_v<C> || IsUnique_v<C>>
     struct Meta {
     protected:
         lua_State *const &L;
@@ -763,20 +761,22 @@ namespace xx::Lua {
             new(lua_newuserdata(L, sizeof(T))) T(f);                    // ..., ud
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
                 auto &&c = GetSelf<C>(L);
-                if (!c) Error(L, "args[1] is nullptr?");
+                if constexpr (isPtrType) {
+                    if (!c) Error(L, "args[1] is nullptr?");
+                }
                 auto &&f = *(T *) lua_touserdata(L, lua_upvalueindex(1));
                 FuncA_t<T> tuple;
                 To(L, 2, tuple);
                 int rtv = 0;
                 std::apply([&](auto &... args) {
                     if constexpr(std::is_void_v<FuncR_t<T>>) {
-                        if constexpr(std::is_same_v<C, T>) {
+                        if constexpr(!isPtrType) {
                             (c.*f)(std::move(args)...);
                         } else {
                             ((*c) * f)(std::move(args)...);
                         }
                     } else {
-                        if constexpr(std::is_same_v<C, T>) {
+                        if constexpr(!isPtrType) {
                             rtv = xx::Lua::Push(L, (c.*f)(std::move(args)...));
                         } else {
                             rtv = xx::Lua::Push(L, ((*c).*f)(std::move(args)...));
@@ -792,14 +792,14 @@ namespace xx::Lua {
         template<typename T>
         Meta &Prop(char const *const &name, T const &o) {
             SetField(L, xx::ToString("Get", name), [o](C &self) {
-                if constexpr(std::is_same_v<C, T>) {
+                if constexpr(!isPtrType) {
                     return self.*o;
                 } else {
                     return (*self).*o;
                 }
             });
             SetField(L, xx::ToString("Set", name), [o](C &self, MemberPointerR_t<T> const &v) {
-                if constexpr(std::is_same_v<C, T>) {
+                if constexpr(!isPtrType) {
                     self.*o = v;
                 } else {
                     (*self).*o = v;
@@ -817,8 +817,6 @@ namespace xx::Lua {
             return *this;
         }
     };
-
-
 
     /******************************************************************************************************************/
     // Lua State 简单封装, 可直接当指针用, 离开范围自动 close

@@ -1,49 +1,58 @@
 ﻿#include "xx_lua.h"
 #include <iostream>
-#include "function2.hpp"
-#include <chrono>
 
 namespace XL = xx::Lua;
 
 struct Foo {
     int a = 1;
 
-    inline int Add(int const &b) const {
-        return a + b;
-    }
+    inline int Add(int const &b) const { return a + b; }
 };
-// 适配 Foo* 的元表填充
+
+using Foo_u = std::unique_ptr<Foo>;
+
 namespace xx::Lua {
     template<typename T>
-    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<Foo *, T> || std::is_same_v<std::shared_ptr<Foo>, T> || std::is_same_v<std::unique_ptr<Foo>, T>>> {
+    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<Foo, T> || std::is_same_v<Foo_u, T>>> {
+        inline static char const *const name = std::is_same_v<Foo, T> ? "Foo" : "Foo_u";
+
         static inline void Fill(lua_State *const &L) {
-            Meta<T>(L).Func("Add", &Foo::Add).Prop("A", &Foo::a).Lambda("Clear", [](T &o) { o->a = 0; });
+            Meta<T>(L)
+                    .Func("Add", &Foo::Add)
+                    .Prop("A", &Foo::a)
+                    .Lambda("Clear", [](T &o) {
+                        ToPtr(o)->a = 0;
+                    })
+                    .Lambda("Create", []() {
+                        if constexpr(std::is_same_v<Foo, T>) {
+                            return Foo();
+                        } else {
+                            return std::make_unique<Foo>();
+                        }
+                    });
         }
     };
 }
 
 int main() {
-    std::vector<fu2::unique_function<void()>> funcs;
-    {
-        auto p = std::make_unique<int>(123);
-        funcs.emplace_back([p = std::move(p)] () mutable {
-            std::cout << *p << std::endl;
-        });
-    };
-    funcs[0]();
-
-
     XL::State L;
     auto r = XL::Try(L, [&] {
-        XL::SetGlobal(L, "f", std::make_unique<Foo>());
+        XL::SetGlobalMeta<Foo_u>(L);
+        XL::SetGlobalMeta<Foo>(L);
         XL::DoString(L, R"(
+local f = Foo.Create()
+f:Clear()
+print(f:GetA())
+f:SetA(3)
+print(f:Add(2))
+
+f = Foo_u.Create()
 f:Clear()
 print(f:GetA())
 f:SetA(3)
 print(f:Add(2))
 )");
     });
-    //        XL::GetGlobal(L, "f", ??);
     std::cout << r.m << std::endl;
 }
 
