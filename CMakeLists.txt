@@ -13,6 +13,7 @@ add_subdirectory(gateway_server_lobby)
 add_subdirectory(gateway_client_cpp)
 add_subdirectory(gateway_client_lua)
 add_subdirectory(gateway_tools_ping)
+add_subdirectory(gateway_tools_dialtime)
 
 add_subdirectory(simple_http_server)
 
