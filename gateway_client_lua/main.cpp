@@ -19,7 +19,7 @@ namespace xx::Lua {
         static inline void Fill(lua_State *const &L) {
             Meta<T>(L)
                     .Func("Add", &Foo::Add)
-                    .Prop("A", &Foo::a)
+                    .Prop("GetA", "SetA", &Foo::a)
                     .Lambda("Clear", [](T &o) {
                         ToPtr(o)->a = 0;
                     })

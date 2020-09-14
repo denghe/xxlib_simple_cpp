@@ -790,15 +790,19 @@ namespace xx::Lua {
         }
 
         template<typename T>
-        Meta &Prop(char const *const &name, T const &o) {
-            SetField(L, xx::ToString("Get", name), [o](C &self) {
+        Meta &Prop(char const *const &getName, T const &o) {
+            SetField(L, getName, [o](C &self) {
                 if constexpr(!isPtrType) {
                     return self.*o;
                 } else {
                     return (*self).*o;
                 }
             });
-            SetField(L, xx::ToString("Set", name), [o](C &self, MemberPointerR_t<T> const &v) {
+        }
+        template<typename T>
+        Meta &Prop(char const *const &getName, char const *const &setName, T const &o) {
+            Prop(getName, o);
+            SetField(L, setName, [o](C &self, MemberPointerR_t<T> const &v) {
                 if constexpr(!isPtrType) {
                     self.*o = v;
                 } else {
