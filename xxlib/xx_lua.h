@@ -103,7 +103,8 @@ namespace xx::Lua {
     struct PushToFuncs {
         static int Push(lua_State *const &L, T &&in);
 
-        static void ToPtr(lua_State *const &L, int const &idx, T *&out);
+        template<typename U = std::decay_t<T>>
+        static void ToPtr(lua_State *const &L, int const &idx, U *&out);
 
         static void To(lua_State *const &L, int const &idx, T &out);
     };
@@ -719,17 +720,18 @@ namespace xx::Lua {
     }
 
     template<typename T, typename ENABLED>
-    void PushToFuncs<T, ENABLED>::ToPtr(lua_State *const &L, int const &idx, T *&out) {
+    template<typename U>
+    void PushToFuncs<T, ENABLED>::ToPtr(lua_State *const &L, int const &idx, U *&out) {
         if (!lua_isuserdata(L, idx)) goto LabError;
         CheckStack(L, 2);
         lua_getmetatable(L, idx);                                           // ... tar(idx) ..., mt
-        PushMeta<T>(L);                                                     // ... tar(idx) ..., mt, mt
+        PushMeta<U>(L);                                                     // ... tar(idx) ..., mt, mt
         if (!lua_rawequal(L, -1, -2)) goto LabError;
         lua_pop(L, 2);                                                      // ... tar(idx) ...
-        out = (T *) lua_touserdata(L, idx);
+        out = (U *) lua_touserdata(L, idx);
         return;
         LabError:
-        Error(L, "error! args[", idx, "] is not ", xx::TypeName_v<T>);
+        Error(L, "error! args[", idx, "] is not ", xx::TypeName_v<U>);
     }
 
     template<typename T, typename ENABLED>

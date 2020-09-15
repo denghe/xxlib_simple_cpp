@@ -3,44 +3,69 @@
 
 namespace XL = xx::Lua;
 
-struct Foo {
-    Foo() = default;
+struct FishBase {
+    std::string typeName;
+    int n = 0;
 
-    Foo(Foo const &) = delete;
+    virtual void Update() = 0;
 
-    Foo &operator=(Foo const &) = delete;
-
-    ~Foo() {
-        xx::CoutN("~Foo");
-    }
-
-    int a = 1;
-    std::function<void()> func;
-
-    inline int Add(int const &b) const { return a + b; }
-
-    inline void CallFunc() const { if (func)func(); }
+    virtual ~FishBase() = default;
 };
 
-using Foo_u = std::unique_ptr<Foo>;
+using FishBase_s = std::shared_ptr<FishBase>;
+
+struct CppFish : FishBase {
+    void Update() override {
+        ++n;
+    }
+
+    static FishBase_s Create(/* cfg ?*/) {
+        auto self = xx::Make<CppFish>();
+        self->typeName = "CPP";
+        return self;
+    }
+};
+
+std::vector<std::shared_ptr<FishBase>> fishs;
+
+void CallUpdates() {
+    for (auto &&f : fishs) {
+        f->Update();
+        xx::CoutN(f->typeName, " Fish n = ", f->n);
+    }
+}
+
+struct LuaFish;
+using LuaFish_s = std::shared_ptr<LuaFish>;
+
+struct LuaFish : FishBase {
+    std::function<void()> func;
+
+    void Update() override {
+        if (func)func();
+    }
+
+    static FishBase_s Create(lua_State *const &L, std::string const &fileName) {
+        auto self = xx::Make<LuaFish>();
+        self->typeName = "LUA";
+        std::cout << fileName << std::endl;
+        XL::DoString(L, R"(
+tmpfunc = require(")", fileName.c_str(), R"(")
+)");
+        XL::CallGlobalFunc(L, "tmpfunc", self);
+        return self;
+    }
+};
 
 namespace xx::Lua {
     template<>
-    struct MetaFuncs<Foo_u, void> {
-        inline static char const *const name = "Foo";
+    struct MetaFuncs<LuaFish_s, void> {
+        inline static char const *const name = "LuaFish";
 
         static inline void Fill(lua_State *const &L) {
-            Meta<Foo_u>(L)
-                    .Func("Add", &Foo::Add)
-                    .Func("CallFunc", &Foo::CallFunc)
-                    .Prop("GetA", "SetA", &Foo::a)
-                    .Prop("GetFunc", "SetFunc", &Foo::func)
-                    .Lambda("Clear", [](Foo_u &o) {
-                        o->a = 0;
-                    })
-                    .Lambda("Create", []() {
-                        return std::make_unique<Foo>();
-                    });
+            Meta<LuaFish_s>(L)
+                    .Prop("GetN", "SetN", &LuaFish::n)
+                    .Prop("GetFunc", "SetFunc", &LuaFish::func);
         }
     };
 }
@@ -48,26 +73,57 @@ namespace xx::Lua {
 int main() {
     XL::State L;
     auto r = XL::Try(L, [&] {
-        XL::SetGlobalMeta<Foo_u>(L);
-        XL::DoString(L, R"(
-local f = Foo.Create()
-f:Clear()
-print(f:GetA())
-f:SetA(3)
-print(f:Add(2))
-f:SetFunc(function() print("func") end)
-f:CallFunc()
-func = f:GetFunc()
-f = nil
-collectgarbage("collect")
-)");
-        XL::CallGlobalFunc(L, "func");
+        fishs.emplace_back(CppFish::Create());
+        fishs.emplace_back(LuaFish::Create(L, "fish"));
+
+        CallUpdates();
+        CallUpdates();
+        CallUpdates();
     });
     if (r) xx::CoutN(r.m);
     else xx::CoutN("end.");
+    return 0;
 }
 
+//
+//namespace xx::Lua {
+//    template<>
+//    struct MetaFuncs<Foo_u, void> {
+//        inline static char const *const name = "Foo";
+//
+//        static inline void Fill(lua_State *const &L) {
+//            Meta<Foo_u>(L)
+//                    .Func("Add", &Foo::Add)
+//                    .Func("CallFunc", &Foo::CallFunc)
+//                    .Prop("GetA", "SetA", &Foo::a)
+//                    .Prop("GetFunc", "SetFunc", &Foo::func)
+//                    .Lambda("Clear", [](Foo_u &o) {
+//                        o->a = 0;
+//                    })
+//                    .Lambda("Create", []() {
+//                        return std::make_unique<Foo>();
+//                    });
+//        }
+//    };
+//}
 
+//        XL::SetGlobalMeta<Foo_u>(L);
+//        XL::DoString(L, R"(
+//local f = Foo.Create()
+//f:Clear()
+//print(f:GetA())
+//f:SetA(3)
+//print(f:Add(2))
+//f:SetFunc(function() print("func") end)
+//f:CallFunc()
+//func = f:GetFunc()
+//f = nil
+//collectgarbage("collect")
+//)");
+//        XL::CallGlobalFunc(L, "func");
+//    });
+//    if (r) xx::CoutN(r.m);
+//    else xx::CoutN("end.");
 
 //int main() {
 //    auto x = std::make_unique<int>(1);
