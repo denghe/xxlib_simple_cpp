@@ -337,12 +337,12 @@ namespace xx::Epoll {
         if (len == 4) {
             auto &&iter = shakes.find(ip_port);
             if (iter == shakes.end()) {
-                shakes.emplace(ip_port, std::make_pair(++convId, ec->nowMS + 3000));
+                iter = shakes.emplace(ip_port, std::make_pair(++convId, ec->nowMS + 3000)).first;
             }
             // 回发 serial + convId。客户端在收到回发数据后，会通过 kcp 发送 01 00 00 00 00 这样的 5 字节数据，以触发服务器 accept
             char tmp[8];
             memcpy(tmp, buf, 4);
-            memcpy(tmp + 4, &convId, 4);
+            memcpy(tmp + 4, &iter->second.first, 4);
             Send(tmp, 8);
             return;
         }
@@ -617,7 +617,7 @@ namespace xx::Epoll {
         for (auto &&a : addrs) {
             serials.emplace_back(++serialAutoInc);
         }
-        timerForShake.SetTimeoutSeconds(0.2);
+        timerForShake.onTimeout();
         timerForTimeout.SetTimeout(timeoutFrames);
         return 0;
     }
