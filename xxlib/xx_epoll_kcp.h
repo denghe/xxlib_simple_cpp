@@ -132,8 +132,11 @@ namespace xx::Epoll {
 
     template<typename PeerType, class ENABLED = std::is_base_of<KcpPeer, PeerType>>
     struct KcpListener : KcpBase {
+        // 默认握手超时时长
+        int64_t shakeTimeoutMS = 3000;
+
         // 在构造里改点默认参数以令 udp peer 更适合做服务器端
-        KcpListener(std::shared_ptr<Context> const &ec);
+        explicit KcpListener(std::shared_ptr<Context> const &ec);
 
         // 1. 判断收到的数据内容, 模拟握手， 最后产生 KcpPeer
         // 2. 定位到 KcpPeer, Input 数据
@@ -332,12 +335,15 @@ namespace xx::Epoll {
         // addr 转为 ip:port 当 key
         auto ip_port = xx::ToString(addr);
 
-        // 当前握手方案为 UdpDialer 每秒 N 次不停发送 4 字节数据( serial )过来,
-        // 收到后根据其 ip:port 做 key, 生成 convId. 每次收到都向其发送 convId
+        // 当前握手方案为 Dialer 每秒 N 次不停发送 4 字节数据( serial )过来,
+        // 收到后根据其 ip:port 做 key, 生成 convId. 每次收到都向其发送同样的 convId, 并续命
         if (len == 4) {
             auto &&iter = shakes.find(ip_port);
             if (iter == shakes.end()) {
-                iter = shakes.emplace(ip_port, std::make_pair(++convId, ec->nowMS + 3000)).first;
+                iter = shakes.emplace(ip_port, std::make_pair(++convId, ec->nowMS + shakeTimeoutMS)).first;
+            }
+            else {
+                iter->second.second = ec->nowMS + shakeTimeoutMS;
             }
             // 回发 serial + convId。客户端在收到回发数据后，会通过 kcp 发送 01 00 00 00 00 这样的 5 字节数据，以触发服务器 accept
             char tmp[8];
