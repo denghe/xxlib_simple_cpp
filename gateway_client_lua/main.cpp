@@ -3,6 +3,34 @@
 
 namespace XL = xx::Lua;
 
+struct TableStore : xx::Data {
+};
+
+namespace xx::Lua {
+    template<>
+    struct PushToFuncs<TableStore, void> {
+        static int Push(lua_State *const &L, TableStore &&in) {
+            DataReader dr(in);
+            if (int r = dr.Read(L)) Error(L, " TableStore read error. r = ", r);
+            return 1;
+        }
+
+        static void To(lua_State *const &L, int const &idx, TableStore &out) {
+            if (!lua_istable(L, idx)) Error(L, " to TableStore error. idx = ", idx, " is not table");
+            auto top = lua_gettop(L);
+            if (top != idx) {
+                CheckStack(L, 1);
+                lua_pushvalue(L, idx);
+            }
+            DataWriter dw(out);
+            dw.Write(L);
+            if (top != idx) {
+                lua_pop(L, 1);
+            }
+        }
+    };
+}
+
 struct FishBase {
     std::string typeName;
     int n = 0;
@@ -39,10 +67,12 @@ struct LuaFish;
 using LuaFish_s = std::shared_ptr<LuaFish>;
 
 struct LuaFish : FishBase {
-    std::function<void()> func;
+    std::function<void()> onUpdate;
+    std::function<void(TableStore const &ts)> onLoadData;
+    std::function<TableStore()> onSaveData;
 
     void Update() override {
-        if (func)func();
+        onUpdate();
     }
 
     static FishBase_s Create(lua_State *const &L, std::string const &fileName) {
@@ -64,8 +94,10 @@ namespace xx::Lua {
 
         static inline void Fill(lua_State *const &L) {
             Meta<LuaFish_s>(L)
-                    .Prop("GetN", "SetN", &LuaFish::n)
-                    .Prop("GetFunc", "SetFunc", &LuaFish::func);
+                    .Prop("Get_n", "Set_n", &LuaFish::n)
+                    .Prop(nullptr, "Set_onUpdate", &LuaFish::onUpdate)
+                    .Prop(nullptr, "Set_onLoadData", &LuaFish::onLoadData)
+                    .Prop(nullptr, "Set_onSaveData", &LuaFish::onSaveData);
         }
     };
 }

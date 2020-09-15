@@ -804,14 +804,18 @@ namespace xx::Lua {
         }
         template<typename T>
         Meta &Prop(char const *const &getName, char const *const &setName, T const &o) {
-            Prop<T>(getName, o);
-            SetField(L, (char*)setName, [o](C &self, MemberPointerR_t<T> const &v) {
-                if constexpr(!isPtrType) {
-                    self.*o = v;
-                } else {
-                    (*self).*o = v;
-                }
-            });
+            if(getName) {
+                Prop<T>(getName, o);
+            }
+            if(setName) {
+                SetField(L, (char *) setName, [o](C &self, MemberPointerR_t<T> const &v) {
+                    if constexpr(!isPtrType) {
+                        self.*o = v;
+                    } else {
+                        (*self).*o = v;
+                    }
+                });
+            }
             return *this;
         }
 
