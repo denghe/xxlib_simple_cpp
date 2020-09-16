@@ -185,9 +185,15 @@ namespace xx {
         }
     };
     template<typename T>
-    struct ToPointerFuncs<T, std::enable_if_t<!IsPointerClass_v<T>>> {
+    struct ToPointerFuncs<T, std::enable_if_t<!IsPointerClass_v<T> && !IsWeak_v<T>>> {
         static inline std::remove_reference_t<T>* Convert(T &&v) {
             return &v;
+        }
+    };
+    template<typename T>
+    struct ToPointerFuncs<T, std::enable_if_t<IsWeak_v<T>>> {
+        static inline auto Convert(T &&v) {
+            return v.lock();
         }
     };
 

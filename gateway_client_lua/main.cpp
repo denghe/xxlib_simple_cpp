@@ -44,7 +44,7 @@ using FishBase_s = std::shared_ptr<FishBase>;
 
 struct CppFish : FishBase {
     void Update() override {
-        ++n;
+        n = 1;
     }
 
     static FishBase_s Create(/* cfg ?*/) {
@@ -63,9 +63,6 @@ void CallUpdates() {
     }
 }
 
-struct LuaFish;
-using LuaFish_s = std::shared_ptr<LuaFish>;
-
 struct LuaFish : FishBase {
     std::function<void()> onUpdate;
     std::function<void(TableStore const &ts)> onLoadData;
@@ -78,22 +75,22 @@ struct LuaFish : FishBase {
     static FishBase_s Create(lua_State *const &L, std::string const &fileName) {
         auto self = xx::Make<LuaFish>();
         self->typeName = "LUA";
-        std::cout << fileName << std::endl;
-        XL::DoString(L, R"(
-tmpfunc = require(")", fileName.c_str(), R"(")
-)");
-        XL::CallGlobalFunc(L, "tmpfunc", self);
+        XL::CallFile(L, fileName, xx::ToWeak(self));
         return self;
     }
 };
+using LuaFish_s = std::shared_ptr<LuaFish>;
+using LuaFish_w = std::weak_ptr<LuaFish>;
+
 
 namespace xx::Lua {
-    template<>
-    struct MetaFuncs<LuaFish_s, void> {
+    template<typename T>
+    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<LuaFish_s, T>
+            || std::is_same_v<LuaFish_w, T>>> {
         inline static char const *const name = "LuaFish";
 
         static inline void Fill(lua_State *const &L) {
-            Meta<LuaFish_s>(L)
+            Meta<T>(L)
                     .Prop("Get_n", "Set_n", &LuaFish::n)
                     .Prop(nullptr, "Set_onUpdate", &LuaFish::onUpdate)
                     .Prop(nullptr, "Set_onLoadData", &LuaFish::onLoadData)
@@ -106,11 +103,17 @@ int main() {
     XL::State L;
     auto r = XL::Try(L, [&] {
         fishs.emplace_back(CppFish::Create());
-        fishs.emplace_back(LuaFish::Create(L, "fish"));
+        auto f = fishs.emplace_back(LuaFish::Create(L, "fish.lua"));
+        xx::CoutN("f.use_count() = ", f.use_count());
+        auto&& wf = xx::ToWeak(f);
+        xx::CoutN("wf.use_count() = ", wf.use_count());
 
         CallUpdates();
-        CallUpdates();
-        CallUpdates();
+
+        fishs.clear();
+        XL::GC(L);
+        xx::CoutN("f.use_count() = ", f.use_count());
+        xx::CoutN("wf.use_count() = ", wf.use_count());
     });
     if (r) xx::CoutN(r.m);
     else xx::CoutN("end.");

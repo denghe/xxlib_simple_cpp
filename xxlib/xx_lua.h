@@ -622,6 +622,19 @@ namespace xx::Lua {
         lua_call(L, 0, 0);
     }
 
+    template<typename T>
+    void LoadFile(lua_State *const &L, T &&fileName) {
+        int rtv = 0;
+        if constexpr(std::is_same_v<std::string, std::remove_const_t<std::remove_reference_t<T>>>) {
+            rtv = luaL_loadfile(L, fileName.c_str());
+        } else {
+            rtv = luaL_loadfile(L, fileName);
+        }
+        if (rtv != LUA_OK) {
+            lua_error(L);
+        };
+    }
+
     inline Result PCallCore(lua_State *const &L, int const &top, int const &n) {
         Result rtv;
         if ((rtv.n = lua_pcall(L, n, LUA_MULTRET, 0))) {                // ... ( func? errmsg? )
@@ -663,40 +676,50 @@ namespace xx::Lua {
         return PCallCore(L, top, 0);
     }
 
-    // 安全调用指定名称的全局函数( 函数最先压栈，然后是 up values )
+    // 安全调用指定名称的全局函数( 会留下函数和返回值在栈中 )
     // [-(nargs + 1), +(nresults|1), -]
-    template<typename...Args>
-    Result PCallGlobalFunc(lua_State *const &L, char const *const &funcName, Args &&...args) {
-        lua_getglobal(L, funcName);
+    template<typename T, typename...Args>
+    Result PCallGlobalFunc(lua_State *const &L, T &&funcName, Args &&...args) {
+        if constexpr(std::is_same_v<std::string, std::remove_const_t<std::remove_reference_t<T>>>) {
+            lua_getglobal(L, funcName.c_str());
+        } else {
+            lua_getglobal(L, funcName);
+        }
         return PCall(L, std::forward<Args>(args)...);
     }
 
-    template<typename...Args>
-    Result PCallGlobalFunc(lua_State *const &L, std::string const &funcName, Args &&...args) {
-        lua_getglobal(L, funcName.c_str());
-        return PCall(L, std::forward<Args>(args)...);
-    }
-
-    // 不安全调用函数( 函数最先压栈，然后是 up values )
+    // 不安全调用栈顶函数
     // [-(nargs + 1), +nresults, e]
     template<typename...Args>
     void Call(lua_State *const &L, Args &&...args) {
         lua_call(L, Push(L, std::forward<Args>(args)...), LUA_MULTRET);
     }
 
-    // 不安全调用指定名称的全局函数( 函数最先压栈，然后是 up values )
+    // 不安全调用指定名称的全局函数
     // [-(nargs + 1), +(nresults|1), e]
-    template<typename...Args>
-    void CallGlobalFunc(lua_State *const &L, char const *const &funcName, Args &&...args) {
-        lua_getglobal(L, funcName);
+    template<typename T, typename...Args>
+    void CallGlobalFunc(lua_State *const &L, T &&funcName, Args &&...args) {
+        if constexpr(std::is_same_v<std::string, std::remove_const_t<std::remove_reference_t<T>>>) {
+            lua_getglobal(L, funcName.c_str());
+        } else {
+            lua_getglobal(L, funcName);
+        }
         Call(L, std::forward<Args>(args)...);
     }
 
-    template<typename...Args>
-    void CallGlobalFunc(lua_State *const &L, std::string const &funcName, Args &&...args) {
-        lua_getglobal(L, funcName.c_str());
+    template<typename T, typename...Args>
+    void CallFile(lua_State *const &L, T &&fileName, Args &&...args) {
+        LoadFile(L, std::forward<T>(fileName));
         Call(L, std::forward<Args>(args)...);
     }
+
+    // 触发 lua 垃圾回收
+    inline void GC(lua_State *const &L) {
+        luaL_loadstring(L, "collectgarbage(\"collect\")");
+        lua_call(L, 0, 0);
+    }
+
+
 
     // 针对 lua 通过 metatable 调用成员函数的情况，获取 self
     template<typename T>
@@ -710,6 +733,7 @@ namespace xx::Lua {
         lua_pop(L, 2);                                                      // self, ...
         return *(T *) lua_touserdata(L, 1);
     }
+
 
     /******************************************************************************************************************/
     // PushToFuncs 的函数实现( 放在最后便于使用上面一些工具函数 )
@@ -750,7 +774,7 @@ namespace xx::Lua {
     // 元表辅助填充类
 
     // 如果 C 和 T 不一致，则将 C 视为指针类，访问成员时 .* 变为 ->*
-    template<typename C, bool isPtrType = std::is_pointer_v<C> || IsShared_v<C> || IsUnique_v<C>>
+    template<typename C>
     struct Meta {
     protected:
         lua_State *const &L;
@@ -763,26 +787,17 @@ namespace xx::Lua {
             new(lua_newuserdata(L, sizeof(T))) T(f);                    // ..., ud
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
                 auto &&c = GetSelf<C>(L);
-                if constexpr (isPtrType) {
-                    if (!c) Error(L, "args[1] is nullptr?");
-                }
+                auto&& p = ToPointer(c);
+                if (!p) Error(L, "args[1] is nullptr?");
                 auto &&f = *(T *) lua_touserdata(L, lua_upvalueindex(1));
                 FuncA_t<T> tuple;
                 To(L, 2, tuple);
                 int rtv = 0;
                 std::apply([&](auto &... args) {
                     if constexpr(std::is_void_v<FuncR_t<T>>) {
-                        if constexpr(!isPtrType) {
-                            (c.*f)(std::move(args)...);
-                        } else {
-                            ((*c).*f)(std::move(args)...);
-                        }
+                        ((*p).*f)(std::move(args)...);
                     } else {
-                        if constexpr(!isPtrType) {
-                            rtv = xx::Lua::Push(L, (c.*f)(std::move(args)...));
-                        } else {
-                            rtv = xx::Lua::Push(L, ((*c).*f)(std::move(args)...));
-                        }
+                        rtv = xx::Lua::Push(L, ((*p).*f)(std::move(args)...));
                     }
                 }, tuple);
                 return rtv;
@@ -793,27 +808,20 @@ namespace xx::Lua {
 
         template<typename T>
         Meta &Prop(char const *const &getName, T const &o) {
-            SetField(L, (char*)getName, [o](C &self) {
-                if constexpr(!isPtrType) {
-                    return self.*o;
-                } else {
-                    return (*self).*o;
-                }
+            SetField(L, (char *) getName, [o](C &self) {
+                return (*ToPointer(self)).*o;
             });
             return *this;
         }
+
         template<typename T>
         Meta &Prop(char const *const &getName, char const *const &setName, T const &o) {
-            if(getName) {
+            if (getName) {
                 Prop<T>(getName, o);
             }
-            if(setName) {
+            if (setName) {
                 SetField(L, (char *) setName, [o](C &self, MemberPointerR_t<T> const &v) {
-                    if constexpr(!isPtrType) {
-                        self.*o = v;
-                    } else {
-                        (*self).*o = v;
-                    }
+                    (*ToPointer(self)).*o = v;
                 });
             }
             return *this;
