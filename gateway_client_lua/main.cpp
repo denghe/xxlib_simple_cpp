@@ -53,7 +53,7 @@ struct LuaFish : FishBase {
     }
     static std::shared_ptr<FishBase> Create(lua_State *const &L, std::string const &fileName) {
         auto self = std::make_shared<LuaFish>();
-        XL::CallFile(L, fileName, std::weak_ptr<LuaFish>(self));
+        XL::CallFile(L, fileName, xx::ToWeak(self));
         return self;
     }
 
@@ -62,11 +62,11 @@ struct LuaFish : FishBase {
 };
 
 namespace xx::Lua {
-    template<>
-    struct MetaFuncs<std::weak_ptr<LuaFish>, void> {
+    template<typename T>
+    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<T, std::weak_ptr<LuaFish>>>> {
         inline static char const *const name = "LuaFish";
         static inline void Fill(lua_State *const &L) {
-            Meta<std::weak_ptr<LuaFish>>(L)
+            Meta<T>(L)
                     .Prop("Get_n", "Set_n", &LuaFish::n)
                     .Prop(nullptr, "Set_onUpdate", &LuaFish::onUpdate)
                     .Prop(nullptr, "Set_onLoadData", &LuaFish::onLoadData)
@@ -83,11 +83,11 @@ int main() {
         fishs.emplace_back(LuaFish::Create(L, "fish.lua"));
         for (auto &&o : fishs) {
             o->Update();
-            xx::CoutN("Fish n = ", o->n, ", use_count = ", o.use_count());
+            xx::CoutN("Fish n = ", o->n);
         }
     });
     if (r) xx::CoutN(r.m);
-    else xx::CoutN("end.");
+    xx::CoutN("end.");
     return 0;
 }
 
