@@ -32,65 +32,41 @@ namespace xx::Lua {
 }
 
 struct FishBase {
-    std::string typeName;
     int n = 0;
-
     virtual void Update() = 0;
-
     virtual ~FishBase() = default;
 };
-
-using FishBase_s = std::shared_ptr<FishBase>;
 
 struct CppFish : FishBase {
     void Update() override {
         n = 1;
     }
-
-    static FishBase_s Create(/* cfg ?*/) {
-        auto self = xx::Make<CppFish>();
-        self->typeName = "CPP";
-        return self;
+    static std::shared_ptr<FishBase> Create(/* cfg ?*/) {
+        return std::make_shared<CppFish>();
     }
 };
-
-std::vector<std::shared_ptr<FishBase>> fishs;
-
-void CallUpdates() {
-    for (auto &&f : fishs) {
-        f->Update();
-        xx::CoutN(f->typeName, " Fish n = ", f->n);
-    }
-}
 
 struct LuaFish : FishBase {
     std::function<void()> onUpdate;
-    std::function<void(TableStore const &ts)> onLoadData;
-    std::function<TableStore()> onSaveData;
-
     void Update() override {
         onUpdate();
     }
-
-    static FishBase_s Create(lua_State *const &L, std::string const &fileName) {
-        auto self = xx::Make<LuaFish>();
-        self->typeName = "LUA";
-        XL::CallFile(L, fileName, xx::ToWeak(self));
+    static std::shared_ptr<FishBase> Create(lua_State *const &L, std::string const &fileName) {
+        auto self = std::make_shared<LuaFish>();
+        XL::CallFile(L, fileName, std::weak_ptr<LuaFish>(self));
         return self;
     }
-};
-using LuaFish_s = std::shared_ptr<LuaFish>;
-using LuaFish_w = std::weak_ptr<LuaFish>;
 
+    std::function<void(TableStore const &ts)> onLoadData;
+    std::function<TableStore()> onSaveData;
+};
 
 namespace xx::Lua {
-    template<typename T>
-    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<LuaFish_s, T>
-            || std::is_same_v<LuaFish_w, T>>> {
+    template<>
+    struct MetaFuncs<std::weak_ptr<LuaFish>, void> {
         inline static char const *const name = "LuaFish";
-
         static inline void Fill(lua_State *const &L) {
-            Meta<T>(L)
+            Meta<std::weak_ptr<LuaFish>>(L)
                     .Prop("Get_n", "Set_n", &LuaFish::n)
                     .Prop(nullptr, "Set_onUpdate", &LuaFish::onUpdate)
                     .Prop(nullptr, "Set_onLoadData", &LuaFish::onLoadData)
@@ -102,18 +78,13 @@ namespace xx::Lua {
 int main() {
     XL::State L;
     auto r = XL::Try(L, [&] {
+        std::vector<std::shared_ptr<FishBase>> fishs;
         fishs.emplace_back(CppFish::Create());
-        auto f = fishs.emplace_back(LuaFish::Create(L, "fish.lua"));
-        xx::CoutN("f.use_count() = ", f.use_count());
-        auto&& wf = xx::ToWeak(f);
-        xx::CoutN("wf.use_count() = ", wf.use_count());
-
-        CallUpdates();
-
-        fishs.clear();
-        XL::GC(L);
-        xx::CoutN("f.use_count() = ", f.use_count());
-        xx::CoutN("wf.use_count() = ", wf.use_count());
+        fishs.emplace_back(LuaFish::Create(L, "fish.lua"));
+        for (auto &&o : fishs) {
+            o->Update();
+            xx::CoutN("Fish n = ", o->n, ", use_count = ", o.use_count());
+        }
     });
     if (r) xx::CoutN(r.m);
     else xx::CoutN("end.");
