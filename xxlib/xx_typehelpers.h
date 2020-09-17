@@ -9,11 +9,25 @@
 #include <functional>
 #include <stdexcept>
 
-// 先放这
 #define LIKELY(x)       __builtin_expect(!!(x), 1)
 #define UNLIKELY(x)     __builtin_expect(!!(x), 0)
 #define __STRINGFY__(...) #__VA_ARGS__
 #define __LINESTR__ __STRINGFY__(__LINE__)
+
+// 为一个类型附加 using 常用指针类型，以及 is 判断，以简化编码
+#define USING_USW_PTR(T) \
+using T##_u = std::unique_ptr<T>; \
+using T##_s = std::shared_ptr<T>; \
+using T##_w = std::weak_ptr<T>; \
+template<typename O> \
+constexpr bool Is##T##_u_v = std::is_same_v<O, T##_u>; \
+template<typename O> \
+constexpr bool Is##T##_s_v = std::is_same_v<O, T##_s>; \
+template<typename O> \
+constexpr bool Is##T##_w_v = std::is_same_v<O, T##_w>; \
+template<typename O> \
+constexpr bool Is##T##_uvw_v = std::is_same_v<O, T##_u> || std::is_same_v<O, T##_s> || std::is_same_v<O, T##_w>;
+
 
 /************************************************************************************/
 // throw 包一层，方便 coredump 里通过堆栈信息看到 throw 的内容
@@ -184,12 +198,14 @@ namespace xx {
             return &*v;
         }
     };
+
     template<typename T>
     struct ToPointerFuncs<T, std::enable_if_t<!IsPointerClass_v<T> && !IsWeak_v<T>>> {
-        static inline std::remove_reference_t<T>* Convert(T &&v) {
+        static inline std::remove_reference_t<T> *Convert(T &&v) {
             return &v;
         }
     };
+
     template<typename T>
     struct ToPointerFuncs<T, std::enable_if_t<IsWeak_v<T>>> {
         static inline auto Convert(T &&v) {

@@ -1,5 +1,7 @@
 ﻿#include "xx_lua.h"
+#include "xx_chrono.h"
 #include <iostream>
+#include "xx_object.h"
 
 namespace XL = xx::Lua;
 
@@ -8,22 +10,22 @@ struct TableStore : xx::Data {
 
 namespace xx::Lua {
     template<>
-    struct PushToFuncs<TableStore, void> {
-        static int Push(lua_State *const &L, TableStore &&in) {
-            DataReader dr(in);
-            if (int r = dr.Read(L)) Error(L, " TableStore read error. r = ", r);
+    struct PushToFuncs<xx::DataReaderEx, void> {
+        static int Push(lua_State *const &L, xx::DataReaderEx &&in) {
+            if (int r = in.Read(L)) Error(L, " xx::DataReaderEx read error. r = ", r);
             return 1;
         }
+    };
 
-        static void To(lua_State *const &L, int const &idx, TableStore &out) {
-            if (!lua_istable(L, idx)) Error(L, " to TableStore error. idx = ", idx, " is not table");
+    template<>
+    struct PushToFuncs<xx::DataWriterEx, void> {
+        static void To(lua_State *const &L, int const &idx, xx::DataWriterEx &out) {
             auto top = lua_gettop(L);
             if (top != idx) {
                 CheckStack(L, 1);
                 lua_pushvalue(L, idx);
             }
-            DataWriter dw(out);
-            dw.Write(L);
+            out.Write(L);
             if (top != idx) {
                 lua_pop(L, 1);
             }
@@ -31,46 +33,77 @@ namespace xx::Lua {
     };
 }
 
-struct FishBase {
+struct FishBase : xx::Object {
     int n = 0;
+
     virtual void Update() = 0;
-    virtual ~FishBase() = default;
+
+    inline void Serialize(xx::DataWriterEx &dw) const override {
+        dw.Write(n);
+    }
+
+    inline int Deserialize(xx::DataReaderEx &dr) override {
+        return dr.Read(n);
+    };
 };
 
 struct CppFish : FishBase {
     void Update() override {
         n = 1;
     }
+
     static std::shared_ptr<FishBase> Create(/* cfg ?*/) {
         return std::make_shared<CppFish>();
     }
 };
 
 struct LuaFish : FishBase {
-    std::function<void()> onUpdate;
-    void Update() override {
-        onUpdate();
+    lua_State *L = nullptr;
+
+    std::function<void(xx::DataWriterEx &dw)> onSerialize;
+    std::function<int(xx::DataReaderEx &dr)> onDeserialize;
+
+    inline uint16_t GetTypeId() const override { return 1; }
+
+    inline void Serialize(xx::DataWriterEx &dw) const override {
+        this->FishBase::Serialize(dw);
+        if (onSerialize) onSerialize(dw);
     }
+
+    inline int Deserialize(xx::DataReaderEx &dr) override {
+        if (int r = this->FishBase::Deserialize(dr)) return r;
+        if (onDeserialize) return onDeserialize(dr);
+        return 0;
+    };
+
+    std::function<void()> onUpdate;
+
+    void Update() override {
+        if (onUpdate) onUpdate();
+    }
+
     static std::shared_ptr<FishBase> Create(lua_State *const &L, std::string const &fileName) {
         auto self = std::make_shared<LuaFish>();
+        self->L = L;
         XL::CallFile(L, fileName, xx::ToWeak(self));
         return self;
     }
 
-    std::function<void(TableStore const &ts)> onLoadData;
-    std::function<TableStore()> onSaveData;
 };
+
+USING_USW_PTR(LuaFish)
 
 namespace xx::Lua {
     template<typename T>
-    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<T, std::weak_ptr<LuaFish>>>> {
+    struct MetaFuncs<T, std::enable_if_t<IsLuaFish_uvw_v<T>>> {
         inline static char const *const name = "LuaFish";
+
         static inline void Fill(lua_State *const &L) {
             Meta<T>(L)
                     .Prop("Get_n", "Set_n", &LuaFish::n)
                     .Prop(nullptr, "Set_onUpdate", &LuaFish::onUpdate)
-                    .Prop(nullptr, "Set_onLoadData", &LuaFish::onLoadData)
-                    .Prop(nullptr, "Set_onSaveData", &LuaFish::onSaveData);
+                    .Prop(nullptr, "Set_onSerialize", &LuaFish::onSerialize)
+                    .Prop(nullptr, "Set_onDeserialize", &LuaFish::onDeserialize);
         }
     };
 }
@@ -78,13 +111,27 @@ namespace xx::Lua {
 int main() {
     XL::State L;
     auto r = XL::Try(L, [&] {
-        std::vector<std::shared_ptr<FishBase>> fishs;
-        fishs.emplace_back(CppFish::Create());
-        fishs.emplace_back(LuaFish::Create(L, "fish.lua"));
-        for (auto &&o : fishs) {
-            o->Update();
-            xx::CoutN("Fish n = ", o->n);
-        }
+        auto f = LuaFish::Create(L, "fish.lua");
+
+        xx::Data d;
+        xx::ObjectHelper oh;
+        oh.Register<LuaFish>(1);
+        xx::DataWriterEx dw(d, oh);
+        dw.WriteOnce(f);
+        xx::CoutN(d);
+
+//        std::vector<std::shared_ptr<FishBase>> fishs;
+//        //fishs.emplace_back(CppFish::Create());
+//        fishs.emplace_back(LuaFish::Create(L, "fish.lua"));
+//        {
+//            auto ms = xx::NowSteadyEpochMS();
+//            for (int i = 0; i < 10000000; ++i) {
+//                for (auto &&o : fishs) {
+//                    o->Update();
+//                }
+//            }
+//            xx::CoutN(xx::NowSteadyEpochMS() - ms);
+//        }
     });
     if (r) xx::CoutN(r.m);
     xx::CoutN("end.");

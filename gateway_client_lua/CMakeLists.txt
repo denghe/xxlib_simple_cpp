@@ -16,6 +16,8 @@ set(LUA_SRC ${PROJECT_SOURCE_DIR}/../lua-5.4.0/src/onelua.c)
 set_source_files_properties(${LUA_SRC} PROPERTIES LANGUAGE CXX)
 add_definitions("-DMAKE_LIB -DLUA_USE_LINUX -flto")
 
+#add_definitions("-DUSING_LUAJIT -flto")
+
 add_executable(gateway_client_lua
         main.cpp
         FileExts_class_lite.cpp

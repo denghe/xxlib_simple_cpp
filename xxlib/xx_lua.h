@@ -35,7 +35,7 @@ namespace xx::Lua {
 
     // 如果是 luajit 就啥都不用做了
     int CheckStack(lua_State *const &L, int const &n) {
-#ifndef LUAJIT_VERSION
+#ifndef USING_LUAJIT
         return lua_checkstack(L, n);
 #else
         return 1;
@@ -55,8 +55,13 @@ namespace xx::Lua {
     // 压入指定类型的 metatable( 以 MetaFuncs<T>::name 为 key, 存放与注册表。没有找到就创建并放入 )
     template<typename T>
     void PushMeta(lua_State *const &L) {
-        CheckStack(L, 1);
+        CheckStack(L, 3);
+#ifndef USING_LUAJIT
         lua_rawgetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);              // ..., mt?
+#else
+        lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);                // ..., key
+        lua_rawget(L, LUA_REGISTRYINDEX);                                   // ..., mt?
+#endif
         if (lua_isnil(L, -1)) {
             lua_pop(L, 1);                                                  // ...
             CheckStack(L, 4);
@@ -82,8 +87,14 @@ namespace xx::Lua {
 
             MetaFuncs<T, void>::Fill(L);                                    // ..., mt
 
+#ifndef USING_LUAJIT
             lua_pushvalue(L, -1);                                           // ..., mt, mt
             lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);          // ..., mt
+#else
+            lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);            // ..., mt, key
+            lua_pushvalue(L, -2);                                           // ..., mt, key, mt
+            lua_rawset(L, LUA_REGISTRYINDEX);                               // ..., mt
+#endif
         }
     }
 
@@ -900,7 +911,7 @@ namespace xx {
                     dw.Write(lua_toboolean(in, -1) ? LuaTypes::True : LuaTypes::False);
                     return;
                 case LUA_TNUMBER: {
-#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM >= 503
+#ifndef USING_LUAJIT
                     if (lua_isinteger(in, -1)) {
                         dw.Write(LuaTypes::Integer, (int64_t) lua_tointeger(in, -1));
                     } else {
