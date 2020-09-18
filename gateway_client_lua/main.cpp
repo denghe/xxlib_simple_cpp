@@ -1,124 +1,120 @@
 ﻿#include "xx_lua.h"
 #include "xx_chrono.h"
-#include <iostream>
 #include "xx_object.h"
+#include "Objs_class_lite.h"
 
 namespace XL = xx::Lua;
 
-struct TableStore : xx::Data {
-};
+thread_local lua_State *gLuaState;
 
-namespace xx::Lua {
-    template<>
-    struct PushToFuncs<xx::DataReaderEx, void> {
-        static int Push(lua_State *const &L, xx::DataReaderEx &&in) {
-            if (int r = in.Read(L)) Error(L, " xx::DataReaderEx read error. r = ", r);
-            return 1;
-        }
-    };
-
-    template<>
-    struct PushToFuncs<xx::DataWriterEx, void> {
-        static void To(lua_State *const &L, int const &idx, xx::DataWriterEx &out) {
-            auto top = lua_gettop(L);
-            if (top != idx) {
-                CheckStack(L, 1);
-                lua_pushvalue(L, idx);
-            }
-            out.Write(L);
-            if (top != idx) {
-                lua_pop(L, 1);
-            }
-        }
-    };
+namespace Objs {
+    USING_USW_PTR(CppFish)
+    struct LuaFish;
+    USING_USW_PTR(LuaFish)
 }
 
-struct FishBase : xx::Object {
-    int n = 0;
+namespace Objs {
 
-    virtual void Update() = 0;
-
-    inline void Serialize(xx::DataWriterEx &dw) const override {
-        dw.Write(n);
-    }
-
-    inline int Deserialize(xx::DataReaderEx &dr) override {
-        return dr.Read(n);
-    };
-};
-
-struct CppFish : FishBase {
-    void Update() override {
+    void CppFish::Update() {
         n = 1;
     }
 
-    static std::shared_ptr<FishBase> Create(/* cfg ?*/) {
-        return std::make_shared<CppFish>();
-    }
-};
+    struct LuaFish : LuaFishBase {
+        lua_State *L = nullptr;
+        std::function<void()> onSerialize;
+        std::function<void()> onDeserialize;
+        std::function<char const*()> onToStringCore;
+        std::function<void()> onUpdate;
 
-struct LuaFish : FishBase {
-    lua_State *L = nullptr;
+        void Update() override {
+            if (onUpdate) onUpdate();
+        }
 
-    std::function<void(xx::DataWriterEx &dw)> onSerialize;
-    std::function<int(xx::DataReaderEx &dr)> onDeserialize;
+        inline void Serialize(xx::DataWriterEx &dw) const override {
+            this->LuaFishBase::Serialize(dw);
+            // 令 lua 函数里面用到的 table 放到全局表 "GT" 并序列化之
+            onSerialize();
+            lua_getglobal(L, "GT");
+            dw.Write(L);
+            lua_pop(L, 1);
+        }
 
-    inline uint16_t GetTypeId() const override { return 1; }
+        inline int Deserialize(xx::DataReaderEx &dr) override {
+            if (int r = this->LuaFishBase::Deserialize(dr)) return r;
+            // 初始化并加载 lua 脚本, 最后将 table 数据读到全局表 "GT", 覆盖进 lua 函数里用到的 table
+            L = gLuaState;
+            auto &&self = xx::As<LuaFish>(shared_from_this());
+            XL::CallFile(L, fileName, xx::ToWeak(self));
+            if (int r = dr.Read(L)) return r;
+            lua_setglobal(L, "GT");
+            onDeserialize();
+            return 0;
+        };
 
-    inline void Serialize(xx::DataWriterEx &dw) const override {
-        this->FishBase::Serialize(dw);
-        if (onSerialize) onSerialize(dw);
-    }
+        inline void ToStringCore(xx::ObjectHelper &oh) const override {
+            this->LuaFishBase::ToStringCore(oh);
+            auto x = onToStringCore();
+            oh.Append(x);
+        }
 
-    inline int Deserialize(xx::DataReaderEx &dr) override {
-        if (int r = this->FishBase::Deserialize(dr)) return r;
-        if (onDeserialize) return onDeserialize(dr);
-        return 0;
+        // todo: clone 系列
+
+        // todo: 各种 && copy 啥的
     };
-
-    std::function<void()> onUpdate;
-
-    void Update() override {
-        if (onUpdate) onUpdate();
-    }
-
-    static std::shared_ptr<FishBase> Create(lua_State *const &L, std::string const &fileName) {
-        auto self = std::make_shared<LuaFish>();
-        self->L = L;
-        XL::CallFile(L, fileName, xx::ToWeak(self));
-        return self;
-    }
-
-};
-
-USING_USW_PTR(LuaFish)
-
+}
 namespace xx::Lua {
     template<typename T>
-    struct MetaFuncs<T, std::enable_if_t<IsLuaFish_uvw_v<T>>> {
+    struct MetaFuncs<T, std::enable_if_t<Objs::IsLuaFish_uvw_v<T>>> {
         inline static char const *const name = "LuaFish";
 
         static inline void Fill(lua_State *const &L) {
             Meta<T>(L)
-                    .Prop("Get_n", "Set_n", &LuaFish::n)
-                    .Prop(nullptr, "Set_onUpdate", &LuaFish::onUpdate)
-                    .Prop(nullptr, "Set_onSerialize", &LuaFish::onSerialize)
-                    .Prop(nullptr, "Set_onDeserialize", &LuaFish::onDeserialize);
+                    .Prop("Get_n", "Set_n", &Objs::LuaFish::n)
+                    .Prop(nullptr, "Set_onUpdate", &Objs::LuaFish::onUpdate)
+                    .Prop(nullptr, "Set_onSerialize", &Objs::LuaFish::onSerialize)
+                    .Prop(nullptr, "Set_onDeserialize", &Objs::LuaFish::onDeserialize)
+                    .Prop(nullptr, "Set_onToStringCore", &Objs::LuaFish::onToStringCore);
         }
     };
 }
 
-int main() {
-    XL::State L;
-    auto r = XL::Try(L, [&] {
-        auto f = LuaFish::Create(L, "fish.lua");
+// create helpers
+namespace Objs {
+    static std::shared_ptr<FishBase> CreateCppFish(/* cfg ?*/) {
+        return std::make_shared<CppFish>();
+    }
 
-        xx::Data d;
-        xx::ObjectHelper oh;
-        oh.Register<LuaFish>(1);
-        xx::DataWriterEx dw(d, oh);
-        dw.WriteOnce(f);
-        xx::CoutN(d);
+    static std::shared_ptr<FishBase> CreateLuaFish(std::string const &fileName) {
+        auto self = std::make_shared<LuaFish>();
+        self->L = gLuaState;
+        self->fileName = fileName;
+        XL::CallFile(self->L, fileName, xx::ToWeak(self));
+        return self;
+    }
+}
+
+int main() {
+    xx::ObjectHelper oh;
+    Objs::PkgGenTypes::RegisterTo(oh);
+    // 注册 LuaFish 派生类
+    oh.Register<Objs::LuaFish>(xx::TypeId_v<Objs::LuaFishBase>);
+    xx::Data d;
+
+    XL::State L;
+    gLuaState = L;
+
+    auto r = XL::Try(L, [&] {
+        {
+            auto f = Objs::CreateLuaFish("fish.lua");
+            f->Update();
+            oh.CoutN(f);
+            oh.WriteTo(d, f);
+        }
+        oh.CoutN(d);
+        {
+            auto f = xx::As<Objs::LuaFish>(oh.ReadFrom(d));
+            oh.CoutN(f);
+        }
 
 //        std::vector<std::shared_ptr<FishBase>> fishs;
 //        //fishs.emplace_back(CppFish::Create());

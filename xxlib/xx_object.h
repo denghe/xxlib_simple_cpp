@@ -110,7 +110,7 @@ namespace xx {
         template<typename T>
         int ReadFrom(Data &d, T &v);
 
-        std::shared_ptr<Object> ReadObjectFrom(Data &d);
+        std::shared_ptr<Object> ReadFrom(Data &d);
 
         // s1 = a.ToString(), s2 = b.ToString(), return memcmp(s1, s2)
         template<typename T>
@@ -158,6 +158,10 @@ namespace xx {
         inline void CoutTN(Args const &...args) {
             CoutN("[", std::chrono::system_clock::now(), "] ", args...);
         }
+
+        // 向 s 追加 string
+        template<typename ...Args>
+        void Append(Args const &... args);
     };
 
     template<typename T, typename ENABLED>
@@ -187,6 +191,12 @@ namespace xx {
         AppendEx(oh, args...);
         return oh.s;
     }
+
+    template<typename ...Args>
+    void ObjectHelper::Append(Args const &... args) {
+        AppendEx(*this, args...);
+    }
+
 
     /************************************************************************************/
     // Object 主要用于满足 无脑智能指针堆业务逻辑 的建模与序列化需求
@@ -790,7 +800,7 @@ namespace xx {
         return dr.ReadOnce(v);
     }
 
-    inline std::shared_ptr<Object> ObjectHelper::ReadObjectFrom(Data &d) {
+    inline std::shared_ptr<Object> ObjectHelper::ReadFrom(Data &d) {
         DataReaderEx dr(d, *this);
         std::shared_ptr<Object> o;
         lastRtv = dr.ReadOnce(o);

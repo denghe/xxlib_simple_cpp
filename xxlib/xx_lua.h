@@ -34,7 +34,7 @@ namespace xx::Lua {
     };
 
     // 如果是 luajit 就啥都不用做了
-    int CheckStack(lua_State *const &L, int const &n) {
+    inline int CheckStack(lua_State *const &L, int const &n) {
 #ifndef USING_LUAJIT
         return lua_checkstack(L, n);
 #else
