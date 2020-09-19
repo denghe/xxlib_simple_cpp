@@ -20,13 +20,28 @@ namespace Objs {
     }
 
     struct LuaFish : LuaFishBase {
-        lua_State *L = nullptr;
+        inline static void RegisterTo(xx::ObjectHelper& oh) {
+            oh.Register<LuaFish>(xx::TypeId_v<LuaFishBase>);
+        }
+
+        LuaFish() : L(gLuaState) {}
+        template<typename T>
+        explicit LuaFish(T&& luaFileName) : L(gLuaState) {
+            fileName = std::forward<T>(luaFileName);
+        }
+        // 因为构造函数中拿不到 shared_ptr, 故将 lua 初始化拆分出来
+        inline void LuaInit() {
+            auto &&self = xx::As<LuaFish>(shared_from_this());
+            XL::CallFile(L, fileName, xx::ToWeak(self));
+        }
+
+        lua_State *L;
         std::function<void()> onSerialize;
         std::function<void()> onDeserialize;
-        std::function<char const*()> onToStringCore;
+        std::function<char const *()> onToStringCore;
         std::function<void()> onUpdate;
 
-        void Update() override {
+        inline void Update() override {
             if (onUpdate) onUpdate();
         }
 
@@ -42,9 +57,7 @@ namespace Objs {
         inline int Deserialize(xx::DataReaderEx &dr) override {
             if (int r = this->LuaFishBase::Deserialize(dr)) return r;
             // 初始化并加载 lua 脚本, 最后将 table 数据读到全局表 "GT", 覆盖进 lua 函数里用到的 table
-            L = gLuaState;
-            auto &&self = xx::As<LuaFish>(shared_from_this());
-            XL::CallFile(L, fileName, xx::ToWeak(self));
+            LuaInit();
             if (int r = dr.Read(L)) return r;
             lua_setglobal(L, "GT");
             onDeserialize();
@@ -79,25 +92,24 @@ namespace xx::Lua {
 }
 
 // create helpers
-namespace Objs {
-    static std::shared_ptr<FishBase> CreateCppFish(/* cfg ?*/) {
-        return std::make_shared<CppFish>();
-    }
+static std::shared_ptr<Objs::CppFish> Create_Objs_CppFish(/* cfg ?*/) {
+    return std::make_shared<Objs::CppFish>();
+}
 
-    static std::shared_ptr<FishBase> CreateLuaFish(std::string const &fileName) {
-        auto self = std::make_shared<LuaFish>();
-        self->L = gLuaState;
-        self->fileName = fileName;
-        XL::CallFile(self->L, fileName, xx::ToWeak(self));
-        return self;
-    }
+template<typename T>
+static std::shared_ptr<Objs::LuaFish> Create_Objs_LuaFish(T&&luaFileName) {
+    auto self = std::make_shared<Objs::LuaFish>(std::forward<T>(luaFileName));
+    self->LuaInit();
+    return self;
 }
 
 int main() {
+    // 创建类型辅助器
     xx::ObjectHelper oh;
     Objs::PkgGenTypes::RegisterTo(oh);
-    // 注册 LuaFish 派生类
-    oh.Register<Objs::LuaFish>(xx::TypeId_v<Objs::LuaFishBase>);
+    Objs::LuaFish::RegisterTo(oh);  // 注册 LuaFish 派生类
+
+    // 序列化容器
     xx::Data d;
 
     XL::State L;
@@ -105,7 +117,7 @@ int main() {
 
     auto r = XL::Try(L, [&] {
         {
-            auto f = Objs::CreateLuaFish("fish.lua");
+            auto f = Create_Objs_LuaFish("fish.lua");
             f->Update();
             oh.CoutN(f);
             oh.WriteTo(d, f);

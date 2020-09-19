@@ -6,14 +6,13 @@
 #include "xx_chrono.h"
 
 /*
-    通过 tcp & kcp 连接到网关，以类似游戏正常操作频率发送 相似字节数的 ping 包，测试传输稳定性。
-    不停的一发一收, 超时就断线重连，并记录断线日志。
-    收发本身也计算出延迟并记录日志，
+    通过 tcp & kcp 连接到网关，不停的一发一收 相似字节数的 ping 包，测试传输稳定性。
+    计算出延迟, 超时就断线重连，记录日志并按小时统计
 */
 
 namespace EP = xx::Epoll;
 
-// 汇总信息. 一分钟输出一条?
+// 汇总信息
 struct NetInfo {
     uint64_t totalRunSeconds = 0;
     uint64_t pingCount = 0;
@@ -95,9 +94,6 @@ struct KcpPeer : EP::KcpPeer {
 
         // 开始等 open
         lastSendTP = std::chrono::steady_clock::now();
-
-        // 统计
-        ni->dialCount++;
     }
 
     inline void SendPing() {
@@ -229,9 +225,6 @@ struct TcpPeer : EP::TcpPeer {
 
         // 开始等 open
         lastSendTP = std::chrono::steady_clock::now();
-
-        // 统计
-        ni->dialCount++;
     }
 
     inline void SendPing() {
@@ -369,11 +362,13 @@ struct Client : EP::Context {
         dialTimer->onTimeout = [this] {
             if (!tcpDialer->Busy() && !tcpDialer->currentPeer.lock()) {
                 LOG_SIMPLE("TcpDialer dial begin.");
+                ++tni.dialCount;
                 tcpDialer->DialSeconds(5);
             }
 
             if (!kcpDialer->Busy() && kcpDialer->cps.size() < 1) {
                 LOG_SIMPLE("KcpDialer dial begin.");
+                ++kni.dialCount;
                 kcpDialer->DialSeconds(5);
             }
 
