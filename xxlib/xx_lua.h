@@ -243,6 +243,21 @@ namespace xx::Lua {
         }
     };
 
+    // 适配 void*
+    template<typename T>
+    struct PushToFuncs<T, std::enable_if_t<std::is_same_v<T, void *>>> {
+        static inline int Push(lua_State *const &L, T const &in) {
+            CheckStack(L, 1);
+            lua_pushlightuserdata(L, in);
+            return 1;
+        }
+
+        static inline void To(lua_State *const &L, int const &idx, T &out) {
+            if (!lua_islightuserdata(L, idx)) Error(L, "error! args[", idx, "] is not void*");
+            out = (T) lua_touserdata(L, idx);
+        }
+    };
+
     // 适配 std::optional. 注意：value 不可以是 不能拷贝的类型，例如 unique_ptr
     template<typename T>
     struct PushToFuncs<std::optional<T>, void> {
@@ -740,6 +755,7 @@ namespace xx::Lua {
         if (!lua_isuserdata(L, 1)) Error(L, "args[1] is not ", xx::TypeName_v<T>);
         lua_getmetatable(L, 1);                                             // self, ..., mt
         PushMeta<T>(L);                                                     // self, ..., mt, mt
+        // todo: 兼容向基类转换的情况
         if (!lua_rawequal(L, -1, -2)) Error(L, "args[1] is not ", xx::TypeName_v<T>);
         lua_pop(L, 2);                                                      // self, ...
         return *(T *) lua_touserdata(L, 1);

@@ -8,7 +8,10 @@ namespace XL = xx::Lua;
 thread_local lua_State *gLuaState;
 
 namespace Objs {
+    // todo: 这几句移到生成物
+    USING_USW_PTR(FishBase)
     USING_USW_PTR(CppFish)
+    USING_USW_PTR(LuaFishBase)
     struct LuaFish;
     USING_USW_PTR(LuaFish)
 }
@@ -20,15 +23,18 @@ namespace Objs {
     }
 
     struct LuaFish : LuaFishBase {
-        inline static void RegisterTo(xx::ObjectHelper& oh) {
+        using BaseType = LuaFishBase;
+        inline static void RegisterTo(xx::ObjectHelper &oh) {
             oh.Register<LuaFish>(xx::TypeId_v<LuaFishBase>);
         }
 
         LuaFish() : L(gLuaState) {}
+
         template<typename T>
-        explicit LuaFish(T&& luaFileName) : L(gLuaState) {
+        explicit LuaFish(T &&luaFileName) : L(gLuaState) {
             fileName = std::forward<T>(luaFileName);
         }
+
         // 因为构造函数中拿不到 shared_ptr, 故将 lua 初始化拆分出来
         inline void LuaInit() {
             auto &&self = xx::As<LuaFish>(shared_from_this());
@@ -76,13 +82,42 @@ namespace Objs {
     };
 }
 namespace xx::Lua {
+    // dynamic cast support ?
+    // 参数是基类的支持? 通过 ToPointer ??
+    // todo: 2种方案：1. meta 套 meta. 判断继承的时候递归找上层 meta 看看有无对应
+    // 2. 将每层 &name 串起来，用目标类型的 &name 在里面查找??
+    // MetaFuncs 里面加一个 BaseType 的类型？以便递归访问？
+    // 或弄个 char const *const *const baseName ?
+
+    template<typename T>
+    struct MetaFuncs<T, std::enable_if_t<Objs::IsFishBase_uvw_v<T>>> {
+        inline static char const *const name = "FishBase";
+
+        static inline void Fill(lua_State *const &L) {
+            Meta<T>(L)
+                    .Prop("Get_n", "Set_n", &Objs::LuaFish::n);
+        }
+    };
+
+    template<typename T>
+    struct MetaFuncs<T, std::enable_if_t<Objs::IsLuaFishBase_uvw_v<T>>> {
+        inline static char const *const name = "LuaFishBase";
+
+        static inline void Fill(lua_State *const &L) {
+            //MetaFuncs<std::shared_ptr<typename T::BaseType>, void>::Fill(L);
+            Meta<T>(L)
+                    .Prop("Get_fileName", "Set_fileName", &Objs::LuaFishBase::fileName);
+        }
+    };
+
     template<typename T>
     struct MetaFuncs<T, std::enable_if_t<Objs::IsLuaFish_uvw_v<T>>> {
         inline static char const *const name = "LuaFish";
 
         static inline void Fill(lua_State *const &L) {
+            xx::CoutN(std::shared_ptr<typename T::BaseType>);
+            //MetaFuncs<std::shared_ptr<typename T::BaseType>, void>::Fill(L);
             Meta<T>(L)
-                    .Prop("Get_n", "Set_n", &Objs::LuaFish::n)
                     .Prop(nullptr, "Set_onUpdate", &Objs::LuaFish::onUpdate)
                     .Prop(nullptr, "Set_onSerialize", &Objs::LuaFish::onSerialize)
                     .Prop(nullptr, "Set_onDeserialize", &Objs::LuaFish::onDeserialize)
@@ -97,7 +132,7 @@ static std::shared_ptr<Objs::CppFish> Create_Objs_CppFish(/* cfg ?*/) {
 }
 
 template<typename T>
-static std::shared_ptr<Objs::LuaFish> Create_Objs_LuaFish(T&&luaFileName) {
+static std::shared_ptr<Objs::LuaFish> Create_Objs_LuaFish(T &&luaFileName) {
     auto self = std::make_shared<Objs::LuaFish>(std::forward<T>(luaFileName));
     self->LuaInit();
     return self;
