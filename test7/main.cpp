@@ -1,13 +1,52 @@
-﻿#include <sol/sol.hpp>
+﻿#define SOL_ALL_SAFETIES_ON 1
+
+#include <sol/sol.hpp>
 #include <iostream>
-#include <chrono>
+#include "xx_chrono.h"
+#include "xx_lua.h"
+
+struct object {
+    int value = 2;
+};
+
+using object_w = std::weak_ptr<object>;
+namespace xx::Lua {
+    template<typename T>
+    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<T, object_w>>> {
+        inline static char const *const name = "object";
+
+        static inline void Fill(lua_State *const &L) {
+            Meta<object>(L, name)
+                    .Lambda("func", [](object_w &ow) {
+                        if (auto o = ow.lock()) return o->value;
+                        else return 0;
+                    });
+        }
+    };
+}
 
 int main() {
-    sol::state lua;
-    int x = 0;
-    lua["beep"] = [&x]{ return ++x; };
-    lua.script("beep()");
-    std::cout << x << std::endl;
+    xx::Lua::State L;
+    auto o = std::make_shared<object>();
+    xx::Lua::SetGlobal(L, "o", std::weak_ptr<object>(o));
+    xx::Lua::DoString(L, "print( o:func() )");
+
+//    sol::state lua;
+//    lua.open_libraries(sol::lib::base);
+//
+//    lua.new_usertype<object>( "object" );
+//
+//    // runtime additions: through the sol API
+//    lua["object"]["func"] = [](std::weak_ptr<object>& o) { return o.lock()->value; };
+//
+//    // runtime additions: through a lua script
+//    lua.script("function object:print () print(self:func()) end");
+//
+//    auto o = xx::Make<object>();
+//    lua["o"] = xx::ToWeak(o);
+//    lua.script("o:print()");
+
+    std::cout << "end." << std::endl;
     return 0;
 }
 
