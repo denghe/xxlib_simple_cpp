@@ -746,25 +746,6 @@ namespace xx::Lua {
     }
 
 
-
-    // 针对 lua 通过 metatable 调用成员函数的情况，获取 self
-    template<typename T>
-    T &GetSelf(lua_State *const &L) {
-        auto top = lua_gettop(L);                                           // self, ...
-        if (top < 1) Error(L, "miss args[1] ?");
-        if (!lua_isuserdata(L, 1)) Error(L, "args[1] is not ", xx::TypeName_v<T>);
-        lua_getmetatable(L, 1);                                             // self, ..., mt
-        PushMeta<T>(L);                                                     // self, ..., mt, mt
-        // todo: 兼容向基类转换的情况
-        if (!lua_rawequal(L, -1, -2)) Error(L, "args[1] is not ", xx::TypeName_v<T>);
-        lua_pop(L, 2);                                                      // self, ...
-        return *(T *) lua_touserdata(L, 1);
-    }
-
-
-    /******************************************************************************************************************/
-    // PushToFuncs 的函数实现( 放在最后便于使用上面一些工具函数 )
-
     template<typename T, typename ENABLED>
     int PushToFuncs<T, ENABLED>::Push(lua_State *const &L, T &&in) {
         return PushUserdata(L, std::forward<T>(in));
@@ -776,8 +757,14 @@ namespace xx::Lua {
         if (!lua_isuserdata(L, idx)) goto LabError;
         CheckStack(L, 2);
         lua_getmetatable(L, idx);                                           // ... tar(idx) ..., mt
-        PushMeta<U>(L);                                                     // ... tar(idx) ..., mt, mt
-        if (!lua_rawequal(L, -1, -2)) goto LabError;
+        if (lua_isnil(L, -1)) goto LabError;
+#ifndef USING_LUAJIT
+        lua_rawgetp(L, -1, MetaFuncs<U>::name);                             // ... tar(idx) ..., mt, 1?
+#else
+        lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);                // ... tar(idx) ..., mt,  key
+        lua_rawget(L, -2);                                                  // ... tar(idx) ..., mt, 1?
+#endif
+        if (lua_isnil(L, -1)) goto LabError;
         lua_pop(L, 2);                                                      // ... tar(idx) ...
         out = (U *) lua_touserdata(L, idx);
         return;
@@ -801,20 +788,25 @@ namespace xx::Lua {
     // 元表辅助填充类
 
     // 如果 C 和 T 不一致，则将 C 视为指针类，访问成员时 .* 变为 ->*
-    template<typename C>
+    template<typename C, typename B = void>
     struct Meta {
     protected:
         lua_State *const &L;
     public:
-        explicit Meta(lua_State *const &L) : L(L) {}
+        explicit Meta(lua_State *const &L, char const * const& name) : L(L) {
+            if constexpr(!std::is_void_v<B>) {
+                MetaFuncs<B, void>::Fill(L);
+            }
+            SetField(L, (void*)name, 1);
+        }
 
         template<typename T>
         Meta &Func(char const *const &name, T const &f) {
             lua_pushstring(L, name);
             new(lua_newuserdata(L, sizeof(T))) T(f);                    // ..., ud
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
-                auto &&c = GetSelf<C>(L);
-                auto&& p = ToPointer(c);
+                C *p = nullptr;
+                PushToFuncs<C, void>::ToPtr(L, 1, p);
                 if (!p) Error(L, "args[1] is nullptr?");
                 auto &&f = *(T *) lua_touserdata(L, lua_upvalueindex(1));
                 FuncA_t<T> tuple;

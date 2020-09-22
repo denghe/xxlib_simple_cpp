@@ -24,6 +24,7 @@ namespace Objs {
 
     struct LuaFish : LuaFishBase {
         using BaseType = LuaFishBase;
+
         inline static void RegisterTo(xx::ObjectHelper &oh) {
             oh.Register<LuaFish>(xx::TypeId_v<LuaFishBase>);
         }
@@ -82,20 +83,13 @@ namespace Objs {
     };
 }
 namespace xx::Lua {
-    // dynamic cast support ?
-    // 参数是基类的支持? 通过 ToPointer ??
-    // todo: 2种方案：1. meta 套 meta. 判断继承的时候递归找上层 meta 看看有无对应
-    // 2. 将每层 &name 串起来，用目标类型的 &name 在里面查找??
-    // MetaFuncs 里面加一个 BaseType 的类型？以便递归访问？
-    // 或弄个 char const *const *const baseName ?
-
     template<typename T>
     struct MetaFuncs<T, std::enable_if_t<Objs::IsFishBase_uvw_v<T>>> {
         inline static char const *const name = "FishBase";
 
         static inline void Fill(lua_State *const &L) {
-            Meta<T>(L)
-                    .Prop("Get_n", "Set_n", &Objs::LuaFish::n);
+            Meta<T>(L, name)
+                    .Prop("Get_n", "Set_n", &Objs::FishBase::n);
         }
     };
 
@@ -104,8 +98,7 @@ namespace xx::Lua {
         inline static char const *const name = "LuaFishBase";
 
         static inline void Fill(lua_State *const &L) {
-            //MetaFuncs<std::shared_ptr<typename T::BaseType>, void>::Fill(L);
-            Meta<T>(L)
+            Meta<T, Objs::FishBase_s>(L, name)
                     .Prop("Get_fileName", "Set_fileName", &Objs::LuaFishBase::fileName);
         }
     };
@@ -115,9 +108,7 @@ namespace xx::Lua {
         inline static char const *const name = "LuaFish";
 
         static inline void Fill(lua_State *const &L) {
-            xx::CoutN(std::shared_ptr<typename T::BaseType>);
-            //MetaFuncs<std::shared_ptr<typename T::BaseType>, void>::Fill(L);
-            Meta<T>(L)
+            Meta<T, Objs::LuaFishBase_s>(L, name)
                     .Prop(nullptr, "Set_onUpdate", &Objs::LuaFish::onUpdate)
                     .Prop(nullptr, "Set_onSerialize", &Objs::LuaFish::onSerialize)
                     .Prop(nullptr, "Set_onDeserialize", &Objs::LuaFish::onDeserialize)
@@ -153,7 +144,11 @@ int main() {
     auto r = XL::Try(L, [&] {
         {
             auto f = Create_Objs_LuaFish("fish.lua");
-            f->Update();
+            auto ms = xx::NowSteadyEpochMS();
+            for (int i = 0; i < 10000000; ++i) {
+                f->Update();
+            }
+            oh.CoutN("ms = ", xx::NowSteadyEpochMS() - ms);
             oh.CoutN(f);
             oh.WriteTo(d, f);
         }
