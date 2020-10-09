@@ -15,11 +15,12 @@ int main() {
 			if (!e) {
 				if (recvLen) {
 					// todo: 测试同步发与异步发的性能差异
-					// us.send_to(asio::buffer(d, recvLen), ep);
-					us.async_send_to(asio::buffer(d, recvLen), ep, [&](const asio::error_code& e, size_t sentLen) {
-						us.async_receive_from(asio::buffer(d), ep, f);
-					});
+					us.send_to(asio::buffer(d, recvLen), ep);
+					//us.async_send_to(asio::buffer(d, recvLen), ep, [&](const asio::error_code& e, size_t sentLen) {
+					//	us.async_receive_from(asio::buffer(d), ep, f);
+					//});
 				}
+				//else
 				us.async_receive_from(asio::buffer(d), ep, f);
 			}
 		};
