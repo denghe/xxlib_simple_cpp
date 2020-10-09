@@ -1,30 +1,26 @@
 #include <iostream>
 #include <string>
 #include <memory>
-#include <chrono>
+#include <thread>
 #include <asio.hpp>
+#include "xx_looper.h"
+#include "xx_chrono.h"
+
 
 int main() {
-	try {
-		asio::io_context ioc;
-		asio::ip::udp::socket us(ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
-		asio::ip::udp::endpoint rep;
-		char d[2048];
-		asio::error_code error;
-		auto&& tar = asio::ip::udp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12345);
-		auto now = std::chrono::system_clock::now();
-		for (size_t i = 0; i < 100000; i++) {
-			us.send_to(asio::buffer("asdf"), tar);
-			us.receive_from(asio::buffer(d), rep, 0, error);
+	xx::Looper::Context ctx(8192, 10);	// 8192轮长 / 10帧 = 最大超时时长 819 秒
+	
+
+	auto lastSecs = xx::NowSteadyEpochSeconds();
+	while (true) {
+		// 模拟客户端帧延迟
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		auto nowSecs = xx::NowSteadyEpochSeconds();
+		ctx.secondsPool += nowSecs - lastSecs;
+		lastSecs = nowSecs;
+		if (ctx.RunCheck()) {
+			ctx.RunOnce();
 		}
-		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - now).count() << std::endl;
-		//ioc.run();
-	}
-	catch (std::exception& e) {
-		std::cerr << e.what() << std::endl;
 	}
 	return 0;
 }
-//us.async_receive_from(asio::buffer(d), rep, [&](const asio::error_code& e, size_t recvLen) {
-//	std::cout << "e = " << e << ", recvLen = " << recvLen << std::endl;
-//});

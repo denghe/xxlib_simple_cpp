@@ -12,7 +12,7 @@
 #define LIKELY(x)       __builtin_expect(!!(x), 1)
 #define UNLIKELY(x)     __builtin_expect(!!(x), 0)
 #define __STRINGFY__(...) #__VA_ARGS__
-#define __LINESTR__ __STRINGFY__(__LINE__)
+//#define __LINESTR__ __STRINGFY__(__LINE__)
 
 // 为一个类型附加 using 常用指针类型，以及 is 判断，以简化编码
 #define USING_USW_PTR(T) \
