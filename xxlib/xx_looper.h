@@ -110,7 +110,7 @@ namespace xx::Looper {
 		double secondsPool = 0;
 
 		// 帧回调事件代码( 在 FrameUpdate 虚函数中调用. 也可覆盖该虚函数 )
-		std::function<int(Context&)> onFrameUpdate;
+		std::function<int(void)> onFrameUpdate;
 
 		/************************************************/
 		// protected
@@ -141,7 +141,7 @@ namespace xx::Looper {
 		virtual ~Context() = default;
 
 		// 帧逻辑可以覆盖这个函数. 返回非 0 将令 Run 退出
-		inline virtual int FrameUpdate() { if (onFrameUpdate) return onFrameUpdate(*this); return 0; }
+		inline virtual int FrameUpdate() { if (onFrameUpdate) return onFrameUpdate(); else return 0; }
 
 		// 每帧调用一次 以驱动 timer
 		void UpdateTimeoutWheel();
@@ -301,6 +301,8 @@ namespace xx::Looper {
 			}
 			// 判断是否需要终止循环
 			if (!running) return -1;
+			// 步进帧编号
+			++frameNumber;
 		}
 		return 0;
 	}
