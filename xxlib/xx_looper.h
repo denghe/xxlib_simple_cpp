@@ -147,7 +147,7 @@ namespace xx::Looper {
 		void UpdateTimeoutWheel();
 
 		// 调用前需先确保 经历时长入池. secondsPool += elapsedSeconds; 如果累计时长跨度大于一帧的时长 则 Update
-		int RunOnce();
+		virtual int RunOnce();
 
 		// 判断是否会发生 Update
 		inline bool RunCheck() { return secondsPool >= secondsPerFrame; }

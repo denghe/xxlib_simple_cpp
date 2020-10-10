@@ -27,7 +27,7 @@ namespace xx {
 		}
 
 		// 通过 复制一段数据 来构造
-		Data(char const* const& ptr, size_t const& siz) {
+		Data(void const* const& ptr, size_t const& siz) {
 			WriteBuf(ptr, siz);
 		}
 
