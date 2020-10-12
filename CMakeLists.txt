@@ -16,6 +16,7 @@ add_subdirectory(gateway_tools_ping)
 add_subdirectory(gateway_tools_dialtime)
 
 add_subdirectory(simple_http_server)
+add_subdirectory(simple_kcp_server_with_lua)
 
 add_subdirectory(logger_test)
 add_subdirectory(mysql_test)

@@ -17,7 +17,7 @@ int Server::Run() {
         for(auto&& dp : dps) {
             dp.second.first->Stop();
             if (dp.second.second) {
-                dp.second.second->Close(-23, __LINESTR__" Server Run sg1");
+                dp.second.second->Close(-__LINE__, " Server Run sg1");
             }
         }
         dps.clear();
@@ -27,7 +27,7 @@ int Server::Run() {
             keys.push_back(cp.first);
         }
         for(auto&& key : keys) {
-            cps[key]->Close(-24, __LINESTR__" Server Run sg1");
+            cps[key]->Close(-__LINE__, " Server Run sg1");
         }
         cps.clear();
 

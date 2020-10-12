@@ -1,12 +1,36 @@
-﻿#include "kpeer.h"
+﻿#include "cpeer.h"
 #include "server.h"
+#include "xx_logger.h"
 
-Server &KPeer::GetServer() const {
+bool CPeer::Close(int const& reason, char const* const& desc) {
+    // 防重入( 同时关闭 fd )
+    if (!this->BaseType::Close(reason, desc)) return false;
+    LOG_INFO("CPeer Close. ip = ", addr," reason = ", reason, ", desc = ", desc);
+    // 从容器移除( 减持 )
+    GetServer().cps.erase(this);
+    // 延迟减持
+    DelayUnhold();
+    return true;
+}
+
+void CPeer::DelayClose(double const& delaySeconds) {
+    // 这个的日志记录在调用者那里
+    // 避免重复执行
+    if (closed || !Alive()) return;
+    // 标记为延迟自杀
+    closed = true;
+    // 利用超时来 Close
+    SetTimeoutSeconds(delaySeconds <= 0 ? 3 : delaySeconds);
+    // 从容器移除( 减持 )
+    GetServer().cps.erase(this);
+}
+
+Server &CPeer::GetServer() const {
     // 拿到服务上下文
     return *(Server *) &*ec;
 }
 
-void KPeer::Receive() {
+void CPeer::Receive() {
     // 如果属于延迟踢人拒收数据状态，直接清数据短路退出
     if (closed) {
         recv.Clear();
@@ -36,17 +60,8 @@ void KPeer::Receive() {
         // 跳到数据区开始调用处理回调
         buf += sizeof(dataLen);
         {
-            // 取出地址
-            addr = *(uint32_t *)buf;
-
-            // 包类型判断
-            if (addr == 0xFFFFFFFFu) {
-                // 内部指令. 传参时跳过 addr 部分
-                ReceiveCommand(buf + sizeof(addr), dataLen - sizeof(addr));
-            } else {
-                // 普通包. id 打头
-                ReceivePackage(buf, dataLen);
-            }
+            // 调用包处理函数
+            ReceivePackage(buf, dataLen);
 
             // 如果当前类实例 fd 已 close 则退出
             if (!Alive() || closed) return;
@@ -57,4 +72,9 @@ void KPeer::Receive() {
 
     // 移除掉已处理的数据( 将后面剩下的数据移动到头部 )
     recv.RemoveFront(buf - recv.buf);
+}
+
+void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
+    LOG_INFO("CPeer ReceivePackage. ip = ", addr, ", buf len = ", len);
+    // todo: logic here
 }

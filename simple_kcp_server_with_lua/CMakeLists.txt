@@ -1,26 +1,28 @@
 cmake_minimum_required(VERSION 3.10)
-project(test7)
+project(simple_kcp_server_with_lua)
 
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(
-        ./
         ../xxlib
         ../lua-5.4.x/src
-        #/usr/include/luajit-2.1/
-)
+        )
 
 set(LUA_SRC ${PROJECT_SOURCE_DIR}/../lua-5.4.x/src/onelua.c)
 set_source_files_properties(${LUA_SRC} PROPERTIES LANGUAGE CXX)
-add_definitions("-DMAKE_LIB -DLUA_USE_LINUX -DSOL_USING_CXX_LUA -flto")
+add_definitions("-DMAKE_LIB -DLUA_USE_LINUX -flto")
 
-add_executable(test7
-        main.cpp
+add_executable(simple_kcp_server_with_lua
+        ../xxlib/ikcp.c
         ${LUA_SRC}
+        main.cpp
+        cpeer.cpp
+        listener.cpp
+        server.cpp
         )
 
-target_link_libraries(test7
+target_link_libraries(simple_kcp_server_with_lua
         dl
         pthread
-        #luajit-5.1
+        readline
         )

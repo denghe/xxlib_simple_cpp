@@ -5,7 +5,7 @@
 
 bool GPeer::Close(int const &reason, char const* const& desc) {
     // 防重入( 同时关闭 fd )
-    if (!this->Item::Close(reason, __LINESTR__ " GPeer Close !this->Item::Close")) return false;
+    if (!this->Item::Close(reason, desc)) return false;
     std::cout << "GPeer::Close. gatewayId = " << id << " reason = " << reason << std::endl;
     // 关闭所有虚拟 peer
     for (auto &&iter : vpeers) {

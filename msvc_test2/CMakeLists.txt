@@ -9,6 +9,7 @@ include_directories(
 )
 
 add_executable(msvc_test2
+		../xxlib/ikcp.c
         main.cpp
         )
 

@@ -212,11 +212,11 @@ namespace xx::Epoll {
     }
 
     inline KcpPeer::~KcpPeer() {
-        Close(-10, __LINESTR__" KcpPeer ~KcpPeer");
+        Close(-__LINE__, " KcpPeer ~KcpPeer");
     }
 
     inline void KcpPeer::Timeout() {
-        Close(-11, __LINESTR__" KcpPeer Timeout");
+        Close(-__LINE__, " KcpPeer Timeout");
     }
 
     inline int KcpPeer::Send(char const *const &buf, size_t const &len) {
@@ -233,7 +233,7 @@ namespace xx::Epoll {
     }
 
     inline void KcpPeer::UpdateKcpLogic() {
-        if (!kcp) throw std::runtime_error(__LINESTR__" KcpPeer UpdateKcpLogic if (!kcp)");
+        if (!kcp) throw std::runtime_error(" KcpPeer UpdateKcpLogic if (!kcp)");
         // 计算出当前 ms
         // 已知问题: 受 ikcp uint32 限制, 连接最多保持 50 多天
         auto &&currentMS = uint32_t(ec->nowMS - createMS);
@@ -262,7 +262,7 @@ namespace xx::Epoll {
             }
             // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
             if (recv.len == recv.cap) {
-                Close(-13, __LINESTR__" KcpPeer Input if (recv.len == recv.cap)");
+                Close(-13, " KcpPeer Input if (recv.len == recv.cap)");
                 return;
             }
 
@@ -434,7 +434,7 @@ namespace xx::Epoll {
     inline void UdpPeer::EpollEvent(const uint32_t &e) {
         // fatal error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(-14, __LINESTR__" UdpPeer EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
+            Close(-__LINE__, " UdpPeer EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
             return;
         }
         // read

@@ -366,18 +366,18 @@ namespace xx::MySql {
     Connection::Open(std::string const &host, int const &port, std::string const &username, std::string const &password,
                      std::string const &db) {
         if (ctx) {
-            Throw(__LINE__, __LINESTR__" Connection Open connection already opened.");
+            Throw(-__LINE__, "Connection Open connection already opened.");
         }
         {
             std::lock_guard<std::mutex> lg(mutex_connOpen);
             ctx = mysql_init(nullptr);
         }
         if (!ctx) {
-            Throw(__LINE__, __LINESTR__" Connection Open mysql_init failed.");
+            Throw(-__LINE__, "Connection Open mysql_init failed.");
         }
         my_bool reconnect = 1;
         if (int r = mysql_options(ctx, MYSQL_OPT_RECONNECT, &reconnect)) {
-            Throw(r, __LINESTR__" Connection Open mysql_options error.");
+            Throw(r, " Connection Open mysql_options error.");
         }
         // todo: 关 SSL 的参数, 限制连接超时时长
         if (!mysql_real_connect(ctx, host.c_str(), username.c_str(), password.c_str(), db.c_str(), port, nullptr,

@@ -76,8 +76,8 @@ namespace xx {
 
         // 启动时自动注册函数
         DumpFuncs<sockaddr_in6>() {
-            if (dumpFuncs[(size_t)value]) throw std::runtime_error(__LINESTR__" DumpFuncs<sockaddr_in6> if (dumpFuncs[value])");
-            dumpFuncs[(size_t)value] = Dump;
+            if (dumpFuncs[(size_t) value]) throw std::runtime_error(" DumpFuncs<sockaddr_in6> if (dumpFuncs[value])");
+            dumpFuncs[(size_t) value] = Dump;
         }
     };
 
@@ -111,7 +111,7 @@ namespace xx::Epoll {
         explicit Item(std::shared_ptr<Context> const &ec, int const &fd = -1);
 
         // 注意：析构中调用虚函数，不会 call 到派生类的 override 版本
-        virtual ~Item() { Close(0, __LINESTR__" Item ~Item"); }
+        virtual ~Item() { Close(0, " Item ~Item"); }
 
         // 会导致 关闭 fd 解除映射, fd = -1. reason 通常为 唯一编号, 具体描述中通常含有 行号，类名，函数名，判断句等
         virtual bool Close(int const &reason, char const *const &desc);
@@ -409,7 +409,8 @@ namespace xx::Epoll {
         int cursor = 0;
 
         // 创建非阻塞 socket fd 并返回. < 0: error
-        int MakeSocketFD(int const &port, int const &sockType = SOCK_STREAM, char const* const& hostName = nullptr, bool const& reusePort = false, size_t const& rmem_max = 0, size_t const& wmem_max = 0); // udp: SOCK_DGRAM
+        int MakeSocketFD(int const &port, int const &sockType = SOCK_STREAM, char const *const &hostName = nullptr, bool const &reusePort = false, size_t const &rmem_max = 0,
+                         size_t const &wmem_max = 0); // udp: SOCK_DGRAM
         // 添加 fd 到 epoll 监视. return !0: error
         int Ctl(int const &fd, uint32_t const &flags, int const &op = EPOLL_CTL_ADD) const;
 
@@ -441,7 +442,7 @@ namespace xx::Epoll {
     inline Item::Item(std::shared_ptr<Context> const &ec, int const &fd)
             : ec(ec), fd(fd) {
         if (fd != -1) {
-            if (ec->fdMappings[fd]) throw std::runtime_error(__LINESTR__" Item Item if (ec->fdMappings[fd])");
+            if (ec->fdMappings[fd]) throw std::runtime_error(" Item Item if (ec->fdMappings[fd])");
             ec->fdMappings[fd] = this;
         }
     }
@@ -449,7 +450,7 @@ namespace xx::Epoll {
     inline bool Item::Close(int const &reason, char const *const &desc) {
         if (fd != -1) {
             if (ec->fdMappings[fd] != this)
-                throw std::runtime_error(__LINESTR__" Item Close if (ec->fdMappings[fd] != this)");
+                throw std::runtime_error(" Item Close if (ec->fdMappings[fd] != this)");
             // 解绑
             ec->fdMappings[fd] = nullptr;
             // 从 epoll 移除 并 关闭 fd
@@ -493,8 +494,7 @@ namespace xx::Epoll {
             // 如果设置了新的超时时间, 则放入相应的链表
             // 安全检查
             if (interval < 0 || interval > (int) ec->wheel.size())
-                throw std::logic_error(
-                        __LINESTR__"Timer SetTimeout if (interval < 0 || interval > (int) ec->wheel.size())");
+                throw std::logic_error("Timer SetTimeout if (interval < 0 || interval > (int) ec->wheel.size())");
 
             // 环形定位到 wheel 元素目标链表下标
             timeoutIndex = (interval + ec->cursor) & ((int) ec->wheel.size() - 1);
@@ -529,13 +529,13 @@ namespace xx::Epoll {
     /***********************************************************************************************************/
     // TcpPeer
     inline void TcpPeer::Timeout() {
-        Close(-1, __LINESTR__" TcpPeer Timeout");
+        Close(-__LINE__, " TcpPeer Timeout");
     }
 
     inline void TcpPeer::EpollEvent(uint32_t const &e) {
         // fatal error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(-2, __LINESTR__" TcpPeer EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
+            Close(-__LINE__, " TcpPeer EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
             return;
         }
         // read
@@ -546,13 +546,13 @@ namespace xx::Epoll {
             }
             // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
             if (recv.len == recv.cap) {
-                Close(-3, __LINESTR__" TcpPeer EpollEvent if (recv.len == recv.cap)");
+                Close(-__LINE__, " TcpPeer EpollEvent if (recv.len == recv.cap)");
                 return;
             }
             // 通过 fd 从系统网络缓冲区读取数据. 追加填充到 recv 后面区域. 返回填充长度. <= 0 则认为失败 断开
             auto &&len = read(fd, recv.buf + recv.len, recv.cap - recv.len);
             if (len <= 0) {
-                Close(-4, __LINESTR__" TcpPeer EpollEvent if (len <= 0)");
+                Close(-__LINE__, " TcpPeer EpollEvent if (len <= 0)");
                 return;
             }
             recv.len += len;
@@ -566,7 +566,7 @@ namespace xx::Epoll {
             // 设置为可写状态
             writing = false;
             if (int r = Write()) {
-                Close(-5, xx::ToString(__LINESTR__" TcpPeer EpollEvent if (int r = Write()), r = ", r).c_str());
+                Close(-__LINE__, xx::ToString(" TcpPeer EpollEvent if (int r = Write()), r = ", r).c_str());
                 return;
             }
         }
@@ -674,7 +674,7 @@ namespace xx::Epoll {
     inline void TcpListener<PeerType, ENABLED>::EpollEvent(uint32_t const &e) {
         // error
         if (e & EPOLLERR || e & EPOLLHUP) {
-            throw std::runtime_error(__LINESTR__" TcpListener EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
+            throw std::runtime_error(" TcpListener EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
         }
         // accept 到 没有 或 出错 为止
         while (HandleAccept(fd) > 0) {};
@@ -696,7 +696,7 @@ namespace xx::Epoll {
         // 如果 fd 超出最大存储限制就退出。返回 fd 是为了外部能继续执行 accept
         if (fd >= (int) ec->fdMappings.size()) return fd;
         if (ec->fdMappings[fd]) {
-            throw std::runtime_error((__LINESTR__" TcpListener HandleAccept if (ec->fdMappings[fd])"));
+            throw std::runtime_error((" TcpListener HandleAccept if (ec->fdMappings[fd])"));
         }
         // 设置非阻塞状态
         if (-1 == fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK)) return -2;
@@ -724,7 +724,7 @@ namespace xx::Epoll {
     inline void TcpConn<PeerType, ENABLED>::EpollEvent(uint32_t const &e) {
         // 如果 error 则 Close
         if (e & EPOLLERR || e & EPOLLHUP) {
-            Close(-6, __LINESTR__" TcpConn EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
+            Close(-__LINE__, " TcpConn EpollEvent if (e & EPOLLERR || e & EPOLLHUP)");
             return;
         }
         // 读取错误 或者读到错误 都认为是连接失败. 返回非 0 触发 Close
@@ -732,8 +732,7 @@ namespace xx::Epoll {
         socklen_t result_len = sizeof(err);
         int r = getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &result_len);
         if (r == -1 || err) {
-            Close(-7, xx::ToString(__LINESTR__" TcpConn EpollEvent getsockopt(fd, SOL_SOCKET, SO_ERROR...) r = ", r,
-                                   ", err = ", err).c_str());
+            Close(-__LINE__, xx::ToString(" TcpConn EpollEvent getsockopt(fd, SOL_SOCKET, SO_ERROR...) r = ", r, ", err = ", err).c_str());
             return;
         }
 
@@ -816,7 +815,7 @@ namespace xx::Epoll {
         xx::ScopeGuard sg([&] { close(fd); });
         // 检测 fd 存储上限
         if (fd >= (int) ec->fdMappings.size()) return -2;
-        if (ec->fdMappings[fd]) throw std::runtime_error((__LINESTR__" TcpDialer NewTcpConn if (ec->fdMappings[fd])"));
+        if (ec->fdMappings[fd]) throw std::runtime_error((" TcpDialer NewTcpConn if (ec->fdMappings[fd])"));
         // 设置一些 tcp 参数( 可选 )
         int on = 1;
         if (-1 == setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const char *) &on, sizeof(on))) return -3;
@@ -956,7 +955,7 @@ namespace xx::Epoll {
     inline Context::Context(size_t const &wheelLen) {
         // 创建 epoll fd
         efd = epoll_create1(0);
-        if (-1 == efd) throw std::logic_error((__LINESTR__ " Context Context efd = epoll_create1(0) if (-1 == efd)"));
+        if (-1 == efd) throw std::logic_error((" Context Context efd = epoll_create1(0) if (-1 == efd)"));
         // 初始化时间伦
         wheel.resize(wheelLen);
         // 初始化处理类映射表
@@ -987,7 +986,7 @@ namespace xx::Epoll {
         }
     }
 
-    inline int Context::MakeSocketFD(int const &port, int const &sockType, char const* const& hostName, bool const& reusePort, size_t const& rmem_max, size_t const& wmem_max) {
+    inline int Context::MakeSocketFD(int const &port, int const &sockType, char const *const &hostName, bool const &reusePort, size_t const &rmem_max, size_t const &wmem_max) {
         char portStr[20];
         snprintf(portStr, sizeof(portStr), "%d", port);
 
@@ -1017,13 +1016,13 @@ namespace xx::Epoll {
                 }
             }
             if (rmem_max) {
-                if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (const char*)&rmem_max, sizeof(rmem_max)) < 0) {
+                if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (const char *) &rmem_max, sizeof(rmem_max)) < 0) {
                     close(fd);
                     continue;
                 }
             }
             if (wmem_max) {
-                if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (const char*)&wmem_max, sizeof(wmem_max)) < 0) {
+                if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (const char *) &wmem_max, sizeof(wmem_max)) < 0) {
                     close(fd);
                     continue;
                 }
@@ -1040,7 +1039,7 @@ namespace xx::Epoll {
             close(fd);
             return -3;
         }
-        if (fdMappings[fd]) throw std::runtime_error((__LINESTR__" Context MakeSocketFD if (fdMappings[fd])"));
+        if (fdMappings[fd]) throw std::runtime_error((" Context MakeSocketFD if (fdMappings[fd])"));
         return fd;
     }
 
@@ -1053,7 +1052,7 @@ namespace xx::Epoll {
     };
 
     inline int Context::CloseDel(int const &fd) const {
-        if (fd == -1) throw std::runtime_error((__LINESTR__" Context CloseDel if (fd == -1)"));
+        if (fd == -1) throw std::runtime_error((" Context CloseDel if (fd == -1)"));
         epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr);
         return close(fd);
     }
@@ -1067,12 +1066,9 @@ namespace xx::Epoll {
             if (!h) {
                 CloseDel(fd);
                 continue;
-                // 线上发现的确执行进入过这个代码块，概率很低。先防崩
-                // throw std::runtime_error(xx::ToString((__LINESTR__" Context Wait !h. fd = ", fd)));
             }
             if (h->fd != fd)
-                throw std::runtime_error(
-                        xx::ToString(__LINESTR__" Context Wait if (h->fd != fd), h->fd = ", h->fd, ", fd = ", fd));
+                throw std::runtime_error(xx::ToString(" Context Wait if (h->fd != fd), h->fd = ", h->fd, ", fd = ", fd));
             auto e = events[i].events;
             h->EpollEvent(e);
         }

@@ -18,7 +18,8 @@ namespace std {
 		size_t operator()(asio::ip::address const& v) const {
 			if (v.is_v4()) return v.to_v4().to_ulong();
 			else if (v.is_v6()) {
-				auto p = (uint64_t*)(&v.to_v6().to_bytes());
+			    auto bytes = v.to_v6().to_bytes();
+				auto&& p = (uint64_t*)&bytes;
 				return p[0] ^ p[1] ^ p[2] ^ p[3];
 			}
 			else return 0;

@@ -171,7 +171,7 @@ protected:
     int FrameUpdate() override;
 
     // kcp input from fads2
-    int Wait(int const &ms) override;
+    int Wait(int const &ms);
 
     // create KcpPeer
     void Accept(std::shared_ptr<KcpPeer> const &peer);
@@ -269,7 +269,7 @@ inline int ShakeHandler::FrameUpdate() {
     // 清理超时握手信息
     std::lock_guard<std::mutex> lg(mtx);
     for (auto &&iter = shakes.begin(); iter != shakes.end();) {
-        if (iter->second.second < nowMS) {
+        if (iter->second.second < xx::NowSteadyEpochMS()) {
             iter = shakes.erase(iter);
         } else {
             ++iter;
@@ -284,7 +284,7 @@ inline uint32_t ShakeHandler::TryAdd(sockaddr_in6 const &addr, int const &timeou
     auto &&v = shakes[ip_port];
     if (!v.second) {
         v.first = ++convId;
-        v.second = nowMS + timeoutMS;
+        v.second = xx::NowSteadyEpochMS() + timeoutMS;
     }
     return v.first;
 }
@@ -368,7 +368,7 @@ inline int KcpHandler::FrameUpdate() {
 
 inline void KcpHandler::Accept(std::shared_ptr<KcpPeer> const &peer) {
     peer->Hold();
-    peer->SetTimeoutSeconds(10);
+    peer->SetTimeout(10);
 }
 
 inline void KcpHandler::Push(FdAddrData &&fad) {
@@ -470,7 +470,7 @@ inline bool KcpPeer::Close(int const &reason, char const *const &desc) {
 }
 
 inline KcpPeer::~KcpPeer() {
-    Close(0, __LINESTR__ "~KcpPeer");
+    Close(0, "~KcpPeer");
 }
 
 inline void KcpPeer::UpdateKcpLogic() {
@@ -488,7 +488,7 @@ inline void KcpPeer::UpdateKcpLogic() {
 inline void KcpPeer::Input(char const *const &buf, size_t const &len_, bool isFirst) {
     // 将底层数据灌入 kcp
     if (int r = ikcp_input(kcp, buf, len_)) {
-        Close(-1, __LINESTR__ "KcpPeer Input if (int r = ikcp_input(kcp, buf, len_))");
+        Close(-__LINE__, "KcpPeer Input if (int r = ikcp_input(kcp, buf, len_))");
         return;
     }
     // 重置下次 update 计算时间
@@ -501,7 +501,7 @@ inline void KcpPeer::Input(char const *const &buf, size_t const &len_, bool isFi
         }
         // 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
         if (recv.len == recv.cap) {
-            Close(-2, __LINESTR__ "KcpPeer Input if (recv.len == recv.cap)");
+            Close(-__LINE__,  "KcpPeer Input if (recv.len == recv.cap)");
             return;
         }
 
@@ -547,11 +547,15 @@ inline void KcpPeer::Receive() {
     Flush();
     recv.Clear();
     // 续命
-    SetTimeoutSeconds(10);
+    SetTimeout(10);
 }
 
 inline Env::Env(int const &port, int const &numUdps, int const &numKcpThreads)
-        : port(port), numUdps(numUdps), numKcpThreads(numKcpThreads) {
+        : port(port)
+        , numUdps(numUdps)
+        , numKcpThreads(numKcpThreads)
+        , shakeHandler()
+        {
     // init udpReaders
     for (int i = 0; i < numUdps; ++i) {
         udpReaders.emplace_back(this);
@@ -565,20 +569,21 @@ inline Env::Env(int const &port, int const &numUdps, int const &numKcpThreads)
 
     // init shakeHandler & shakeThread
     shakeHandler.env = this;
-    shakeHandler.SetFrameRate(1);
     shakeThread = std::thread([&] {
-        shakeHandler.Run();
+        //shakeHandler.Run();
+        // todo: while true call run once + wait?
     });
 
     // init kcpHandlers & kcpThreads
-    kcpHandlers = new KcpHandler[numKcpThreads]();
+    kcpHandlers = (KcpHandler*)malloc(sizeof(KcpHandler) * numKcpThreads);
     for (int i = 0; i < numKcpThreads; ++i) {
         auto &&o = kcpHandlers[i];
+        new (&o) KcpHandler(4096, 100);
         o.env = this;
         o.id = i;
-        o.SetFrameRate(100);
         kcpThreads.emplace_back([p = kcpHandlers + i] {
-            p->Run();
+            //p->Run();
+            // todo: while true call run once + wait ?
         });
     }
 }
@@ -604,7 +609,10 @@ inline Env::~Env() {
     }
 
     // 手动回收指针数组
-    delete[] kcpHandlers;
+    for (int i = 0; i < numKcpThreads; ++i) {
+        kcpHandlers[i].~KcpHandler();
+    }
+    free(kcpHandlers);
     kcpHandlers = nullptr;
 }
 
