@@ -41,7 +41,6 @@ void CPeer::Receive() {
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
     uint32_t dataLen = 0;
-    uint32_t addr = 0;
 
     // 确保包头长度充足
     while (buf + sizeof(dataLen) <= end) {
@@ -49,8 +48,8 @@ void CPeer::Receive() {
         dataLen = *(uint32_t *) buf;
 
         // 长度异常则断线退出( 不含地址? 超长? 256k 不够可以改长 )
-        if (dataLen < sizeof(addr) || dataLen > 1024 * 256) {
-            Close(-__LINE__, " KPeer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
+        if (dataLen > 1024 * 256) {
+            Close(-__LINE__, " CPeer Receive if (dataLen < sizeof(addr) || dataLen > 1024 * 256)");
             return;
         }
 

@@ -36,7 +36,7 @@ namespace xx::Asio {
 	struct Client : xx::Looper::Context {
 		using BaseType = xx::Looper::Context;
 		
-		explicit Client(size_t const& wheelLen = (1u << 12u), double const& frameRate_ = 10);
+		explicit Client(size_t const& wheelLen = (1u << 12u), double const& frameRate_ = 60);
 
 		Client(Client const&) = delete;
 		Client& operator=(Client const&) = delete;
@@ -137,6 +137,9 @@ namespace xx::Asio {
 		// 停止拨号
 		void Stop();
 
+		// 返回是否正在拨号
+		inline bool Busy() { return !dialPeers.empty(); }
+
 		// 当前 peer( 拨号成功将赋值 )
 		std::shared_ptr<KcpPeer> peer;
 	};
@@ -177,7 +180,11 @@ namespace xx::Asio {
 		std::deque<std::shared_ptr<Data>> recvs;
 
 		// 初始化 sokcet
-		explicit KcpPeer(Client* const& c, asio::ip::udp::endpoint const& ep, uint32_t const& shakeSerial) : BaseType(c), socket(c->ioc), ep(ep), shakeSerial(shakeSerial) {
+		explicit KcpPeer(Client* const& c, asio::ip::udp::endpoint const& ep, uint32_t const& shakeSerial)
+			: BaseType(c)
+			, socket(c->ioc, asio::ip::udp::endpoint(ep.protocol(), 0))
+			, ep(ep)
+			, shakeSerial(shakeSerial) {
 			socket.async_receive_from(asio::buffer(recvBuf), this->ep, bind(&KcpPeer::RecvHandler, this, _1, _2));
 			recv.Reserve(1024 * 256);
 		}
@@ -348,8 +355,13 @@ namespace xx::Asio {
 	{
 		// 设置握手回调: 不停的发送握手包
 		shakeTimer.onTimeout = [this](auto t) {
-			for (auto&& p : dialPeers) {
-				p->socket.send_to(asio::buffer(&p->shakeSerial, sizeof(p->shakeSerial)), p->ep);
+			try {
+				for (auto&& p : dialPeers) {
+					p->socket.send_to(asio::buffer(&p->shakeSerial, sizeof(p->shakeSerial)), p->ep);
+				}
+			}
+			catch (std::exception const& ex) {
+				std::cout << ex.what() << std::endl;
 			}
 			t->SetTimeout(0.2);
 		};

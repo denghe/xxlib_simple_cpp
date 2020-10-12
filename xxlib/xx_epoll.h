@@ -347,7 +347,7 @@ namespace xx::Epoll {
         std::array<iovec, UIO_MAXIOV> iovecs{};
 
         // 参数：时间轮长度( 要求为 2^n )
-        explicit Context(size_t const &wheelLen = (1u << 12u));
+        explicit Context(size_t const &wheelLen = (1u << 12u), double const &frameRate = 10);
 
         Context(Context const &) = delete;
 
@@ -952,7 +952,7 @@ namespace xx::Epoll {
 
     /***********************************************************************************************************/
     // Context
-    inline Context::Context(size_t const &wheelLen) {
+    inline Context::Context(size_t const &wheelLen, double const &frameRate_) {
         // 创建 epoll fd
         efd = epoll_create1(0);
         if (-1 == efd) throw std::logic_error((" Context Context efd = epoll_create1(0) if (-1 == efd)"));
@@ -960,6 +960,8 @@ namespace xx::Epoll {
         wheel.resize(wheelLen);
         // 初始化处理类映射表
         fdMappings.fill(nullptr);
+        // 初始化帧率
+        SetFrameRate(frameRate_);
     }
 
     inline Context::~Context() {
