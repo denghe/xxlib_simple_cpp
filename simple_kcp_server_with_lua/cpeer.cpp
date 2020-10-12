@@ -76,4 +76,6 @@ void CPeer::Receive() {
 void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
     LOG_INFO("CPeer ReceivePackage. ip = ", addr, ", buf len = ", len);
     // todo: logic here
+    // echo back
+    Send(buf, len);
 }

@@ -103,10 +103,43 @@ struct Coro1 : Coro {
 			goto LabDial;
 		}
 
-		// 不断发点啥. 需要符合 4 字节长度包头格式
+		// 设置 10 秒后自动 Close
+		ctx.client.peer->SetTimeout(10);
+
+		std::cout << "connected." << " peer closed = " << ctx.client.peer->closed << std::endl;
+
+		// 不断发点啥 并判断是否断线. 需要符合 4 字节长度包头格式
 		while (true) {
 			COR_YIELD;
-			ctx.client.peer->Send("\1\0\0\0\1", 5);
+			// for easy use
+			auto&& peer = ctx.client.peer;
+			auto&& recvs = peer->recvs;
+
+			// 随便发点啥
+			peer->Send("\1\0\0\0\1", 5);
+
+			// 如果有收到包，就开始处理
+			while (!recvs.empty()) {
+				// 定位到最前面一条
+				auto&& pkg = recvs.front();
+
+				// todo: logic here
+
+				// 断线判断( 有可能上面的逻辑代码导致 )
+				if (peer->closed) break;
+
+				// 续命
+				peer->SetTimeout(10);
+
+				// 弹出最前面一条
+				recvs.pop_front();
+			}
+
+			// 如果断线, 重新拨号
+			if (peer->closed) {
+				std::cout << "peer disconnected." << std::endl;
+				goto LabDial;
+			}
 		}
 
 		COR_END;

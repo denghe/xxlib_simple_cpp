@@ -9,6 +9,8 @@
 #include "xx_data.h"
 #include "ikcp.h"
 
+// todo: 去掉 try 啥的
+
 // 先为 cocos 之类 client 实现一个带 域名解析, kcp拨号 与 通信 的版本。不考虑性能
 
 // 适配 ip 地址做 map key
@@ -18,7 +20,7 @@ namespace std {
 		size_t operator()(asio::ip::address const& v) const {
 			if (v.is_v4()) return v.to_v4().to_ulong();
 			else if (v.is_v6()) {
-			    auto bytes = v.to_v6().to_bytes();
+				auto bytes = v.to_v6().to_bytes();
 				auto&& p = (uint64_t*)&bytes;
 				return p[0] ^ p[1] ^ p[2] ^ p[3];
 			}
@@ -35,7 +37,7 @@ namespace xx::Asio {
 	// 可域名解析，可拨号，最后访问其 peer 成员通信
 	struct Client : xx::Looper::Context {
 		using BaseType = xx::Looper::Context;
-		
+
 		explicit Client(size_t const& wheelLen = (1u << 12u), double const& frameRate_ = 60);
 
 		Client(Client const&) = delete;
@@ -127,6 +129,9 @@ namespace xx::Asio {
 
 		// 握手用 timer
 		xx::Looper::TimerEx shakeTimer;
+
+		// 拨号超时检测用 timer
+		xx::Looper::TimerEx dialTimer;
 
 		// 自增以产生握手用序列号
 		uint32_t shakeSerial = 0;
@@ -312,8 +317,10 @@ namespace xx::Asio {
 		// 回收 kcp 并清空数据, 撤销超时回调
 		bool Close(int const& reason, char const* const& desc) override {
 			if (closed) return false;
-			ikcp_release(kcp);
-			kcp = nullptr;
+			if (kcp) {
+				ikcp_release(kcp);
+				kcp = nullptr;
+			}
 			recvs.clear();
 			ClearTimeout();
 			closed = true;
@@ -333,6 +340,9 @@ namespace xx::Asio {
 				dialPeers.emplace_back(Make<KcpPeer>(this, asio::ip::udp::endpoint(kv.first, port), ++shakeSerial));
 			}
 		}
+		// 启动拨号超时检测 timer
+		dialTimer.SetTimeout(timeoutSeconds);
+
 		// 启动握手 timer 并立刻发送握手包
 		shakeTimer.onTimeout(&shakeTimer);
 	}
@@ -340,6 +350,7 @@ namespace xx::Asio {
 	inline void Client::Stop() {
 		dialPeers.clear();
 		shakeTimer.ClearTimeout();
+		dialTimer.ClearTimeout();
 	}
 
 	inline int Client::FrameUpdate() {
@@ -349,9 +360,10 @@ namespace xx::Asio {
 		return this->BaseType::FrameUpdate();
 	}
 
-	Client:: Client(size_t const& wheelLen, double const& frameRate_)
+	Client::Client(size_t const& wheelLen, double const& frameRate_)
 		: BaseType(wheelLen, frameRate_)
 		, shakeTimer(this)
+		, dialTimer(this)
 	{
 		// 设置握手回调: 不停的发送握手包
 		shakeTimer.onTimeout = [this](auto t) {
@@ -364,6 +376,11 @@ namespace xx::Asio {
 				std::cout << ex.what() << std::endl;
 			}
 			t->SetTimeout(0.2);
+		};
+
+		// 设置拨号回调: 到时就 Stop
+		dialTimer.onTimeout = [this](auto t) {
+			Stop();
 		};
 	}
 }
