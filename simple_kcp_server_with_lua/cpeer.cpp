@@ -3,40 +3,16 @@
 #include "xx_logger.h"
 
 bool CPeer::Close(int const& reason, char const* const& desc) {
-    // 防重入( 同时关闭 fd )
+    // 调用基类关闭函数 并确保执行成功后继续
     if (!this->BaseType::Close(reason, desc)) return false;
-    LOG_INFO("CPeer Close. ip = ", addr," reason = ", reason, ", desc = ", desc);
-    // 从容器移除( 减持 )
-    GetServer().cps.erase(this);
-    // 延迟减持
+    LOG_INFO("ip = ", addr," reason = ", reason, ", desc = ", desc);
+    // 延迟减持( 与 Listener::Accept 的 Hold 对应 )
     DelayUnhold();
+    // 返回执行成功
     return true;
 }
 
-void CPeer::DelayClose(double const& delaySeconds) {
-    // 这个的日志记录在调用者那里
-    // 避免重复执行
-    if (closed || !Alive()) return;
-    // 标记为延迟自杀
-    closed = true;
-    // 利用超时来 Close
-    SetTimeoutSeconds(delaySeconds <= 0 ? 3 : delaySeconds);
-    // 从容器移除( 减持 )
-    GetServer().cps.erase(this);
-}
-
-Server &CPeer::GetServer() const {
-    // 拿到服务上下文
-    return *(Server *) &*ec;
-}
-
 void CPeer::Receive() {
-    // 如果属于延迟踢人拒收数据状态，直接清数据短路退出
-    if (closed) {
-        recv.Clear();
-        return;
-    }
-
     // 取出指针备用
     auto buf = recv.buf;
     auto end = recv.buf + recv.len;
@@ -62,8 +38,8 @@ void CPeer::Receive() {
             // 调用包处理函数
             ReceivePackage(buf, dataLen);
 
-            // 如果当前类实例 fd 已 close 则退出
-            if (!Alive() || closed) return;
+            // 如果当前类实例已 close 则退出
+            if (!Alive()) return;
         }
         // 跳到下一个包的开头
         buf += dataLen;
@@ -74,8 +50,14 @@ void CPeer::Receive() {
 }
 
 void CPeer::ReceivePackage(char *const &buf, size_t const &len) {
-    LOG_INFO("CPeer ReceivePackage. ip = ", addr, ", buf len = ", len);
+    LOG_INFO("ip = ", addr, ", buf len = ", len);
+
     // todo: logic here
-    // echo back
-    Send(buf, len);
+
+    // 如果收到合法数据：续命
+    SetTimeoutSeconds(5);
+
+    // 先实现原样发回的逻辑 ( 地址 - 4 才能包含长度包头 )
+    Send(buf - 4, len + 4);
+    Flush();
 }

@@ -155,7 +155,8 @@ namespace xx::Asio {
 		using BaseType = xx::Looper::Item;
 
 		// 关闭标志位
-		bool closed = false;
+		int closed = 0;
+		std::string closedDesc;
 
 		// 收发用 socket
 		asio::ip::udp::socket socket;
@@ -196,20 +197,16 @@ namespace xx::Asio {
 
 		// 回收 kcp
 		~KcpPeer() override {
-			Close(0, "~KcpPeer()");
+			Close(-__LINE__, "~KcpPeer()");
 		}
 
 		// udp 接收回调。kcp input 或 握手
 		inline void RecvHandler(asio::error_code const& e, size_t recvLen) {
 			if (closed) return;
-
-			// asio 异步就是这个用法。触发之后要再次注册
-			socket.async_receive_from(asio::buffer(recvBuf), ep, bind(&KcpPeer::RecvHandler, this, _1, _2));
-
 			if (kcp) {
 				// 准备向 kcp 灌数据并收包放入 recvs
 				// 前置检查. 如果数据长度不足( kcp header ), 或 conv 对不上就 忽略
-				if (recvLen < 24 || conv != *(uint32_t*)(recvBuf)) return;
+				if (recvLen < 24 || conv != *(uint32_t*)(recvBuf)) goto LabEnd;
 
 				// 将数据灌入 kcp. 灌入出错则 Close
 				if (int r = ikcp_input(kcp, recvBuf, (long)recvLen)) {
@@ -221,13 +218,13 @@ namespace xx::Asio {
 				do {
 					// 如果数据长度 == buf限长 就自杀( 未处理数据累计太多? )
 					if (recv.len == recv.cap) {
-						Close(-1, "recv.len == recv.cap");
+						Close(-__LINE__, "recv.len == recv.cap");
 						return;
 					}
 
 					// 从 kcp 提取数据. 追加填充到 recv 后面区域. 返回填充长度. <= 0 则下次再说
 					auto&& len = ikcp_recv(kcp, recv.buf + recv.len, (int)(recv.cap - recv.len));
-					if (len <= 0) break;
+					if (len <= 0) goto LabEnd;
 					recv.len += len;
 
 					// 开始切包放 recvs
@@ -295,6 +292,9 @@ namespace xx::Asio {
 					c.Stop();
 				}
 			}
+		LabEnd:
+			// asio 异步就是这个用法。触发之后要再次注册
+			socket.async_receive_from(asio::buffer(recvBuf), ep, bind(&KcpPeer::RecvHandler, this, _1, _2));
 		}
 
 		inline int Send(char const* const& buf, size_t const& len) {
@@ -323,13 +323,14 @@ namespace xx::Asio {
 			}
 			recvs.clear();
 			ClearTimeout();
-			closed = true;
+			closed = reason;
+			closedDesc = desc;
 			return true;
 		}
 
 		// Close
 		inline void Timeout() override {
-			Close(0, "Tuimeout");
+			Close(-__LINE__, "Timeout");
 		}
 	};
 

@@ -212,7 +212,7 @@ namespace xx::Epoll {
     }
 
     inline KcpPeer::~KcpPeer() {
-        Close(-__LINE__, " KcpPeer ~KcpPeer");
+        Close(0, " KcpPeer ~KcpPeer");
     }
 
     inline void KcpPeer::Timeout() {
@@ -293,13 +293,9 @@ namespace xx::Epoll {
         if (owner) {
             owner->cps.erase(conv);
         }
-//        // 如果时析构函数调用 Close 则不需要延迟减持( 已经没了 )
-//        if (reason) {
-//            DelayUnhold();
-//        }
+        // 这里不负责自动 DelayUnhold. 如果有用到 Hold 机制，需要派生类自行处理
         return true;
     }
-
 
     inline KcpBase::KcpBase(std::shared_ptr<Context> const &ec) : UdpPeer(ec, -1) {
         // 注册下一帧帧发起的回调( 回调中继续调用这句代码以实现每帧都产生回调 )

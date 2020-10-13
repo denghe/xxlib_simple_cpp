@@ -7,18 +7,7 @@ int Server::Run() {
     xx::ScopeGuard sg1([&]{
         DisableCommandLine();
         listener.reset();
-
-        std::vector<CPeer*> keys;
-        for(auto&& cp : cps) {
-            keys.push_back(cp.first);
-        }
-        for(auto&& key : keys) {
-            cps[key]->Close(-__LINE__, " Server Run sg1");
-        }
-        cps.clear();
-
         holdItems.clear();
-
         assert(shared_from_this().use_count() == 2);
     });
 
