@@ -5,14 +5,14 @@
 
 #pragma once
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <cerrno>
-#include <csignal>
+#include <errno.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
@@ -31,6 +31,7 @@
 #include <string>
 #include <deque>
 #include <mutex>
+#include <array>
 
 #include "xx_typehelpers.h"
 #include "xx_chrono.h"

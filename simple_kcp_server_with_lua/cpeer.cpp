@@ -5,9 +5,12 @@
 bool CPeer::Close(int const& reason, char const* const& desc) {
     // 调用基类关闭函数 并确保执行成功后继续
     if (!this->BaseType::Close(reason, desc)) return false;
+
     LOG_INFO("ip = ", addr," reason = ", reason, ", desc = ", desc);
+
     // 延迟减持( 与 Listener::Accept 的 Hold 对应 )
     DelayUnhold();
+
     // 返回执行成功
     return true;
 }

@@ -1,5 +1,5 @@
 ﻿#ifdef __linux__
-#include <csignal>
+#include <signal.h>
 #endif
 
 namespace xx {

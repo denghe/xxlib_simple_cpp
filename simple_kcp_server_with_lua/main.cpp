@@ -1,5 +1,6 @@
 ﻿#include "xx_signal.h"
 #include "server.h"
+#include "generator.h"
 
 int main() {
 	// 禁掉 SIGPIPE 信号避免因为连接关闭出错
