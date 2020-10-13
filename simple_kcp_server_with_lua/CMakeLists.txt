@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 project(simple_kcp_server_with_lua)
 
+set(CMAKE_C_COMPILER clang-10)
+set(CMAKE_CXX_COMPILER clang++-10)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-#sudo apt-get install libc++-10-dev libc++abi-10-dev
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -fcoroutines-ts -v")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -v -fcoroutines-ts")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -fuse-ld=gold")
 
 include_directories(

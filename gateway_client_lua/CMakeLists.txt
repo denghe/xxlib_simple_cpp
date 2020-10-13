@@ -14,7 +14,8 @@ include_directories(
 # -flto 似乎能大幅度提升性能( 1/3 左右 )
 set(LUA_SRC ${PROJECT_SOURCE_DIR}/../lua-5.4.x/src/onelua.c)
 set_source_files_properties(${LUA_SRC} PROPERTIES LANGUAGE CXX)
-add_definitions("-DMAKE_LIB -DLUA_USE_LINUX -flto")
+add_definitions("-DMAKE_LIB -DLUA_USE_LINUX")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -fuse-ld=gold")
 
 #add_definitions("-DUSING_LUAJIT -flto")
 
