@@ -68,6 +68,14 @@ sudo apt install open-vm-tools-desktop open-vm-tools
 ### 如果无法向 vmware 的 ubuntu 拖拽文件入内，则可通过 Bitvist SSH Client, WinSCP 等 SFTP 工具传文件  
 
 
+### 如果要安装 gcc/g++10 版本, 则执行下列脚本:( ubuntu 18.04 也能用 )  
+```
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+sudo apt-get update
+sudo apt install gcc-10 g++-10
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 70 --slave /usr/bin/g++ g++ /usr/bin/g++-10
+```
+
 
 
 clion 下载解压后 控制台进入 bin 目录运行 ./clion.sh  

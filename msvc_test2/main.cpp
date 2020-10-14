@@ -12,28 +12,28 @@
 #define COR_EXIT     return 0;
 #define COR_END      } return 0;
 
-// Ô¤ÉùÃ÷
+// é¢„å£°æ˜
 struct CoroContext;
 
-// Ğ­³Ì»ùÀà
+// åç¨‹åŸºç±»
 struct Coro {
-	// ¹«¹²ÉÏÏÂÎÄ
+	// å…¬å…±ä¸Šä¸‹æ–‡
 	CoroContext& ctx;
 
-	// ±ØĞë´«ÈëÕâ¸ö
+	// å¿…é¡»ä¼ å…¥è¿™ä¸ª
 	Coro(CoroContext& ctx) : ctx(ctx) {}
 	Coro(Coro const&) = delete;
 	Coro& operator=(Coro const&) = delete;
 	virtual ~Coro() = default;
 
-	// ĞĞºÅ
+	// è¡Œå·
 	int lineNumber = 0;
 
-	// Ö´ĞĞÌå
+	// æ‰§è¡Œä½“
 	virtual int operator()() = 0;
 };
 
-// ¹«¹²ÉÏÏÂÎÄ
+// å…¬å…±ä¸Šä¸‹æ–‡
 struct CoroContext {
 	xx::Asio::Client client;
 	std::vector<std::unique_ptr<Coro>> coros;
@@ -42,11 +42,11 @@ struct CoroContext {
 	CoroContext()
 		: client(32768, 2) {
 		client.onFrameUpdate = [&] {
-			// µ¹É¨ÒÔ·½±ã½»»»É¾³ı
+			// å€’æ‰«ä»¥æ–¹ä¾¿äº¤æ¢åˆ é™¤
 			for (auto&& i = coros.size() - 1; i != (size_t)-1; --i) {
 				auto&& coro = coros[i].get();
 				coro->lineNumber = (*coro)();
-				// Èç¹ûĞ­³ÌÒÑÖ´ĞĞÍê±Ï ¾Í½»»»É¾³ı
+				// å¦‚æœåç¨‹å·²æ‰§è¡Œå®Œæ¯• å°±äº¤æ¢åˆ é™¤
 				if (!coro->lineNumber) {
 					if (i < coros.size() - 1) {
 						std::swap(coros[coros.size() - 1], coros[i]);
@@ -54,7 +54,7 @@ struct CoroContext {
 					coros.pop_back();
 				}
 			}
-			// Èç¹ûÒ»¸ö²»Ê££¬Í¨Öª³ÌĞòÍË³ö
+			// å¦‚æœä¸€ä¸ªä¸å‰©ï¼Œé€šçŸ¥ç¨‹åºé€€å‡º
 			return coros.empty() ? 1 : 0;
 		};
 	}
@@ -73,68 +73,68 @@ struct Coro1 : Coro {
 
 	int operator()() override {
 		COR_BEGIN;
-		// ³õÊ¼»¯²¦ºÅ ip:port
+		// åˆå§‹åŒ–æ‹¨å· ip:port
 		ctx.client.AddDialIP("192.168.1.74", { 12333 });
 
-		// ÎŞÄÔÖØÖÃ×´Ì¬
+		// æ— è„‘é‡ç½®çŠ¶æ€
 	LabDial:;
 		COR_YIELD;
 		ctx.client.Stop();
 		ctx.client.peer.reset();
 
-		// µÈ 1 Ãë
+		// ç­‰ 1 ç§’
 		nowSecs = xx::NowSteadyEpochSeconds();
 		while (xx::NowSteadyEpochSeconds() - nowSecs < 1) {
 			COR_YIELD;
 		}
 
 		std::cout << "dial..." << std::endl;
-		// ¿ªÊ¼²¦ºÅ( 5Ãë³¬Ê± ) // todo: ÓòÃû½âÎö, °üĞ­Òé°æ±¾±È¶Ô
+		// å¼€å§‹æ‹¨å·( 5ç§’è¶…æ—¶ ) // todo: åŸŸåè§£æ, åŒ…åè®®ç‰ˆæœ¬æ¯”å¯¹
 		ctx.client.Dial(5);
 
-		// µÈ²¦ºÅÆ÷±äµÃ²»Ã¦
+		// ç­‰æ‹¨å·å™¨å˜å¾—ä¸å¿™
 		while (ctx.client.Busy()) {
 			COR_YIELD
 		}
 
-		// Èç¹û peer Îª¿Õ: ±íÊ¾Ã»ÓĞÁ¬ÉÏ, »òÕß¸ÕÁ¬ÉÏ¾Í±»ÆşÏß. ÖØĞÂ²¦ºÅ
+		// å¦‚æœ peer ä¸ºç©º: è¡¨ç¤ºæ²¡æœ‰è¿ä¸Š, æˆ–è€…åˆšè¿ä¸Šå°±è¢«æçº¿. é‡æ–°æ‹¨å·
 		if (!ctx.client.peer) {
 			std::cout << "dial timeout or peer disconnected." << std::endl;
 			goto LabDial;
 		}
 		std::cout << "connected." << std::endl;
 
-		// ÉèÖÃ x Ãëºó×Ô¶¯ Close
+		// è®¾ç½® x ç§’åè‡ªåŠ¨ Close
 		ctx.client.peer->SetTimeout(10);
 
-		// ²»¶Ï·¢µãÉ¶ ²¢ÅĞ¶ÏÊÇ·ñ¶ÏÏß. ĞèÒª·ûºÏ 4 ×Ö½Ú³¤¶È°üÍ·¸ñÊ½
+		// ä¸æ–­å‘ç‚¹å•¥ å¹¶åˆ¤æ–­æ˜¯å¦æ–­çº¿. éœ€è¦ç¬¦åˆ 4 å­—èŠ‚é•¿åº¦åŒ…å¤´æ ¼å¼
 		while (true) {
 			{
 				// for easy use
 				auto&& peer = ctx.client.peer;
 				auto&& recvs = peer->recvs;
 
-				// Ëæ±ã·¢µãÉ¶
+				// éšä¾¿å‘ç‚¹å•¥
 				peer->Send("\1\0\0\0\1", 5);
 
-				// Èç¹ûÓĞÊÕµ½°ü£¬¾Í¿ªÊ¼´¦Àí
+				// å¦‚æœæœ‰æ”¶åˆ°åŒ…ï¼Œå°±å¼€å§‹å¤„ç†
 				while (!recvs.empty()) {
-					// ¶¨Î»µ½×îÇ°ÃæÒ»Ìõ
+					// å®šä½åˆ°æœ€å‰é¢ä¸€æ¡
 					auto&& pkg = recvs.front();
 
 					// todo: logic here
 
-					// ¶ÏÏßÅĞ¶Ï( ÓĞ¿ÉÄÜÉÏÃæµÄÂß¼­´úÂëµ¼ÖÂ )
+					// æ–­çº¿åˆ¤æ–­( æœ‰å¯èƒ½ä¸Šé¢çš„é€»è¾‘ä»£ç å¯¼è‡´ )
 					if (peer->closed) break;
 
-					// ĞøÃü
+					// ç»­å‘½
 					peer->SetTimeout(10);
 
-					// µ¯³ö×îÇ°ÃæÒ»Ìõ
+					// å¼¹å‡ºæœ€å‰é¢ä¸€æ¡
 					recvs.pop_front();
 				}
 
-				// Èç¹û¶ÏÏß, ÖØĞÂ²¦ºÅ
+				// å¦‚æœæ–­çº¿, é‡æ–°æ‹¨å·
 				if (peer->closed) {
 					std::cout << "peer disconnected. reason = " << peer->closed << " desc = " << peer->closedDesc << std::endl;
 					goto LabDial;
@@ -146,20 +146,20 @@ struct Coro1 : Coro {
 		COR_END;
 	}
 
-	// ´æµ±Ç°Ê±¼ä for ¶¨Ê±
+	// å­˜å½“å‰æ—¶é—´ for å®šæ—¶
 	double nowSecs = 0;
 
-	// Í¨³£ÓÃÓÚ´æ·Å·µ»ØÖµ
+	// é€šå¸¸ç”¨äºå­˜æ”¾è¿”å›å€¼
 	int r = 0;
 };
 
 int main() {
 	CoroContext ctx;
 
-	// ´´½¨Ò»¸öĞ­³Ì
+	// åˆ›å»ºä¸€ä¸ªåç¨‹
 	ctx.coros.emplace_back(xx::MakeU<Coro1>(ctx));
 
-	// ¼òµ¥Ä£Äâ 60 Ö¡Ö´ĞĞĞ§¹û
+	// ç®€å•æ¨¡æ‹Ÿ 60 å¸§æ‰§è¡Œæ•ˆæœ
 	auto lastSecs = xx::NowSteadyEpochSeconds();
 	while (true) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(16));
@@ -172,7 +172,7 @@ int main() {
 
 //
 //int main() {
-//	// ÍøÂçÉÏÏÂÎÄ
+//	// ç½‘ç»œä¸Šä¸‹æ–‡
 //	asio::io_context ioc;
 //	asio::ip::udp::socket us(ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
 //	asio::ip::udp::endpoint rep;
@@ -180,33 +180,33 @@ int main() {
 //	asio::error_code error;
 //	auto&& tar = asio::ip::udp::endpoint(asio::ip::address::from_string("192.168.1.74"), 12333);
 //
-//	// Ö¡Ñ­»·ÉÏÏÂÎÄ. ²ÎÊı£ºÊ±¼äÂÖ³¤¶È£¬timerÃ¿Ãë´¦Àí´ÎÊı
+//	// å¸§å¾ªç¯ä¸Šä¸‹æ–‡. å‚æ•°ï¼šæ—¶é—´è½®é•¿åº¦ï¼Œtimeræ¯ç§’å¤„ç†æ¬¡æ•°
 //	xx::Looper::Context ctx(8192, 10);
 //
-//	// ÉèÖÃÖ¡ÊÂ¼ş
+//	// è®¾ç½®å¸§äº‹ä»¶
 //	ctx.onFrameUpdate = [&] {
-//		// ÏÈÊÕÉÏÒ»Ö¡µ½ÏÖÔÚµÄ°ü
+//		// å…ˆæ”¶ä¸Šä¸€å¸§åˆ°ç°åœ¨çš„åŒ…
 //		ioc.poll();
 //
-//		// ÍøÂçÖ¡Âß¼­´¦Àí
-//		// Ã¿Ö¡·¢¸ö°ü
+//		// ç½‘ç»œå¸§é€»è¾‘å¤„ç†
+//		// æ¯å¸§å‘ä¸ªåŒ…
 //		us.async_receive_from(asio::buffer(d), rep, [&](const asio::error_code& e, size_t recvLen) {
 //			std::cout << "frameNumber = " << ctx.frameNumber << ", e = " << e << ", recvLen = " << recvLen << std::endl;
 //		});
 //		us.send_to(asio::buffer("asdf"), tar);
 //
-//		// ¿´¿´ÓĞÃ»ÓĞÊ²Ã´ÒªÁ¢¿Ì·¢³öµÄ
+//		// çœ‹çœ‹æœ‰æ²¡æœ‰ä»€ä¹ˆè¦ç«‹åˆ»å‘å‡ºçš„
 //		ioc.poll();
 //		return 0;
 //	};
 //
-//	// ¼òµ¥Ä£Äâ client Ö¡ÑÓ³Ù
+//	// ç®€å•æ¨¡æ‹Ÿ client å¸§å»¶è¿Ÿ
 //	auto lastSecs = xx::NowSteadyEpochSeconds();
 //	while (true) {
 //		std::this_thread::sleep_for(std::chrono::milliseconds(16));
 //		ctx.secondsPool += xx::NowSteadyEpochSeconds(lastSecs);
 //
-//		// ÊÔ´¥·¢ FrameUpdate
+//		// è¯•è§¦å‘ FrameUpdate
 //		if (int r = ctx.RunOnce()) return r;
 //	}
 //	return 0;

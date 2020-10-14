@@ -1,16 +1,28 @@
 ﻿#include "xx_signal.h"
 #include "server.h"
-#include "generator.h"
+#include "xx_coro.h"
 
-xx::Generator<int> Delay(int n) {
+CorRtv Delay(int n, int &out) {
     for (int i = 0; i < n; ++i) {
         std::cout << i << std::endl;
-        co_yield 0;
+        out += i;
+        CorYield;
     }
 }
 
+CorRtv Test() {
+    int sum = 0;
+    CorAwait(Delay(5, sum));
+    std::cout << sum << std::endl;
+}
+
 int main() {
-    Delay(5).AWait();
+    xx::Cors cs;
+    cs.Add(Test());
+    while (!cs.Empty()) {
+        cs.Update();
+        std::cout << "Update()" << std::endl;
+    }
     return 0;
 
 //    GetInts2().Foreach([](auto&& i){

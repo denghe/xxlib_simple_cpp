@@ -1,30 +1,35 @@
 #pragma once
 
-// c++20 泛型之 发生器. 配合 for 语法 + co_yield 实现协程逻辑基本够用了
+#include <coroutine>
+#include <vector>
 
-#include <experimental/coroutine>
+#define CorYield co_await std::suspend_always{};
+#define CorAwait(func) {auto g = func; while(g.Next()) {CorYield;}}
+#define CorRtv xx::Generator<int>
+
 namespace xx {
-    using namespace std::experimental;
+    using namespace std;
 
     template<typename T>
     struct Generator {
-        // 这个类型名字不能改
         struct promise_type;
 
         using Handle = coroutine_handle<promise_type>;
     private:
         Handle h;
     public:
-        explicit Generator(Handle&& h) : h(std::move(h)) {}
+        explicit Generator(Handle &&h) : h(std::move(h)) {}
 
         Generator(const Generator &) = delete;
-        Generator &operator=(const Generator &) = delete;
 
-        Generator(Generator &&oth) noexcept: h(oth.h) {
-            oth.h = nullptr;
+        Generator &operator=(Generator const &) = delete;
+
+        Generator(Generator &&o) noexcept: h(o.h) {
+            o.h = nullptr;
         }
-        Generator &operator=(Generator &&other) noexcept {
-            std::swap(h, other.h);
+
+        Generator &operator=(Generator &&o) noexcept {
+            std::swap(h, o.h);
             return *this;
         }
 
@@ -40,29 +45,13 @@ namespace xx {
         }
 
         T Value() {
-            return h.promise().current_value;
+            return h.promise().v;
         }
 
-
-        template<typename F>
-        void Foreach(F&& func) {
-            while(true) {
-                h.resume();
-                if (h.done()) return;
-                func(h.promise().current_value);
-            }
-        }
-
-        void AWait() {
-            while(true) {
-                h.resume();
-                if (h.done()) return;
-            }
-        }
 
         struct promise_type {
         private:
-            T current_value{};
+            T v{};
 
             friend class Generator;
 
@@ -71,11 +60,11 @@ namespace xx {
 
             ~promise_type() = default;
 
-            promise_type(const promise_type &) = delete;
+            promise_type(promise_type const &) = delete;
 
             promise_type(promise_type &&) = delete;
 
-            promise_type &operator=(const promise_type &) = delete;
+            promise_type &operator=(promise_type const &) = delete;
 
             promise_type &operator=(promise_type &&) = delete;
 
@@ -96,7 +85,7 @@ namespace xx {
             }
 
             auto yield_value(T some_value) {
-                current_value = some_value;
+                v = some_value;
                 return suspend_always{};
             }
 
@@ -106,7 +95,7 @@ namespace xx {
         };
 
 
-        struct iterator_end_sentinel {
+        struct iterator_end {
         };
 
         struct iterator {
@@ -117,26 +106,56 @@ namespace xx {
             using iterator_category = std::input_iterator_tag;
             using value_type = T;
 
-            T operator*() {
-                return _promise->current_value;
+            T const &operator*() const {
+                return p->v;
+            }
+
+            T &operator*() {
+                return p->v;
             }
 
             void operator++() {
-                Handle::from_promise(*_promise).resume();
+                Handle::from_promise(*p).resume();
             }
 
-            bool operator!=(iterator_end_sentinel) {
-                return !Handle::from_promise(*_promise).done();
+            bool operator!=(iterator_end) {
+                return !Handle::from_promise(*p).done();
             }
 
         private:
-            explicit iterator(promise_type *promise) : _promise(promise) {}
+            explicit iterator(promise_type * const& p) : p(p) {}
 
-            promise_type *_promise;
+            promise_type *p;
         };
 
         iterator begin() { return iterator(&h.promise()); }
 
-        iterator_end_sentinel end() { return {}; }
+        iterator_end end() { return {}; }
+    };
+
+
+
+    struct Cors {
+        std::vector<CorRtv > cs;
+
+        inline bool Empty() {
+            return cs.empty();
+        }
+
+        inline void Add(CorRtv &&c) {
+            cs.emplace_back(std::move(c));
+        }
+
+        inline void Update() {
+            // 倒扫以方便交换删除
+            for (auto &&i = cs.size() - 1; i != (size_t) -1; --i) {
+                if (!cs[i].Next()) {
+                    if (i < cs.size() - 1) {
+                        std::swap(cs[cs.size() - 1], cs[i]);
+                    }
+                    cs.pop_back();
+                }
+            }
+        }
     };
 }

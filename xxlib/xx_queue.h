@@ -105,7 +105,7 @@ namespace xx
 	template <class T>
 	void Queue<T>::Pop() noexcept {
 		assert(head != tail);
-		if constexpr (!std::is_pod_v<T>) {
+		if constexpr (!std::is_standard_layout_v<T> && !std::is_trivial_v<T>) {
             buf[head].~T();
 		}
         ++head;
@@ -117,7 +117,7 @@ namespace xx
 	template <class T>
 	void Queue<T>::PopLast() noexcept {
 		assert(head != tail);
-        if constexpr (!std::is_pod_v<T>) {
+        if constexpr (!std::is_standard_layout_v<T> && !std::is_trivial_v<T>) {
             buf[tail].~T();
         }
         --tail;
@@ -153,7 +153,7 @@ namespace xx
 		//........HT......................
 		if (head == tail) return;
 
-		if constexpr (!std::is_pod_v<T>) {
+		if constexpr (!std::is_standard_layout_v<T> && !std::is_trivial_v<T>) {
 			//......Head+++++++++++Tail......
 			if (head < tail) {
 				for (auto i = head; i < tail; ++i) {
@@ -188,7 +188,7 @@ namespace xx
 
 		//......Head+++++++++++Tail......
 		if (head < tail) {
-			if constexpr (!std::is_pod_v<T>) {
+			if constexpr (!std::is_standard_layout_v<T> && !std::is_trivial_v<T>) {
 				//......Head+++++++++++count......
 				for (auto i = head; i < head + count; ++i) buf[i].~T();
 			}
@@ -199,13 +199,13 @@ namespace xx
 			auto frontDataLen = cap - head;
 			//...Head+++
 			if (count < frontDataLen) {
-				if constexpr (!std::is_pod_v<T>) {
+				if constexpr (!std::is_standard_layout_v<T> && !std::is_trivial_v<T>) {
 					for (auto i = head; i < head + count; ++i) buf[i].~T();
 				}
 				head += count;
 			}
 			else {
-				if constexpr (!std::is_pod_v<T>) {
+				if constexpr (!std::is_standard_layout_v<T> && !std::is_trivial_v<T>) {
 					//...Head++++++
 					for (auto i = head; i < cap; ++i) buf[i].~T();
 				}
@@ -213,7 +213,7 @@ namespace xx
 				// <-Head
 				head = count - frontDataLen;
 
-				if constexpr (!std::is_pod_v<T>) {
+				if constexpr (!std::is_standard_layout_v<T> && !std::is_trivial_v<T>) {
 					// ++++++Head...
 					for (size_t i = 0; i < head; ++i) buf[i].~T();
 				}
