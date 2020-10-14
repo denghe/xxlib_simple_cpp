@@ -1,14 +1,20 @@
 #pragma once
 
-#include <coroutine>
 #include <vector>
+#if defined(__clang__) || defined(_MSC_VER)
+#include <experimental/coroutine>
+#define CorNamespace std::experimental
+#else
+#include <coroutine>
+#define CorNamespace std
+#endif
 
-#define CorYield co_await std::suspend_always{};
+#define CorYield co_await CorNamespace::suspend_always{};
 #define CorAwait(func) {auto g = func; while(g.Next()) {CorYield;}}
 #define CorRtv xx::Generator<int>
 
 namespace xx {
-    using namespace std;
+    using namespace CorNamespace;
 
     template<typename T>
     struct Generator {

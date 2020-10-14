@@ -22,7 +22,7 @@ constexpr auto xx::Detail::NameOf() [with T = {
 }]
 */
             return std::string_view{__PRETTY_FUNCTION__ + 47, sizeof(__PRETTY_FUNCTION__) - 50};
-#elif defined(_MSC_VER) && _MSC_VER >= 1920 && _MSC_VER < 1930  // vs2019 16.0
+#elif defined(_MSC_VER) && _MSC_VER >= 1920
             /* 输出前后缀：
 auto __cdecl xx::Detail::NameOf<
 >(void) noexcept

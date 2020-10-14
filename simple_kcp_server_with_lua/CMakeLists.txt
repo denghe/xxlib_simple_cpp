@@ -5,8 +5,15 @@ set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines") # -fcoroutines-ts -stdlib=libc++ -v
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto") # -fuse-ld=gold")
+#gcc10
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines")
+#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
+
+#clang10 如果编译通过 但是编辑器飘红, 则需要手动复制 .h 到编辑器某目录
+set(CMAKE_C_COMPILER clang-10)
+set(CMAKE_CXX_COMPILER clang++-10)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines-ts -stdlib=libc++ -v")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -fuse-ld=gold")
 
 include_directories(
         ../xxlib
@@ -26,12 +33,8 @@ add_executable(simple_kcp_server_with_lua
         server.cpp
         )
 
-
-#target_link_directories(simple_kcp_server_with_lua       )
-
 target_link_libraries(simple_kcp_server_with_lua
         dl
         pthread
         readline
-        #coroutines
         )

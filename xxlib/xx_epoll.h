@@ -5,14 +5,14 @@
 
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <errno.h>
-#include <signal.h>
+#include <cerrno>
+#include <csignal>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>

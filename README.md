@@ -107,7 +107,7 @@ File -- Settings -- Build,Execution,Deployment -- Dynamic Analysis Tools -- valg
 File -- Settings -- Build,Execution,Deployment -- Toolchains -- 可点击 + 添加一条设置,  c compiler 填写 /usr/bin/clang-10, c++ compiler 填写 /usr/bin/clang++-10  
 
 
-####clion 典型的 clang 配套 cmake 文件内容( 可能存在的 bug: 远程连接到 linux, C:\Users\xx\AppData\Local\JetBrains\CLion2020.2\.remote\192.168.1.74_22\f64dd6e3-2ee0-4551-bfcd-614330181507\usr\lib\llvm-10 这个目录下有可能缺 include 目录导致 clion 编辑器染色感知失败 但是不影响编译，可从 linux 自行拷贝入内修复这个问题 ):  
+####clion 典型的 clang 配套 cmake 文件内容( 可能存在的 bug: 远程连接到 linux, C:\Users\xx\AppData\Local\JetBrains\CLion2020.2\.remote\192.168.1.74_22\f64dd6e3-2ee0-4551-bfcd-614330181507\usr\lib\llvm-10 这个目录长相下有可能缺 include 目录导致 clion 编辑器染色感知失败 但是不影响编译，可从 linux 自行拷贝入内修复这个问题 ):  
 ```
 set(CMAKE_C_COMPILER clang-10)
 set(CMAKE_CXX_COMPILER clang++-10)
