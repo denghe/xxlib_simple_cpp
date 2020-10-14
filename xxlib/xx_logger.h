@@ -309,10 +309,13 @@ namespace xx {
                 // 试图加载 logger cfg
                 if (std::ifstream(cfgName.c_str()).good()) {
                     ajson::load_from_file(cfg, cfgName.c_str());
+#ifdef LOG_COUT_VERBOS
                     std::cout << "logger load \"" << cfgName << "\" = " << cfg << std::endl;
+#endif
                 } else {
-                    std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg
-                              << std::endl;
+#ifdef LOG_COUT_VERBOS
+                    std::cout << "can't find config file: " << cfgName << ", will be use default settings = " << cfg << std::endl;
+#endif
                 }
                 // 更新最后加载时间
                 lastLoadConfigTP = nowTicks;

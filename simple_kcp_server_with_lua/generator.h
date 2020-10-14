@@ -1,93 +1,142 @@
-//
-// Created by rogerv on 9/29/19.
-//
-// Based on example code (but with significant cleanup) found in:
-// Rainer Grimm, Concurrency with Modern C++ (Leanpub, 2017 - 2019), 207-209.
-//
+#pragma once
 
-#ifndef GENERATOR_H
-#define GENERATOR_H
+// c++20 泛型之 发生器. 配合 for 语法 + co_yield 实现协程逻辑基本够用了
 
-// infiniteDataStream.cpp
 #include <experimental/coroutine>
-#include <memory>
-#include <iostream>
+namespace xx {
+    using namespace std::experimental;
 
-namespace coro_exp {
+    template<typename T>
+    struct Generator {
+        // 这个类型名字不能改
+        struct promise_type;
 
-  template<typename T>
-  class generator {
-  public:
-    struct promise_type;
-    using handle_type = std::experimental::coroutine_handle<promise_type>;
-  private:
-    handle_type coro;
-  public:
-    explicit generator(handle_type h) : coro(h) {}
-    generator(const generator &) = delete;
-    generator(generator &&oth) noexcept : coro(oth.coro) {
-      oth.coro = nullptr;
-    }
-    generator &operator=(const generator &) = delete;
-    generator &operator=(generator &&other) noexcept {
-      coro = other.coro;
-      other.coro = nullptr;
-      return *this;
-    }
-    ~generator() {
-      if (coro) {
-        coro.destroy();
-      }
-    }
-
-    bool next() {
-      coro.resume();
-      return not coro.done();
-    }
-
-    T getValue() {
-      return coro.promise().current_value;
-    }
-
-    struct promise_type {
+        using Handle = coroutine_handle<promise_type>;
     private:
-      T current_value{};
-      friend class generator;
+        Handle h;
     public:
-      promise_type() = default;
-      ~promise_type() = default;
-      promise_type(const promise_type&) = delete;
-      promise_type(promise_type&&) = delete;
-      promise_type &operator=(const promise_type&) = delete;
-      promise_type &operator=(promise_type&&) = delete;
+        explicit Generator(Handle&& h) : h(std::move(h)) {}
 
-      auto initial_suspend() {
-        return std::experimental::suspend_always{};
-      }
+        Generator(const Generator &) = delete;
+        Generator &operator=(const Generator &) = delete;
 
-      auto final_suspend() {
-        return std::experimental::suspend_always{};
-      }
+        Generator(Generator &&oth) noexcept: h(oth.h) {
+            oth.h = nullptr;
+        }
+        Generator &operator=(Generator &&other) noexcept {
+            std::swap(h, other.h);
+            return *this;
+        }
 
-      auto get_return_object() {
-        return generator{handle_type::from_promise(*this)};
-      }
+        ~Generator() {
+            if (h) {
+                h.destroy();
+            }
+        }
 
-      auto return_void() {
-        return std::experimental::suspend_never{};
-      }
+        bool Next() {
+            h.resume();
+            return not h.done();
+        }
 
-      auto yield_value(T some_value) {
-        current_value = some_value;
-        return std::experimental::suspend_always{};
-      }
+        T Value() {
+            return h.promise().current_value;
+        }
 
-      void unhandled_exception() {
-        std::exit(1);
-      }
+
+        template<typename F>
+        void Foreach(F&& func) {
+            while(true) {
+                h.resume();
+                if (h.done()) return;
+                func(h.promise().current_value);
+            }
+        }
+
+        void AWait() {
+            while(true) {
+                h.resume();
+                if (h.done()) return;
+            }
+        }
+
+        struct promise_type {
+        private:
+            T current_value{};
+
+            friend class Generator;
+
+        public:
+            promise_type() = default;
+
+            ~promise_type() = default;
+
+            promise_type(const promise_type &) = delete;
+
+            promise_type(promise_type &&) = delete;
+
+            promise_type &operator=(const promise_type &) = delete;
+
+            promise_type &operator=(promise_type &&) = delete;
+
+            auto initial_suspend() {
+                return suspend_always{};
+            }
+
+            auto final_suspend() {
+                return suspend_always{};
+            }
+
+            auto get_return_object() {
+                return Generator{Handle::from_promise(*this)};
+            }
+
+            auto return_void() {
+                return suspend_never{};
+            }
+
+            auto yield_value(T some_value) {
+                current_value = some_value;
+                return suspend_always{};
+            }
+
+            void unhandled_exception() {
+                std::exit(1);
+            }
+        };
+
+
+        struct iterator_end_sentinel {
+        };
+
+        struct iterator {
+            template<class>
+            friend
+            class Generator;
+
+            using iterator_category = std::input_iterator_tag;
+            using value_type = T;
+
+            T operator*() {
+                return _promise->current_value;
+            }
+
+            void operator++() {
+                Handle::from_promise(*_promise).resume();
+            }
+
+            bool operator!=(iterator_end_sentinel) {
+                return !Handle::from_promise(*_promise).done();
+            }
+
+        private:
+            explicit iterator(promise_type *promise) : _promise(promise) {}
+
+            promise_type *_promise;
+        };
+
+        iterator begin() { return iterator(&h.promise()); }
+
+        iterator_end_sentinel end() { return {}; }
     };
-  };
-
-} // coroutn_exp
-
-#endif //GENERATOR_H
+}
