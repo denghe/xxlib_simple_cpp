@@ -4,20 +4,19 @@
 
 int64_t count = 0;
 
-CoRtv Delay(int n) {
-    while (n--) {
-        CoYield;
+CoRtv Delay() {
+    while (true) {
         ++count;
+        CoYield;
     }
 }
 
 int main() {
-    xx::Cors cs;
-    for (int i = 0; i < 10000; ++i) {
-        cs.Add(Delay(10000));
-    }
+    auto g = Delay();
     auto secs = xx::NowSteadyEpochSeconds();
-    while (cs.Update()) {}
+    for (int i = 0; i < 1000000000; ++i) {
+        g.Next();
+    }
     std::cout << xx::NowSteadyEpochSeconds() - secs << ", " << count << std::endl;
     return 0;
 }

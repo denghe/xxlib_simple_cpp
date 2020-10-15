@@ -1,14 +1,22 @@
 #pragma once
 #include <vector>
+#ifdef __clang__
+#include <experimental/coroutine>
+#define CoYield co_await std::experimental::suspend_always{}
+#else
 #include <coroutine>
-
 #define CoYield co_await std::suspend_always{}
+#endif
 #define CoAwait(func) {auto g = func; while(g.Next()) {CoYield;}}
 #define CoRtv xx::Generator<int>
 #define CoReturn co_return
 
 namespace xx {
+#ifdef __clang__
+    using namespace std::experimental;
+#else
     using namespace std;
+#endif
     template<typename T>
     struct Generator {
         struct promise_type;
