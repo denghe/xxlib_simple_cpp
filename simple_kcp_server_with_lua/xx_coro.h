@@ -1,20 +1,24 @@
 #pragma once
 
 #include <vector>
+
 #if defined(__clang__) || defined(_MSC_VER)
+
 #include <experimental/coroutine>
-#define CorNamespace std::experimental
+
+#define CoNamespace std::experimental
 #else
 #include <coroutine>
 #define CorNamespace std
 #endif
 
-#define CorYield co_await CorNamespace::suspend_always{};
-#define CorAwait(func) {auto g = func; while(g.Next()) {CorYield;}}
-#define CorRtv xx::Generator<int>
+#define CoYield co_await CoNamespace::suspend_always{}
+#define CoAwait(func) {auto g = func; while(g.Next()) {CoYield;}}
+#define CoRtv xx::Generator<int>
+#define CoReturn co_return
 
 namespace xx {
-    using namespace CorNamespace;
+    using namespace CoNamespace;
 
     template<typename T>
     struct Generator {
@@ -129,7 +133,7 @@ namespace xx {
             }
 
         private:
-            explicit iterator(promise_type * const& p) : p(p) {}
+            explicit iterator(promise_type *const &p) : p(p) {}
 
             promise_type *p;
         };
@@ -140,15 +144,14 @@ namespace xx {
     };
 
 
-
     struct Cors {
-        std::vector<CorRtv > cs;
+        std::vector<CoRtv> cs;
 
         inline bool Empty() {
             return cs.empty();
         }
 
-        inline void Add(CorRtv &&c) {
+        inline void Add(CoRtv &&c) {
             cs.emplace_back(std::move(c));
         }
 
