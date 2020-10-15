@@ -1,19 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(simple_kcp_server_with_lua)
 
-set(CMAKE_CXX_STANDARD 20)
-#set(CMAKE_CXX_STANDARD_REQUIRED ON)
-#set(CMAKE_CXX_EXTENSIONS OFF)
-
-#gcc10
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines")
-#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
-
-#clang10 如果编译通过 但是编辑器飘红, 则需要手动复制 .h 到编辑器某目录
-set(CMAKE_C_COMPILER clang-10)
-set(CMAKE_CXX_COMPILER clang++-10)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines-ts -stdlib=libc++ -v")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -fuse-ld=gold")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 
 include_directories(
         ../xxlib
