@@ -1,6 +1,6 @@
-#pragma once
+﻿#pragma once
 #include <vector>
-#ifdef __clang__
+#if defined(__clang__) || defined(_MSC_VER)
 #include <experimental/coroutine>
 #define CoYield co_await std::experimental::suspend_always{}
 #else
@@ -8,11 +8,12 @@
 #define CoYield co_await std::suspend_always{}
 #endif
 #define CoAwait(func) {auto g = func; while(g.Next()) {CoYield;}}
-#define CoRtv xx::Generator<int>
+#define CoAsync xx::Generator<int>
+#define CoRtv CoAsync
 #define CoReturn co_return
 
 namespace xx {
-#ifdef __clang__
+#if defined(__clang__) || defined(_MSC_VER)
     using namespace std::experimental;
 #else
     using namespace std;
@@ -94,7 +95,7 @@ namespace xx {
                     cs.pop_back();
                 }
             }
-            return !cs.empty();
+            return cs.empty();
         }
     };
 }

@@ -62,7 +62,7 @@ namespace xx {
     constexpr bool IsPod_v = IsPod<T>::value;
 
     template<typename T>
-    struct IsPod<T, std::enable_if_t<std::is_pod_v<T>>> : std::true_type {
+    struct IsPod<T, std::enable_if_t<std::is_standard_layout_v<T> && std::is_trivial_v<T>>> : std::true_type {
     };
 
 

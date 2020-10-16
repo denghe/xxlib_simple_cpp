@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <string>
 #include <memory>
 #include <thread>
@@ -6,164 +6,94 @@
 #include "xx_looper.h"
 #include "xx_chrono.h"
 #include "xx_asio.h"
+#include "xx_coro.h"
 
-#define COR_BEGIN    switch (lineNumber) { case 0:
-#define COR_YIELD    return __LINE__; case __LINE__:;
-#define COR_EXIT     return 0;
-#define COR_END      } return 0;
+CoAsync Delay(double const& secs) {
+	auto timeoutSecs = xx::NowSteadyEpochSeconds() + secs;
+	do {
+		CoYield;
+	} while (xx::NowSteadyEpochSeconds() > timeoutSecs);
+}
 
-// 预声明
-struct CoroContext;
-
-// 协程基类
-struct Coro {
-	// 公共上下文
-	CoroContext& ctx;
-
-	// 必须传入这个
-	Coro(CoroContext& ctx) : ctx(ctx) {}
-	Coro(Coro const&) = delete;
-	Coro& operator=(Coro const&) = delete;
-	virtual ~Coro() = default;
-
-	// 行号
-	int lineNumber = 0;
-
-	// 执行体
-	virtual int operator()() = 0;
-};
-
-// 公共上下文
-struct CoroContext {
-	xx::Asio::Client client;
-	std::vector<std::unique_ptr<Coro>> coros;
-	double lastSecs = xx::NowSteadyEpochSeconds();
-
-	CoroContext()
-		: client(32768, 2) {
-		client.onFrameUpdate = [&] {
-			// 倒扫以方便交换删除
-			for (auto&& i = coros.size() - 1; i != (size_t)-1; --i) {
-				auto&& coro = coros[i].get();
-				coro->lineNumber = (*coro)();
-				// 如果协程已执行完毕 就交换删除
-				if (!coro->lineNumber) {
-					if (i < coros.size() - 1) {
-						std::swap(coros[coros.size() - 1], coros[i]);
-					}
-					coros.pop_back();
-				}
-			}
-			// 如果一个不剩，通知程序退出
-			return coros.empty() ? 1 : 0;
-		};
-	}
-
-	int RunOnce() {
-		return client.RunOnce(xx::NowSteadyEpochSeconds(lastSecs));
-	}
-
-	CoroContext(CoroContext const&) = delete;
-	CoroContext& operator=(CoroContext const&) = delete;
-	virtual ~CoroContext() = default;
-};
-
-struct Coro1 : Coro {
-	using Coro::Coro;
-
-	int operator()() override {
-		COR_BEGIN;
-		// 初始化拨号 ip:port
-		ctx.client.AddDialIP("192.168.1.74", { 12333 });
+int main() {
+	xx::Asio::Client client(32768, 10);
+	xx::Cors cors;
+	client.onFrameUpdate = [&] {
+		return (int)cors.Update();
+	};
+	auto co = [&]()->CoAsync {
+		// 初始化拨号 ip:port  // todo: 域名解析, 包协议版本比对
+		client.AddDialIP("192.168.1.74", { 12333 });
 
 		// 无脑重置状态
-	LabDial:;
-		COR_YIELD;
-		ctx.client.Stop();
-		ctx.client.peer.reset();
+	LabDial:
+		CoYield;
+		client.Stop();
+		client.peer.reset();
 
 		// 等 1 秒
-		nowSecs = xx::NowSteadyEpochSeconds();
-		while (xx::NowSteadyEpochSeconds() - nowSecs < 1) {
-			COR_YIELD;
-		}
+		CoAwait(Delay(1));
 
+		// 开始拨号( 5秒超时 ) 
 		std::cout << "dial..." << std::endl;
-		// 开始拨号( 5秒超时 ) // todo: 域名解析, 包协议版本比对
-		ctx.client.Dial(5);
+		client.Dial(5);
 
 		// 等拨号器变得不忙
-		while (ctx.client.Busy()) {
-			COR_YIELD
+		while (client.Busy()) {
+			CoYield;
 		}
 
 		// 如果 peer 为空: 表示没有连上, 或者刚连上就被掐线. 重新拨号
-		if (!ctx.client.peer) {
+		if (!client.peer) {
 			std::cout << "dial timeout or peer disconnected." << std::endl;
 			goto LabDial;
 		}
 		std::cout << "connected." << std::endl;
 
+		// for easy use
+		auto&& peer = client.peer;
+		auto&& recvs = peer->recvs;
+
 		// 设置 x 秒后自动 Close
-		ctx.client.peer->SetTimeout(10);
+		peer->SetTimeout(10);
 
 		// 不断发点啥 并判断是否断线. 需要符合 4 字节长度包头格式
 		while (true) {
-			{
-				// for easy use
-				auto&& peer = ctx.client.peer;
-				auto&& recvs = peer->recvs;
+			// 随便发点啥
+			peer->Send("\1\0\0\0\1", 5);
 
-				// 随便发点啥
-				peer->Send("\1\0\0\0\1", 5);
+			// 如果有收到包，就开始处理
+			while (!recvs.empty()) {
+				// 定位到最前面一条
+				auto&& pkg = recvs.front();
 
-				// 如果有收到包，就开始处理
-				while (!recvs.empty()) {
-					// 定位到最前面一条
-					auto&& pkg = recvs.front();
+				// todo: logic here
 
-					// todo: logic here
+				// 断线判断( 有可能上面的逻辑代码导致 )
+				if (peer->closed) break;
 
-					// 断线判断( 有可能上面的逻辑代码导致 )
-					if (peer->closed) break;
+				// 续命
+				peer->SetTimeout(10);
 
-					// 续命
-					peer->SetTimeout(10);
-
-					// 弹出最前面一条
-					recvs.pop_front();
-				}
-
-				// 如果断线, 重新拨号
-				if (peer->closed) {
-					std::cout << "peer disconnected. reason = " << peer->closed << " desc = " << peer->closedDesc << std::endl;
-					goto LabDial;
-				}
+				// 弹出最前面一条
+				recvs.pop_front();
 			}
-			COR_YIELD;
+
+			// 如果断线, 重新拨号
+			if (peer->closed) {
+				std::cout << "peer disconnected. reason = " << peer->closed << " desc = " << peer->closedDesc << std::endl;
+				goto LabDial;
+			}
+			CoYield;
 		}
-
-		COR_END;
-	}
-
-	// 存当前时间 for 定时
-	double nowSecs = 0;
-
-	// 通常用于存放返回值
-	int r = 0;
-};
-
-int main() {
-	CoroContext ctx;
-
-	// 创建一个协程
-	ctx.coros.emplace_back(xx::MakeU<Coro1>(ctx));
-
+	};
+	cors.Add(co());
 	// 简单模拟 60 帧执行效果
 	auto lastSecs = xx::NowSteadyEpochSeconds();
 	while (true) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(16));
-		if (int r = ctx.RunOnce()) return r;
+		auto elapsedSecs = xx::NowSteadyEpochSeconds(lastSecs);
+		if (int r = client.RunOnce(elapsedSecs)) return r;
 	}
 	return 0;
 }
@@ -184,14 +114,14 @@ int main() {
 //	xx::Looper::Context ctx(8192, 10);
 //
 //	// 设置帧事件
-//	ctx.onFrameUpdate = [&] {
+//	onFrameUpdate = [&] {
 //		// 先收上一帧到现在的包
 //		ioc.poll();
 //
 //		// 网络帧逻辑处理
 //		// 每帧发个包
 //		us.async_receive_from(asio::buffer(d), rep, [&](const asio::error_code& e, size_t recvLen) {
-//			std::cout << "frameNumber = " << ctx.frameNumber << ", e = " << e << ", recvLen = " << recvLen << std::endl;
+//			std::cout << "frameNumber = " << frameNumber << ", e = " << e << ", recvLen = " << recvLen << std::endl;
 //		});
 //		us.send_to(asio::buffer("asdf"), tar);
 //
@@ -204,10 +134,10 @@ int main() {
 //	auto lastSecs = xx::NowSteadyEpochSeconds();
 //	while (true) {
 //		std::this_thread::sleep_for(std::chrono::milliseconds(16));
-//		ctx.secondsPool += xx::NowSteadyEpochSeconds(lastSecs);
+//		secondsPool += xx::NowSteadyEpochSeconds(lastSecs);
 //
 //		// 试触发 FrameUpdate
-//		if (int r = ctx.RunOnce()) return r;
+//		if (int r = RunOnce()) return r;
 //	}
 //	return 0;
 //}
