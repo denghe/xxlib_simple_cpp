@@ -124,7 +124,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -fuse-ld=gold")
 ## 各种需要安装的东西总结如下: ( 可以按需窜起来一波流 )  
 ```
 gcc g++ gdb gdbserver cmake valgrind
-llvm-10 llvm-10-dev clang-10 llvm-10-tools libc++-10-dev libc++abi-10-dev
+llvm-10 llvm-10-dev clang-10 llvm-10-tools libc++-10-dev libc++abi-10-dev clang
 libreadline-dev
 libboost-all-dev
 libsqlite3-dev

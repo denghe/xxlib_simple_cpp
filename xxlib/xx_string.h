@@ -265,7 +265,7 @@ namespace xx {
             std::apply([&](auto const &... args) {
                 std::initializer_list<int> n{((::xx::Append(s, args, ',')), 0)...};
                 (void(n));
-                if constexpr(sizeof...(args)) {
+                if constexpr(sizeof...(args) > 0) {
                     s.resize(s.size() - 1);
                 }
             }, in);
