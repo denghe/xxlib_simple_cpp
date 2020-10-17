@@ -15,7 +15,6 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto -fuse-ld=gold")
 
 include_directories(
         ../xxlib
-        #/usr/lib/llvm-10/include/c++/v1
         )
 
 add_executable(simple_coroutine_test

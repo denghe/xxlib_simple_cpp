@@ -2,12 +2,11 @@
 #include <vector>
 #if defined(__clang__) || defined(_MSC_VER)
 #include <experimental/coroutine>
-#define CoYield co_await std::experimental::suspend_always{}
 #else
 #include <coroutine>
-#define CoYield co_await std::suspend_always{}
 #endif
-#define CoAwait(func) {auto g = func; while(g.Next()) {CoYield;}}
+#define CoYield co_yield 0  // gcc 下比 co_await std::suspend_always{} 快
+#define CoAwait(func) {auto&& g = func; while(g.Next()) {CoYield;}}
 #define CoAsync xx::Generator<int>
 #define CoRtv CoAsync
 #define CoReturn co_return

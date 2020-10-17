@@ -4,9 +4,15 @@
 
 int64_t count = 0;
 
-CoRtv Yield2() {
-    CoYield;
+void XXX() __attribute__ ((noinline)) {
     ++count;
+}
+
+CoRtv Yield2() {
+    while(true) {
+        CoYield;
+        ++count;
+    }
 }
 
 CoRtv Yield() {
@@ -20,17 +26,21 @@ CoRtv Delay() {
 }
 
 int main() {
-    auto test = [] {
-        auto g = Delay();
+    {
         auto secs = xx::NowSteadyEpochSeconds();
+        auto g = Yield2();
         for (int i = 0; i < 100000000; ++i) {
             g.Next();
         }
         std::cout << xx::NowSteadyEpochSeconds() - secs << ", " << count << std::endl;
-    };
-    test();
-    test();
-    std::cin.get();
+    }
+    {
+        auto secs = xx::NowSteadyEpochSeconds();
+        for (int i = 0; i < 100000000; ++i) {
+            XXX();
+        }
+        std::cout << xx::NowSteadyEpochSeconds() - secs << ", " << count << std::endl;
+    }
     return 0;
 }
 
