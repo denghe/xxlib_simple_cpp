@@ -1,36 +1,52 @@
 #include <iostream>
 #include <string>
 #include <memory>
-#include <asio.hpp>
-#include "xx_typename_islambda.h"
 
 int main() {
-	try {
-		char d[2048];
-		asio::io_context ioc(1);
-		asio::ip::udp::socket us(ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 12345));
-		asio::ip::udp::endpoint ep;
-		std::function<void(const asio::error_code& e, size_t recvLen)> f;
-		f = [&](auto&& e, auto&& recvLen) {
-			if (!e) {
-				if (recvLen) {
-					us.send_to(asio::buffer(d, recvLen), ep);
-					//us.async_send_to(asio::buffer(d, recvLen), ep, [&](const asio::error_code& e, size_t sentLen) {
-					//	us.async_receive_from(asio::buffer(d), ep, f);
-					//});
-				}
-				//else
-				us.async_receive_from(asio::buffer(d), ep, f);
-			}
-		};
-		f({}, 0);
-		ioc.run();
+	auto len = 1024LL * 1024 * 1024 * 5;
+	auto a = new uint8_t[len];// { 0 };
+	size_t count = 0;
+	for (size_t i = 0; i < len; i += 4096) {
+		count += a[i];
 	}
-	catch (std::exception& e) {
-		std::cerr << e.what() << std::endl;
-	}
+	std::cout << count << std::endl;
+	std::cin.get();
 	return 0;
 }
+
+
+//#include <iostream>
+//#include <string>
+//#include <memory>
+//#include <asio.hpp>
+//
+//int main() {
+//	try {
+//		char d[2048];
+//		asio::io_context ioc(1);
+//		asio::ip::udp::socket us(ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 12345));
+//		asio::ip::udp::endpoint ep;
+//		std::function<void(const asio::error_code& e, size_t recvLen)> f;
+//		f = [&](auto&& e, auto&& recvLen) {
+//			if (!e) {
+//				if (recvLen) {
+//					us.send_to(asio::buffer(d, recvLen), ep);
+//					//us.async_send_to(asio::buffer(d, recvLen), ep, [&](const asio::error_code& e, size_t sentLen) {
+//					//	us.async_receive_from(asio::buffer(d), ep, f);
+//					//});
+//				}
+//				//else
+//				us.async_receive_from(asio::buffer(d), ep, f);
+//			}
+//		};
+//		f({}, 0);
+//		ioc.run();
+//	}
+//	catch (std::exception& e) {
+//		std::cerr << e.what() << std::endl;
+//	}
+//	return 0;
+//}
 
 
 

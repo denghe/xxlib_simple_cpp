@@ -1,4 +1,5 @@
-﻿#include <asio.hpp>
+﻿#pragma once
+#include <asio.hpp>
 #include <iostream>
 #include <unordered_map>
 #include <initializer_list>
@@ -117,6 +118,7 @@ namespace xx::Asio {
 			for (auto&& a : iter->second) {
 				AddDialAddress(a, ports_);
 			}
+			return 0;
 		}
 
 		// 添加拨号地址( string 版 ). 端口合并去重
@@ -361,7 +363,7 @@ namespace xx::Asio {
 		return this->BaseType::FrameUpdate();
 	}
 
-	Client::Client(size_t const& wheelLen, double const& frameRate_)
+	inline Client::Client(size_t const& wheelLen, double const& frameRate_)
 		: BaseType(wheelLen, frameRate_)
 		, shakeTimer(this)
 		, dialTimer(this)

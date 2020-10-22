@@ -89,6 +89,7 @@ namespace xx::Lua {
 
         static inline void Fill(lua_State *const &L) {
             Meta<T>(L, name)
+                    .Func("Update", &Objs::FishBase::Update)
                     .Prop("Get_n", "Set_n", &Objs::FishBase::n);
         }
     };

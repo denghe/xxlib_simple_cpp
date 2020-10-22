@@ -2,7 +2,8 @@
 
 #include "xx_data_rw.h"
 #include "xx_string.h"
-#include <cmath>        // PI.....
+#define _USE_MATH_DEFINES
+#include <math.h>        // M_PI PI.....
 
 namespace xx {
 
@@ -126,23 +127,23 @@ namespace xx {
 
 		// 前进: 传入 移动距离( 正数 )，当前点下标，当前点已移动距离，回填坐标 & 角度
 		// 返回是否已移动到终点( isLoop == false )
-		bool Forward(float total, size_t& i, float& d, xx::Point& pos, float& a) const;
+		bool Forward(float total, uint32_t& i, float& d, xx::Point& pos, float& a) const;
 
 		// 后退: 传入 移动距离( 正数 )，当前点下标，当前点剩余距离，回填坐标 & 角度
 		// 返回是否已移动到起点( isLoop == false )
-		bool Backward(float total, size_t& i, float& d, xx::Point& pos, float& a) const;
+		bool Backward(float total, uint32_t& i, float& d, xx::Point& pos, float& a) const;
 
 		// 获取起点的数据
-		void Begin(size_t& i, float& d, xx::Point& pos, float& a) const;
+		void Begin(uint32_t& i, float& d, xx::Point& pos, float& a) const;
 
 		// 获取终点的数据
-		void End(size_t& i, float& d, xx::Point& pos, float& a) const;
+		void End(uint32_t& i, float& d, xx::Point& pos, float& a) const;
 
 		// 针对手工填充了坐标的数据，填充 角度 和 距离
 		void FillDA();
 
 		// 创建一个曲线连接途经点的 pathway
-		static std::shared_ptr<Pathway> Make(bool isLoop, std::vector<CurvePoint> const& ps);
+		static std::shared_ptr<Pathway> MakeCurve(bool isLoop, std::vector<CurvePoint> const& ps);
 	};
 
 
@@ -376,7 +377,7 @@ namespace xx {
 	}
 
 
-	inline bool Pathway::Forward(float total, size_t& i, float& d, xx::Point& pos, float& a) const {
+	inline bool Pathway::Forward(float total, uint32_t & i, float& d, xx::Point& pos, float& a) const {
 		auto siz = points.size();
 	LabBegin:
 		auto left = points[i].d - d;
@@ -414,7 +415,7 @@ namespace xx {
 		return false;
 	}
 
-	inline bool Pathway::Backward(float total, size_t& i, float& d, xx::Point& pos, float& a) const {
+	inline bool Pathway::Backward(float total, uint32_t& i, float& d, xx::Point& pos, float& a) const {
 		auto siz = points.size();
 	LabBegin:
 		if (total >= d) {
@@ -443,14 +444,14 @@ namespace xx {
 	}
 
 
-	inline void Pathway::Begin(size_t& i, float& d, xx::Point& pos, float& a) const {
+	inline void Pathway::Begin(uint32_t& i, float& d, xx::Point& pos, float& a) const {
 		i = 0;
 		d = 0;
 		pos = points[0].pos;
 		a = points[0].a;
 	}
 
-	inline void Pathway::End(size_t& i, float& d, xx::Point& pos, float& a) const {
+	inline void Pathway::End(uint32_t& i, float& d, xx::Point& pos, float& a) const {
 		i = points.size() - 1;
 		d = points[i].d;
 		pos = points[i].pos;
@@ -473,7 +474,6 @@ namespace xx {
 			points[i].d = 0;
 		}
 	}
-
 
 	inline PathwayMaker::PathwayMaker(xx::Point const& pos) {
 		xx::MakeTo(pathway);
@@ -540,7 +540,7 @@ namespace xx {
 	}
 
 
-	inline std::shared_ptr<Pathway> Pathway::Make(bool isLoop, std::vector<CurvePoint> const& ps) {
+	inline std::shared_ptr<Pathway> Pathway::MakeCurve(bool isLoop, std::vector<CurvePoint> const& ps) {
 		auto rtv = xx::Make<xx::Pathway>();
 		rtv->isLoop = isLoop;
 

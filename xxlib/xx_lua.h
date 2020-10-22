@@ -1,8 +1,9 @@
 ﻿#pragma once
 
 // 与 lua 交互的代码应 Try 执行, 方能正确响应 luaL_error 或 C++ 异常
-// luajit 支持 C++ 异常, 支持 中文变量名, 官方 lua 5.3/4 很多预编译库默认不支持, 必须强制以 C++ 方式自己编译
+// luajit 有限支持 C++ 异常, 支持 中文变量名, 官方 lua 5.3/4 很多预编译库默认不支持, 必须强制以 C++ 方式自己编译
 // 注意：To 系列 批量操作时，不支持负数 idx ( 递归模板里 + 1 就不对了 )
+// 注意：这里使用 LUA_VERSION_NUM == 501 来检测是否为 luajit
 
 #include "xx_data_rw.h"
 #include "xx_string.h"
@@ -35,10 +36,10 @@ namespace xx::Lua {
 
     // 如果是 luajit 就啥都不用做了
     inline int CheckStack(lua_State *const &L, int const &n) {
-#ifndef USING_LUAJIT
-        return lua_checkstack(L, n);
-#else
+#if LUA_VERSION_NUM == 501
         return 1;
+#else
+        return lua_checkstack(L, n);
 #endif
     }
 
@@ -56,11 +57,11 @@ namespace xx::Lua {
     template<typename T>
     void PushMeta(lua_State *const &L) {
         CheckStack(L, 3);
-#ifndef USING_LUAJIT
-        lua_rawgetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);              // ..., mt?
-#else
+#if LUA_VERSION_NUM == 501
         lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);                // ..., key
         lua_rawget(L, LUA_REGISTRYINDEX);                                   // ..., mt?
+#else
+        lua_rawgetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);              // ..., mt?
 #endif
         if (lua_isnil(L, -1)) {
             lua_pop(L, 1);                                                  // ...
@@ -87,13 +88,13 @@ namespace xx::Lua {
 
             MetaFuncs<T, void>::Fill(L);                                    // ..., mt
 
-#ifndef USING_LUAJIT
-            lua_pushvalue(L, -1);                                           // ..., mt, mt
-            lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);          // ..., mt
-#else
+#if LUA_VERSION_NUM == 501
             lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);            // ..., mt, key
             lua_pushvalue(L, -2);                                           // ..., mt, key, mt
             lua_rawset(L, LUA_REGISTRYINDEX);                               // ..., mt
+#else
+            lua_pushvalue(L, -1);                                           // ..., mt, mt
+            lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);          // ..., mt
 #endif
         }
     }
@@ -147,7 +148,7 @@ namespace xx::Lua {
 
     // 适配 整数
     template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<std::is_integral_v<T>>> {
+    struct PushToFuncs<T, std::enable_if_t<std::is_integral_v<std::decay_t<T>>>> {
         static inline int Push(lua_State *const &L, T const &in) {
             CheckStack(L, 1);
             lua_pushinteger(L, in);
@@ -163,7 +164,7 @@ namespace xx::Lua {
 
     // 适配 枚举( 转为整数 )
     template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<std::is_enum_v<T>>> {
+    struct PushToFuncs<T, std::enable_if_t<std::is_enum_v<std::decay_t<T>>>> {
         typedef std::underlying_type_t<T> UT;
 
         static inline int Push(lua_State *const &L, T const &in) {
@@ -177,7 +178,7 @@ namespace xx::Lua {
 
     // 适配 浮点
     template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<std::is_floating_point_v<T>>> {
+    struct PushToFuncs<T, std::enable_if_t<std::is_floating_point_v<std::decay_t<T>>>> {
         static inline int Push(lua_State *const &L, T const &in) {
             CheckStack(L, 1);
             lua_pushnumber(L, in);
@@ -283,27 +284,27 @@ namespace xx::Lua {
     // 适配模板转为函数
     namespace Detail {
         template<typename Arg, typename...Args>
-        int Push(lua_State *const &L, Arg &&arg) {
+        inline int Push(lua_State *const &L, Arg &&arg) {
             return ::xx::Lua::PushToFuncs<Arg>::Push(L, std::forward<Arg>(arg));
         }
 
         template<typename Arg, typename...Args>
-        int Push(lua_State *const &L, Arg &&arg, Args &&...args) {
+        inline int Push(lua_State *const &L, Arg &&arg, Args &&...args) {
             int n = ::xx::Lua::PushToFuncs<Arg>::Push(L, std::forward<Arg>(arg));
             return n + Push(L, std::forward<Args>(args)...);
         }
 
-        int Push(lua_State *const &L) {
+        inline int Push(lua_State *const &L) {
             return 0;
         }
     }
 
     template<typename...Args>
-    int Push(lua_State *const &L, Args &&...args) {
+    inline int Push(lua_State *const &L, Args &&...args) {
         return ::xx::Lua::Detail::Push(L, std::forward<Args>(args)...);
     }
 
-    int Push(lua_State *const &L) {
+    inline int Push(lua_State *const &L) {
         return 0;
     }
 
@@ -311,19 +312,19 @@ namespace xx::Lua {
     namespace Detail {
 
         template<typename Arg, typename...Args>
-        void To(lua_State *const &L, int const &idx, Arg &arg, Args &...args) {
+        inline void To(lua_State *const &L, int const &idx, Arg &arg, Args &...args) {
             xx::Lua::PushToFuncs<Arg>::To(L, idx, arg);
             if constexpr(sizeof...(Args)) {
                 To(L, idx + 1, args...);
             }
         }
 
-        void To(lua_State *const &L, int const &idx) {
+        inline void To(lua_State *const &L, int const &idx) {
         }
     }
 
     template<typename...Args>
-    void To(lua_State *const &L, int const &idx, Args &...args) {
+    inline void To(lua_State *const &L, int const &idx, Args &...args) {
         xx::Lua::Detail::To(L, idx, args...);
     }
 
@@ -758,11 +759,11 @@ namespace xx::Lua {
         CheckStack(L, 2);
         lua_getmetatable(L, idx);                                           // ... tar(idx) ..., mt
         if (lua_isnil(L, -1)) goto LabError;
-#ifndef USING_LUAJIT
-        lua_rawgetp(L, -1, MetaFuncs<U>::name);                             // ... tar(idx) ..., mt, 1?
-#else
+#if LUA_VERSION_NUM == 501
         lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);                // ... tar(idx) ..., mt,  key
         lua_rawget(L, -2);                                                  // ... tar(idx) ..., mt, 1?
+#else
+        lua_rawgetp(L, -1, MetaFuncs<U>::name);                             // ... tar(idx) ..., mt, 1?
 #endif
         if (lua_isnil(L, -1)) goto LabError;
         lua_pop(L, 2);                                                      // ... tar(idx) ...
@@ -807,18 +808,28 @@ namespace xx::Lua {
             lua_pushcclosure(L, [](auto L) {                            // ..., cc
                 C *p = nullptr;
                 PushToFuncs<C, void>::ToPtr(L, 1, p);
-                if (!p) Error(L, "args[1] is nullptr?");
+                auto self = ToPointer(*p);
+                if (!self) Error(L, "args[1] is nullptr?");
                 auto &&f = *(T *) lua_touserdata(L, lua_upvalueindex(1));
-                FuncA_t<T> tuple;
-                To(L, 2, tuple);
                 int rtv = 0;
-                std::apply([&](auto &... args) {
+                if constexpr (std::is_void_v<FuncA_t<T>>) {
                     if constexpr(std::is_void_v<FuncR_t<T>>) {
-                        ((*p).*f)(std::move(args)...);
+                        ((*self).*f)();
                     } else {
-                        rtv = xx::Lua::Push(L, ((*p).*f)(std::move(args)...));
+                        rtv = xx::Lua::Push(L, ((*self).*f)());
                     }
-                }, tuple);
+                }
+                else {
+                    FuncA_t<T> tuple;
+                    To(L, 2, tuple);
+                    std::apply([&](auto &... args) {
+                        if constexpr(std::is_void_v<FuncR_t<T>>) {
+                            ((*self).*f)(std::move(args)...);
+                        } else {
+                            rtv = xx::Lua::Push(L, ((*self).*f)(std::move(args)...));
+                        }
+                    }, tuple);
+                }
                 return rtv;
             }, 1);
             lua_rawset(L, -3);
@@ -919,21 +930,23 @@ namespace xx {
                     dw.Write(lua_toboolean(in, -1) ? LuaTypes::True : LuaTypes::False);
                     return;
                 case LUA_TNUMBER: {
-#ifndef USING_LUAJIT
-                    if (lua_isinteger(in, -1)) {
-                        dw.Write(LuaTypes::Integer, (int64_t) lua_tointeger(in, -1));
-                    } else {
-                        dw.Write(LuaTypes::Double);
-                        dw.WriteFixed(lua_tonumber(in, -1));
-                    }
-#else
+#if LUA_VERSION_NUM == 501
                     auto d = lua_tonumber(in, -1);
-                    auto i = (int64_t) d;
-                    if ((double) i == d) {
+                    auto i = (int64_t)d;
+                    if ((double)i == d) {
                         dw.Write(LuaTypes::Integer, i);
-                    } else {
+                    }
+                    else {
                         dw.Write(LuaTypes::Double);
                         dw.WriteFixed(d);
+                    }
+#else
+                    if (lua_isinteger(in, -1)) {
+                        dw.Write(LuaTypes::Integer, (int64_t)lua_tointeger(in, -1));
+                    }
+                    else {
+                        dw.Write(LuaTypes::Double);
+                        dw.WriteFixed(lua_tonumber(in, -1));
                     }
 #endif
                     return;

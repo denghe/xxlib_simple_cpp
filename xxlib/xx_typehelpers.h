@@ -250,7 +250,11 @@ namespace xx {
     // FuncR_t   FuncA_t  FuncC_t  lambda / function 类型拆解
 
     template<typename T, class = void>
-    struct FuncTraits;
+    struct FuncTraits {
+        using R = void;
+        using A = void;
+        using C = void;
+    };
 
     template<typename Rtv, typename...Args>
     struct FuncTraits<Rtv (*)(Args ...)> {

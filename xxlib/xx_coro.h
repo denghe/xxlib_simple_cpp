@@ -41,7 +41,7 @@ namespace xx {
         }
         bool Next() {
             h.resume();
-            return not h.done();
+            return !h.done();
         }
         T Value() {
             return h.promise().v;
