@@ -157,6 +157,13 @@ namespace xx {
     constexpr bool IsUnique_v = IsUnique<T>::value;
 
 
+    template <typename T, typename = void>
+    struct IsContainer : std::false_type {};
+
+    template <typename T>
+    struct IsContainer<T, std::void_t<decltype(std::declval<T>().data()), decltype(std::declval<T>().size())>> : std::true_type {};
+
+
     /************************************************************************************/
     // IsFunction_v  FunctionType_t 引用类型参数容器类型路由
 
@@ -250,11 +257,7 @@ namespace xx {
     // FuncR_t   FuncA_t  FuncC_t  lambda / function 类型拆解
 
     template<typename T, class = void>
-    struct FuncTraits {
-        using R = void;
-        using A = void;
-        using C = void;
-    };
+    struct FuncTraits;
 
     template<typename Rtv, typename...Args>
     struct FuncTraits<Rtv (*)(Args ...)> {
@@ -268,6 +271,13 @@ namespace xx {
         using R = Rtv;
         using A = std::tuple<RefC_t<Args>...>;
         using C = void;
+    };
+
+    template<typename Rtv, typename CT, typename... Args>
+    struct FuncTraits<Rtv (CT::*)(Args ...)> {
+        using R = Rtv;
+        using A = std::tuple<RefC_t<Args>...>;
+        using C = CT;
     };
 
     template<typename Rtv, typename CT, typename... Args>

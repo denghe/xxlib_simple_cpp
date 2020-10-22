@@ -7,18 +7,30 @@
 
 struct object {
     int value = 2;
+
+    inline int xxx() {
+        return 123;
+    }
+
+    inline void eee(int eee) {
+        std::cout << eee << std::endl;
+    }
 };
 
 using object_w = std::weak_ptr<object>;
 namespace xx::Lua {
     template<typename T>
-    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<T, object_w>>> {
+    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, object_w>>> {
         inline static char const *const name = "object";
+        using U = object;
 
         static inline void Fill(lua_State *const &L) {
-            Meta<object>(L, name)
-                    .Lambda("func", [](object_w &ow) {
-                        if (auto o = ow.lock()) return o->value;
+            Meta<T>(L, name)
+                    .Prop("GetValue", "SetValue", &U::value)
+                    .Func("xxx", &U::xxx)
+                    .Func("eee", &U::eee)
+                    .Lambda("func", [](T &ow) {
+                        if (auto&& o = ow.lock()) return o->value;
                         else return 0;
                     });
         }
@@ -30,6 +42,10 @@ int main() {
     auto o = std::make_shared<object>();
     xx::Lua::SetGlobal(L, "o", std::weak_ptr<object>(o));
     xx::Lua::DoString(L, "print( o:func() )");
+    xx::Lua::DoString(L, "print( o:xxx() )");
+    xx::Lua::DoString(L, "o:eee(444)");
+    xx::Lua::DoString(L, "o:SetValue(33)");
+    xx::Lua::DoString(L, "print( o:GetValue() )");
 
 //    sol::state lua;
 //    lua.open_libraries(sol::lib::base);
