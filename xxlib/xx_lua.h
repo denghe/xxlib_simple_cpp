@@ -683,7 +683,7 @@ namespace xx::Lua {
     Result PCall(lua_State *const &L, Args &&...args) {
         auto top = lua_gettop(L);
         int n = 0;
-        if constexpr(sizeof...(args)) {
+        if constexpr(sizeof...(args) > 0) {
             n = Push(L, std::forward<Args>(args)...);
         }
         return PCallCore(L, top, n);
