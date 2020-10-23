@@ -1,11 +1,10 @@
-﻿#define SOL_ALL_SAFETIES_ON 1
-
-#include <sol/sol.hpp>
-#include <iostream>
+﻿#include <iostream>
 #include "xx_chrono.h"
 #include "xx_lua.h"
 
-struct object {
+struct Env {
+    xx::Lua::State L;
+
     int value = 2;
 
     inline int xxx() {
@@ -15,56 +14,124 @@ struct object {
     inline void eee(int eee) {
         std::cout << eee << std::endl;
     }
+
+    void Run();
 };
 
-using object_w = std::weak_ptr<object>;
 namespace xx::Lua {
     template<typename T>
-    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, object_w>>> {
-        inline static char const *const name = "object";
-        using U = object;
-
+    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Env*>>> {
+        inline static char const *const name = "Env";
+        using U = Env;
         static inline void Fill(lua_State *const &L) {
             Meta<T>(L, name)
                     .Prop("GetValue", "SetValue", &U::value)
                     .Func("xxx", &U::xxx)
                     .Func("eee", &U::eee)
-                    .Lambda("func", [](T &ow) {
-                        if (auto&& o = ow.lock()) return o->value;
-                        else return 0;
+                    .Lambda("func", [](T &o) {
+                        return o->value;
                     });
         }
     };
 }
 
-int main() {
-    xx::Lua::State L;
-    auto o = std::make_shared<object>();
-    xx::Lua::SetGlobal(L, "o", std::weak_ptr<object>(o));
+void Env::Run() {
+    xx::Lua::SetGlobal(L, "o", this);
     xx::Lua::DoString(L, "print( o:func() )");
     xx::Lua::DoString(L, "print( o:xxx() )");
     xx::Lua::DoString(L, "o:eee(444)");
     xx::Lua::DoString(L, "o:SetValue(33)");
     xx::Lua::DoString(L, "print( o:GetValue() )");
+}
 
-//    sol::state lua;
-//    lua.open_libraries(sol::lib::base);
-//
-//    lua.new_usertype<object>( "object" );
-//
-//    // runtime additions: through the sol API
-//    lua["object"]["func"] = [](std::weak_ptr<object>& o) { return o.lock()->value; };
-//
-//    // runtime additions: through a lua script
-//    lua.script("function object:print () print(self:func()) end");
-//
-//    auto o = xx::Make<object>();
-//    lua["o"] = xx::ToWeak(o);
-//    lua.script("o:print()");
-
+int main() {
+    Env e;
+    e.Run();
     std::cout << "end." << std::endl;
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//#define SOL_ALL_SAFETIES_ON 1
+//
+//#include <sol/sol.hpp>
+//#include <iostream>
+//#include "xx_chrono.h"
+//#include "xx_lua.h"
+//
+//struct object {
+//    int value = 2;
+//
+//    inline int xxx() {
+//        return 123;
+//    }
+//
+//    inline void eee(int eee) {
+//        std::cout << eee << std::endl;
+//    }
+//};
+//
+//using object_w = std::weak_ptr<object>;
+//namespace xx::Lua {
+//    template<typename T>
+//    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, object_w>>> {
+//        inline static char const *const name = "object";
+//        using U = object;
+//
+//        static inline void Fill(lua_State *const &L) {
+//            Meta<T>(L, name)
+//                    .Prop("GetValue", "SetValue", &U::value)
+//                    .Func("xxx", &U::xxx)
+//                    .Func("eee", &U::eee)
+//                    .Lambda("func", [](T &ow) {
+//                        if (auto&& o = ow.lock()) return o->value;
+//                        else return 0;
+//                    });
+//        }
+//    };
+//}
+//
+//int main() {
+//    xx::Lua::State L;
+//    auto o = std::make_shared<object>();
+//    xx::Lua::SetGlobal(L, "o", std::weak_ptr<object>(o));
+//    xx::Lua::DoString(L, "print( o:func() )");
+//    xx::Lua::DoString(L, "print( o:xxx() )");
+//    xx::Lua::DoString(L, "o:eee(444)");
+//    xx::Lua::DoString(L, "o:SetValue(33)");
+//    xx::Lua::DoString(L, "print( o:GetValue() )");
+//
+////    sol::state lua;
+////    lua.open_libraries(sol::lib::base);
+////
+////    lua.new_usertype<object>( "object" );
+////
+////    // runtime additions: through the sol API
+////    lua["object"]["func"] = [](std::weak_ptr<object>& o) { return o.lock()->value; };
+////
+////    // runtime additions: through a lua script
+////    lua.script("function object:print () print(self:func()) end");
+////
+////    auto o = xx::Make<object>();
+////    lua["o"] = xx::ToWeak(o);
+////    lua.script("o:print()");
+//
+//    std::cout << "end." << std::endl;
+//    return 0;
+//}
 
 
 
