@@ -345,13 +345,41 @@ namespace xx {
 		static inline int Read(DataReader& dr, std::optional<T>& out) {
 			char hasValue = 0;
 			if (int r = dr.Read(hasValue)) return r;
-			if (!hasValue) return 0;
+			if (!hasValue) {
+			    out.reset();
+                return 0;
+			}
 			if (!out.has_value()) {
 				out.emplace();
 			}
 			return dr.Read(out.value());
 		}
 	};
+
+    // 适配 std::shared_ptr<T> ( 类似 optional 的值类型用法，不支持递归 & 去重 )
+    template<typename T>
+    struct DataFuncs<std::shared_ptr<T>, void> {
+        static inline void Write(DataWriter& dw, std::shared_ptr<T> const& in) {
+            if (in) {
+                dw.Write((char)1, *in);
+            }
+            else {
+                dw.Write((char)0);
+            }
+        }
+        static inline int Read(DataReader& dr, std::shared_ptr<T>& out) {
+            char hasValue = 0;
+            if (int r = dr.Read(hasValue)) return r;
+            if (!hasValue) {
+                out.reset();
+                return 0;
+            }
+            if (!out) {
+                xx::MakeTo(out);
+            }
+            return dr.Read(*out);
+        }
+    };
 
 	// 适配 std::vector<T>
 	template<typename T>
