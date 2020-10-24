@@ -138,8 +138,10 @@ openssh-server net-tools git vim
 open-vm-tools-desktop open-vm-tools
 ```
 
-
-
+## 各种需要安装的东西 for ubuntu 20.10 总结如下:  
+```
+gcc g++ gdb gdbserver clang libc++-11-dev libc++abi-11-dev cmake valgrind libreadline-dev libboost-all-dev libsqlite3-dev libmariadb-dev uuid-dev liblua5.4-dev net-tools git vim
+```
 
 
 初次拉代码, 打开控制台, 输入  

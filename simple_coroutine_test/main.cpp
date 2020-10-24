@@ -4,7 +4,7 @@
 
 int64_t count = 0;
 
-void XXX() __attribute__ ((noinline)) {
+__attribute__ ((noinline)) void XXX() {
     ++count;
 }
 
@@ -28,7 +28,7 @@ CoRtv Delay() {
 int main() {
     {
         auto secs = xx::NowSteadyEpochSeconds();
-        auto g = Yield2();
+        auto g = Delay();
         for (int i = 0; i < 100000000; ++i) {
             g.Next();
         }

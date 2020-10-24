@@ -60,7 +60,7 @@ namespace xx {
             auto initial_suspend() {
                 return suspend_always{};
             }
-            auto final_suspend() {
+            auto final_suspend() noexcept {
                 return suspend_always{};
             }
             auto get_return_object() {
