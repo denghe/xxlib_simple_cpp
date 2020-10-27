@@ -6,3 +6,5 @@ cmake-build-release
 *.user
 Debug
 Release
+bin
+obj
