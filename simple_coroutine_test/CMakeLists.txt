@@ -4,6 +4,8 @@ project(simple_coroutine_test)
 set(CMAKE_CXX_STANDARD 20)
 
 #gcc10+
+set(CMAKE_C_COMPILER gcc)
+set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 

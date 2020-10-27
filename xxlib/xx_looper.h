@@ -4,6 +4,7 @@
 #include <memory>
 #include <exception>
 #include <functional>
+#include <unordered_map>
 
 namespace xx::Looper {
 

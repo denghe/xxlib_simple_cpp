@@ -1,18 +1,18 @@
-#include <iostream>
-#include <string>
-#include <memory>
-
-int main() {
-	auto len = 1024LL * 1024 * 1024 * 5;
-	auto a = new uint8_t[len];// { 0 };
-	size_t count = 0;
-	for (size_t i = 0; i < len; i += 4096) {
-		count += a[i];
-	}
-	std::cout << count << std::endl;
-	std::cin.get();
-	return 0;
-}
+//#include <iostream>
+//#include <string>
+//#include <memory>
+//
+//int main() {
+//	auto len = 1024LL * 1024 * 1024 * 5;
+//	auto a = new uint8_t[len];// { 0 };
+//	size_t count = 0;
+//	for (size_t i = 0; i < len; i += 4096) {
+//		count += a[i];
+//	}
+//	std::cout << count << std::endl;
+//	std::cin.get();
+//	return 0;
+//}
 
 
 //#include <iostream>
@@ -50,33 +50,53 @@ int main() {
 
 
 
-//// test client
-//#include <iostream>
-//#include <string>
-//#include <memory>
-//#include <chrono>
-//#include <asio.hpp>
-//int main() {
-//	try {
-//		asio::io_context ioc;
-//		asio::ip::udp::socket us(ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
-//		asio::ip::udp::endpoint rep;
-//		char d[2048];
-//		asio::error_code error;
-//		auto&& tar = asio::ip::udp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12345);
-//		auto now = std::chrono::system_clock::now();
-//		for (size_t i = 0; i < 100000; i++) {
-//			us.send_to(asio::buffer("asdf"), tar);
-//			us.receive_from(asio::buffer(d), rep, 0, error);
-//		}
-//		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - now).count() << std::endl;
-//		//ioc.run();
-//	}
-//	catch (std::exception& e) {
-//		std::cerr << e.what() << std::endl;
-//	}
-//	return 0;
-//}
+// test client
+#include <iostream>
+#include <string>
+#include <memory>
+#include <chrono>
+#include <asio.hpp>
+
+//socket.non_blocking(true);
+//size_t len = 0;
+//error = boost::asio::error::would_block;
+//while (error == boost::asio::error::would_block)
+////do other things here like go and make coffee
+//len = socket.receive_from(boost::asio::buffer(recv_buf), sender_endpoint, 0, error);
+//std::cout.write(recv_buf.data(), len);
+
+int main() {
+    std::cout << "begin" << std::endl;
+    try {
+        asio::io_context ioc;
+        asio::ip::udp::socket us(ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
+        us.non_blocking(true);
+        std::cout << "asdf" << std::endl;
+        char d[2048];
+
+        auto &&tar = asio::ip::udp::endpoint(asio::ip::address::from_string("10.0.0.13"), 12333);
+        us.send_to(asio::buffer("asdf", 4), tar);
+        std::cout << "qwer" << std::endl;
+        size_t len = 0;
+        asio::error_code error;
+        asio::ip::udp::endpoint rep;
+        for (int i = 0; i < 10; ++i) {
+            len = us.receive_from(asio::buffer(d), rep, 0, error);
+            if (len) break;
+            //else if (error != asio::error::would_block)
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::cout << "i = " << i << std::endl;
+        }
+
+        std::cout << len << std::endl;
+        //ioc.run();
+    }
+    catch (std::exception &e) {
+        std::cerr << e.what() << std::endl;
+    }
+    std::cout << "end" << std::endl;
+    return 0;
+}
 ////us.async_receive_from(asio::buffer(d), rep, [&](const asio::error_code& e, size_t recvLen) {
 ////	std::cout << "e = " << e << ", recvLen = " << recvLen << std::endl;
 ////});
@@ -185,7 +205,7 @@ int main() {
 //{
 //public:
 //
-//	// the storage for each callback has 4k, we have 10 of them¡­ should be enough
+//	// the storage for each callback has 4k, we have 10 of themï¿½ï¿½ should be enough
 //	using buffer_t = std::array<char, buffer_size>;
 //	using callback_list_t = std::array<callback<buffer_t>, 3>;
 //
@@ -224,7 +244,7 @@ int main() {
 //			});
 //	}
 //
-//	// do_send is much easier than do_receive - we *have* all the data, we don't need to advance the callback¡­
+//	// do_send is much easier than do_receive - we *have* all the data, we don't need to advance the callbackï¿½ï¿½
 //	static void do_send(udp::socket& socket, callback_list_t::iterator current_callback, std::size_t length)
 //	{
 //		socket.async_send_to(asio::buffer(current_callback->buffer, std::min(length, buffer_size - 1)), current_callback->sender_endpoint,

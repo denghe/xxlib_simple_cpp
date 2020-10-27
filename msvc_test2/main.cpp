@@ -1,12 +1,9 @@
 ﻿#include <iostream>
-#include <string>
-#include <memory>
 #include <thread>
-#include <asio.hpp>
-#include "xx_looper.h"
 #include "xx_chrono.h"
 #include "xx_asio.h"
 #include "xx_coro.h"
+#include "xx_string.h"
 
 CoAsync Delay(double const& secs) {
 	auto timeoutSecs = xx::NowSteadyEpochSeconds() + secs;
@@ -23,7 +20,7 @@ int main() {
 	};
 	auto co = [&]()->CoAsync {
 		// 初始化拨号 ip:port  // todo: 域名解析, 包协议版本比对
-		client.AddDialIP("192.168.1.74", { 12333 });
+		client.AddDialIP("10.0.0.13", { 12333 });
 
 		// 无脑重置状态
 	LabDial:
@@ -68,6 +65,7 @@ int main() {
 				auto&& pkg = recvs.front();
 
 				// todo: logic here
+				xx::CoutN(*pkg);
 
 				// 断线判断( 有可能上面的逻辑代码导致 )
 				if (peer->closed) break;
