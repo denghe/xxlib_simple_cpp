@@ -1,9 +1,0 @@
-{
-  "profiles": {
-    "tools_codegen_src": {
-      "commandName": "Project",
-      "commandLineArgs": "Objs C:\\Codes\\xxlib_simple_cpp\\gateway_client_lua C:\\Codes\\xxlib_simple_cpp\\gateway_client_lua\\Objs.cs",
-      "workingDirectory": "C:\\Codes\\xxlib_simple_cpp\\tools_codegen_src"
-    }
-  }
-}

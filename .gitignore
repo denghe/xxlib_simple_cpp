@@ -8,3 +8,4 @@ Debug
 Release
 bin
 obj
+/tools_codegen_src/Properties

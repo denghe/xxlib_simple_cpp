@@ -1,1 +1,1 @@
-..\tools_codegen\pkggen.exe 2 Objs .\ .\Objs.cs
+..\tools_codegen_src\bin\Debug\netcoreapp3.1\tools_codegen_src.exe Objs .\ .\Objs.cs

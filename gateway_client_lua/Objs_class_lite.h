@@ -3,7 +3,7 @@
 #include "Objs_class_lite.h.inc"  // user create it for extend include files
 namespace Objs {
 	struct PkgGenMd5 {
-		inline static const std::string value = "#*MD5<8fd607fb89cb92d3c210f9c9eebf2d90>*#";
+		inline static const std::string value = "#*MD5<074b6bfcb0e142cf0fbf6ff20e3dda2f>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(xx::ObjectHelper& oh);
@@ -35,3 +35,4 @@ namespace Objs {
 }
 namespace xx {
 }
+#include "Objs_class_lite_.h.inc"  // user create it for extend include files at the end

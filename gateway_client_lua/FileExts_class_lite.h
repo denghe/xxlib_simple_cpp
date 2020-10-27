@@ -3,7 +3,7 @@
 #include "FileExts_class_lite.h.inc"  // user create it for extend include files
 namespace FileExts {
 	struct PkgGenMd5 {
-		inline static const std::string value = "#*MD5<459dac9af8db55a6479163fec8a74665>*#";
+		inline static const std::string value = "#*MD5<a3c5d23dbfd794c59a97be1eeaa93626>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(xx::ObjectHelper& oh);
@@ -267,3 +267,4 @@ namespace xx {
 		static void Clone2(ObjectHelper &oh, FileExts::File_c3b_ext const& in, FileExts::File_c3b_ext& out);
 	};
 }
+#include "FileExts_class_lite_.h.inc"  // user create it for extend include files at the end
