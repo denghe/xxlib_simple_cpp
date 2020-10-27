@@ -155,6 +155,8 @@ namespace xx {
 		// make pathway 并 push 起始坐标 作为第一个点
 		explicit PathwayMaker(xx::Point const& pos);
 
+        PathwayMaker& Reset(xx::Point const& pos);
+
 		// 从最后个点前进一段距离，形成新的点，新点.a = 最后个点.a，新点.d = 0
 		PathwayMaker& Forward(float const& d);
 
@@ -480,7 +482,14 @@ namespace xx {
 		pathway->points.emplace_back(pos);
 	}
 
-	inline PathwayMaker& PathwayMaker::Forward(float const& d) {
+    inline PathwayMaker& PathwayMaker::Reset(xx::Point const& pos) {
+        xx::MakeTo(pathway);
+        pathway->points.emplace_back(pos);
+        return *this;
+    }
+
+
+    inline PathwayMaker& PathwayMaker::Forward(float const& d) {
 		auto&& p = pathway->points.back();
 		p.d = d;
 		auto a = p.a;

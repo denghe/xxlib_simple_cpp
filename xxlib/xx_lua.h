@@ -314,7 +314,7 @@ namespace xx::Lua {
         template<typename Arg, typename...Args>
         inline void To(lua_State *const &L, int const &idx, Arg &arg, Args &...args) {
             xx::Lua::PushToFuncs<Arg>::To(L, idx, arg);
-            if constexpr(sizeof...(Args)) {
+            if constexpr(sizeof...(Args) > 0) {
                 To(L, idx + 1, args...);
             }
         }
