@@ -116,6 +116,18 @@ namespace xx::Lua {
                     .Prop(nullptr, "Set_onToStringCore", &Objs::LuaFish::onToStringCore);
         }
     };
+
+    template<typename T>
+    struct MetaFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::shared_ptr<xx::Data>>>> {
+        inline static char const *const name = "xxData";
+
+        static inline void Fill(lua_State *const &L) {
+            Meta<T, Objs::LuaFishBase_s>(L, name)
+                    .Lambda("GetLen", [](T& d)->int {
+                        return d ? d->len : 0;
+                    });
+        }
+    };
 }
 
 // create helpers
@@ -143,21 +155,37 @@ int main() {
     gLuaState = L;
 
     auto r = XL::Try(L, [&] {
-        {
-            auto f = Create_Objs_LuaFish("fish.lua");
-            auto ms = xx::NowSteadyEpochMS();
-            for (int i = 0; i < 10000000; ++i) {
-                f->Update();
-            }
-            oh.CoutN("ms = ", xx::NowSteadyEpochMS() - ms);
-            oh.CoutN(f);
-            oh.WriteTo(d, f);
-        }
-        oh.CoutN(d);
-        {
-            auto f = xx::As<Objs::LuaFish>(oh.ReadFrom(d));
-            oh.CoutN(f);
-        }
+
+        XL::SetGlobal(L, "GetData", []()->std::shared_ptr<xx::Data> {
+            auto&& d = xx::Make<xx::Data>();
+            d->WriteBuf("12345",5);
+            return d;
+        });
+        XL::SetGlobal(L, "DumpData", [](std::shared_ptr<xx::Data> const& d) {
+            xx::CoutN(d);
+        });
+
+        XL::DoString(L, R"(
+local d = GetData()
+print(d)
+DumpData(d)
+)");
+
+//        {
+//            auto f = Create_Objs_LuaFish("fish.lua");
+//            auto ms = xx::NowSteadyEpochMS();
+//            for (int i = 0; i < 10000000; ++i) {
+//                f->Update();
+//            }
+//            oh.CoutN("ms = ", xx::NowSteadyEpochMS() - ms);
+//            oh.CoutN(f);
+//            oh.WriteTo(d, f);
+//        }
+//        oh.CoutN(d);
+//        {
+//            auto f = xx::As<Objs::LuaFish>(oh.ReadFrom(d));
+//            oh.CoutN(f);
+//        }
 
 //        std::vector<std::shared_ptr<FishBase>> fishs;
 //        //fishs.emplace_back(CppFish::Create());
