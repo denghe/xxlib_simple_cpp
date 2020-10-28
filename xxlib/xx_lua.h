@@ -71,9 +71,10 @@ namespace xx::Lua {
             // 如果类型需要析构就自动生成 __gc
             if constexpr(std::is_destructible_v<T>) {
                 lua_pushstring(L, "__gc");                                  // ..., mt, "__gc"
-                lua_pushcclosure(L, [](auto L) {                            // ..., mt, "__gc", cc
-                    auto f = (T *) lua_touserdata(L, -1);
-                    f->~T();
+                lua_pushcclosure(L, [](auto L)->int {                       // ..., mt, "__gc", cc
+                    using U = T;
+                    auto f = (U*) lua_touserdata(L, -1);
+                    f->~U();
                     return 0;
                 }, 0);
                 lua_rawset(L, -3);                                          // ..., mt
@@ -329,9 +330,9 @@ namespace xx::Lua {
     }
 
     // 适配 std::tuple
-    template<typename...Args>
-    struct PushToFuncs<std::tuple<Args...>, void> {
-        static inline int Push(lua_State *const &L, std::tuple<Args...> const &in) {
+    template<typename T>
+    struct PushToFuncs<T, std::enable_if_t<xx::IsTuple_v<std::decay_t<T>>>> {
+        static inline int Push(lua_State *const &L, T const &in) {
             int rtv = 0;
             std::apply([&](auto &... args) {
                 rtv = xx::Lua::Push(L, args...);
@@ -339,10 +340,20 @@ namespace xx::Lua {
             return rtv;
         }
 
-        static inline void To(lua_State *const &L, int const &idx, std::tuple<Args...> &out) {
+        static inline void To(lua_State *const &L, int const &idx, T &out) {
             std::apply([&](auto &... args) {
                 xx::Lua::To(L, idx, args...);
             }, out);
+        }
+    };
+
+    template<>
+    struct PushToFuncs<std::tuple<>, void> {
+        static inline int Push(lua_State* const& L, std::tuple<> const& in) {
+            return 0;
+        }
+
+        static inline void To(lua_State* const& L, int const& idx, std::tuple<>& out) {
         }
     };
 
@@ -425,7 +436,7 @@ namespace xx::Lua {
 
     // 适配 lambda
     template<typename T>
-    struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<T>>> {
+    struct PushToFuncs<T, std::enable_if_t<xx::IsLambda_v<std::decay_t<T>>>> {
         static inline int Push(lua_State *const &L, T &&in) {
             PushUserdata(L, std::forward<T>(in));                       // ..., ud
             lua_pushcclosure(L, [](auto L) {                            // ..., cc

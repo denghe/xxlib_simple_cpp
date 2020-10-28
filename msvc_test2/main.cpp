@@ -4,6 +4,7 @@
 #include "xx_asio.h"
 #include "xx_coro.h"
 #include "xx_string.h"
+#include "xx_lua.h"
 
 CoAsync Delay(double const& secs) {
 	auto timeoutSecs = xx::NowSteadyEpochSeconds() + secs;
@@ -12,7 +13,26 @@ CoAsync Delay(double const& secs) {
 	} while (xx::NowSteadyEpochSeconds() > timeoutSecs);
 }
 
+struct Foo {
+	~Foo() {
+		std::cout << "~";
+	}
+};
+
 int main() {
+	auto f = [] {};
+	std::tuple<int> t;
+	using F = std::decay_t<decltype(f)>;
+	using U = std::decay_t<decltype(t)>;
+	std::cout << xx::TypeName_v<F> << std::endl;
+	std::cout << xx::IsTuple_v<F> << std::endl;
+	std::cout << xx::IsLambda_v<F> << std::endl;
+	
+	xx::Lua::State L;
+	xx::Lua::SetGlobal(L, "NowSecs", [] {});
+
+	return 0;
+
 	xx::Asio::Client client(32768, 10);
 	xx::Cors cors;
 	client.onFrameUpdate = [&] {

@@ -55,8 +55,8 @@ auto __cdecl xx::Detail::NameOf<
             }
             return at >= 6 && tn.substr(at - 6, 7) == "<lambda";
 #elif defined(_MSC_VER) && _MSC_VER >= 1920 && _MSC_VER < 1930  // vs2019 16.0
-            // lambda 输出长相: class <lambda_1499ff3675c53ea7d4fea6e5391ecc4d>
-            return tn.rfind("class <lambda_", 0) == 0 && *tn.rbegin() == '>';
+            // lambda 输出长相: class ????::<lambda_????>
+            return tn.rfind("class ", 0) == 0 && tn.find("::<lambda_", 0) != tn.npos && *tn.rbegin() == '>';
 #endif
         }
     }

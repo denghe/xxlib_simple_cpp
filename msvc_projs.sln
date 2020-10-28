@@ -9,9 +9,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "msvc_test2", "msvc_test2\ms
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xxlib", "xxlib\xxlib.vcxitems", "{F454F86D-B5BC-4412-A9C4-5AE1632F0B4E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tools_codegen_src", "tools_codegen_src\tools_codegen_src.csproj", "{B63FC2A6-0D0A-40E4-9EE2-A0414AB76AA9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "tools_codegen_src", "tools_codegen_src\tools_codegen_src.csproj", "{B63FC2A6-0D0A-40E4-9EE2-A0414AB76AA9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tools_codegen_lib", "tools_codegen_lib\tools_codegen_lib.csproj", "{042EC320-3F2D-477D-8E71-A44D9A2D060A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "tools_codegen_lib", "tools_codegen_lib\tools_codegen_lib.csproj", "{042EC320-3F2D-477D-8E71-A44D9A2D060A}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -27,12 +27,14 @@ Global
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDCC}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{8AB8AB63-6EE0-4401-BE4B-47A687DABDCC}.Debug|Any CPU.Build.0 = Debug|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDCC}.Debug|x64.ActiveCfg = Debug|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDCC}.Debug|x64.Build.0 = Debug|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDCC}.Release|Any CPU.ActiveCfg = Release|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDCC}.Release|x64.ActiveCfg = Release|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDCC}.Release|x64.Build.0 = Release|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC1}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC1}.Debug|Any CPU.Build.0 = Debug|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC1}.Debug|x64.ActiveCfg = Debug|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC1}.Debug|x64.Build.0 = Debug|x64
 		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC1}.Release|Any CPU.ActiveCfg = Release|x64

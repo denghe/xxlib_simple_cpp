@@ -109,6 +109,23 @@ namespace xx {
     struct IsShared : std::false_type {
     };
 
+    template <typename> 
+    struct IsTuple : std::false_type {};
+
+    template <typename ...T> 
+    struct IsTuple<std::tuple<T...>> : std::true_type {};
+
+    template <typename ...T> 
+    struct IsTuple<std::tuple<T...>&> : std::true_type {};
+
+    template <typename ...T> 
+    struct IsTuple<std::tuple<T...> const&> : std::true_type {};
+
+    template <typename ...T>
+    constexpr bool IsTuple_v = IsTuple<T...>::value;
+
+
+
     template<typename T>
     struct IsShared<std::shared_ptr<T>> : std::true_type {
     };
