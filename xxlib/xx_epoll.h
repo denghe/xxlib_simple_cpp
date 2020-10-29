@@ -36,7 +36,6 @@
 #include "xx_typehelpers.h"
 #include "xx_chrono.h"
 #include "xx_data_queue.h"
-#include "xx_scopeguard.h"
 #include "xx_string.h"
 #include "xx_fixeddata_w.h"
 
@@ -658,7 +657,7 @@ namespace xx::Epoll {
         auto &&fd = ec->MakeSocketFD(port);
         if (fd < 0) return -1;
         // 确保 return 时自动 close
-        xx::ScopeGuard sg([&] { close(fd); });
+        auto sg = xx::MakeScopeGuard([&] { close(fd); });
         // 开始监听
         if (-1 == listen(fd, SOMAXCONN)) return -2;
         // fd 纳入 epoll 管理
@@ -693,7 +692,7 @@ namespace xx::Epoll {
             else return -1;
         }
         // 确保退出时自动关闭 fd
-        ScopeGuard sg([&] { close(fd); });
+        auto sg = xx::MakeScopeGuard([&] { close(fd); });
         // 如果 fd 超出最大存储限制就退出。返回 fd 是为了外部能继续执行 accept
         if (fd >= (int) ec->fdMappings.size()) return fd;
         if (ec->fdMappings[fd]) {
@@ -813,7 +812,7 @@ namespace xx::Epoll {
         if (fd == -1) return -1;
 
         // 确保 return 时自动 close
-        xx::ScopeGuard sg([&] { close(fd); });
+        auto sg = xx::MakeScopeGuard([&] { close(fd); });
         // 检测 fd 存储上限
         if (fd >= (int) ec->fdMappings.size()) return -2;
         if (ec->fdMappings[fd]) throw std::runtime_error((" TcpDialer NewTcpConn if (ec->fdMappings[fd])"));
@@ -1132,7 +1131,7 @@ namespace xx::Epoll {
         xx::MakeTo(pipeWriter, shared_from_this(), actionsPipes[1]);
 
         // 函数退出时自动删掉 pipe 容器, 以避免 Context 的引用计数无法清 0
-        xx::ScopeGuard sg([&] {
+        auto sg = xx::MakeScopeGuard([&] {
             pipeReader.reset();
             pipeWriter.reset();
         });

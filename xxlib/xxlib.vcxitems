@@ -37,7 +37,6 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_object.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_point.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_queue.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)xx_scopeguard.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_sharedlist.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_signal.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_sqlite.h" />

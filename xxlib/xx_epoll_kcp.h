@@ -169,7 +169,7 @@ namespace xx::Epoll {
         auto &&fd = ec->MakeSocketFD(port, SOCK_DGRAM, hostName, reusePort, rmem_max, wmem_max);
         if (fd < 0) return -1;
         // 确保 return 时自动 close
-        xx::ScopeGuard sg([&] { close(fd); });
+        auto sg = xx::MakeScopeGuard([&] { close(fd); });
         // fd 纳入 epoll 管理
         if (-1 == ec->Ctl(fd, EPOLLIN)) return -3;
         // 取消自动 close

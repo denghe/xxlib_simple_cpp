@@ -144,8 +144,7 @@ namespace xx
 	template<typename T>
 	template<typename ...TS>
 	void Queue<T>::Push(TS&& ...vs) noexcept {
-		std::initializer_list<int> n{ (Emplace(std::forward<TS>(vs)), 0)... };
-		(void)n;
+		(Emplace(std::forward<TS>(vs)), ... );
 	}
 
 	template <class T>

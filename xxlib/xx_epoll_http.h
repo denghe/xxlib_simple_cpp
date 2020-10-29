@@ -307,16 +307,14 @@ namespace xx::Epoll {
         inline void TableBegin(Args const& ... titles) {
             Append("<table border=\"1\">");
             Append("<thead><tr>");
-            std::initializer_list<int> n{ ((Append("<th>", titles, "</th>")), 0)... };
-            (void)(n);
+            (Append("<th>", titles, "</th>"), ... );
             Append("</tr></thead><tbody>");
         }
 
         template<typename ...Args>
         inline void TableRow(Args const& ... columns) {
             Append("<tr>");
-            std::initializer_list<int> n{ ((Append("<td>", columns, "</td>")), 0)... };
-            (void)(n);
+            (Append("<td>", columns, "</td>"), ... );
             Append("</tr>");
         }
 

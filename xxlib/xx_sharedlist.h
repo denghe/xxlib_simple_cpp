@@ -232,8 +232,7 @@ namespace xx {
         // 与 Emplace 不同的是, 这个仅支持1个参数的构造函数, 可一次追加多个
         template<typename ...TS>
         void Add(TS&&...vs)  {
-            std::initializer_list<int> n{ (Emplace(std::forward<TS>(vs)), 0)... };
-            (void)(n);
+            (Emplace(std::forward<TS>(vs)), ... );
         }
 
         // 批量添加

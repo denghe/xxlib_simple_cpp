@@ -49,8 +49,7 @@ namespace xx {
 
     template<typename ...Args>
     void Append(std::string &s, Args const &... args) {
-        std::initializer_list<int> n{((::xx::Core::Append(s, args)), 0)...};
-        (void) (n);
+        (::xx::Core::Append(s, args),...);
     }
 
     template<typename ...Args>
@@ -275,8 +274,7 @@ namespace xx {
         static inline void Append(std::string &s, std::tuple<T...> const &in) {
             s.push_back('[');
             std::apply([&](auto const &... args) {
-                std::initializer_list<int> n{((::xx::Append(s, args, ',')), 0)...};
-                (void(n));
+                (::xx::Append(s, args, ','), ...);
                 if constexpr(sizeof...(args) > 0) {
                     s.resize(s.size() - 1);
                 }

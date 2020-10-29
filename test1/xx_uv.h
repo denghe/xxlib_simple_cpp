@@ -10,7 +10,6 @@
 #include "uv.h"
 #include "xx_data.h"
 #include "ikcp.h"
-#include "xx_scopeguard.h"
 #include "xx_chrono.h"
 
 namespace xx::Uv {
@@ -575,7 +574,7 @@ namespace xx::Uv {
         // 得到原始数据类型
         auto &&req = (uv_getaddrinfo_t_ex *) req_;
         // 设定 return 时 自动释放内存
-        xx::ScopeGuard sg([&] {
+        auto sg = xx::MakeScopeGuard([&] {
             free(req);
             if (ai) {
                 uv_freeaddrinfo(ai);
@@ -639,7 +638,7 @@ namespace xx::Uv {
                                  // 拿到类实例指针
                                  auto thiz = (*(uv_tcp_t_ex *) (stream)).thiz;
                                  // 设置自动回收 buf
-                                 xx::ScopeGuard sg([&] {
+                                 auto sg = xx::MakeScopeGuard([&] {
                                      if (buf) {
                                          free(buf->base);
                                      }

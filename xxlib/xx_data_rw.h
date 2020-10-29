@@ -157,8 +157,7 @@ namespace xx {
         // 支持同时写入多个值
         template<typename ...TS>
         void Write(TS const& ...vs) {
-            std::initializer_list<int> n{ (DataFuncs<TS>::Write(*this, vs), 0)... };
-            (void)n;
+            (DataFuncs<TS>::Write(*this, vs), ... );
         }
 	};
 

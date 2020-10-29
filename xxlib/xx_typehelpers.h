@@ -57,13 +57,11 @@ namespace xx {
     template<typename T, typename ENABLED = void>
     struct IsPod : std::false_type {
     };
-
-    template<typename T>
-    constexpr bool IsPod_v = IsPod<T>::value;
-
     template<typename T>
     struct IsPod<T, std::enable_if_t<std::is_standard_layout_v<T> && std::is_trivial_v<T>>> : std::true_type {
     };
+    template<typename T>
+    constexpr bool IsPod_v = IsPod<T>::value;
 
 
 
@@ -74,7 +72,6 @@ namespace xx {
     template<typename T>
     struct IsOptional : std::false_type {
     };
-
     template<typename T>
     struct IsOptional<std::optional<T>> : std::true_type {
     };
@@ -84,14 +81,12 @@ namespace xx {
     template<typename T>
     struct IsOptional<std::optional<T> const &> : std::true_type {
     };
-
     template<typename T>
     constexpr bool IsOptional_v = IsOptional<T>::value;
 
     template<typename T>
     struct IsVector : std::false_type {
     };
-
     template<typename T>
     struct IsVector<std::vector<T>> : std::true_type {
     };
@@ -101,31 +96,29 @@ namespace xx {
     template<typename T>
     struct IsVector<std::vector<T> const &> : std::true_type {
     };
-
     template<typename T>
     constexpr bool IsVector_v = IsVector<T>::value;
+
+
+    template<typename>
+    struct IsTuple : std::false_type {
+    };
+    template<typename ...T>
+    struct IsTuple<std::tuple<T...>> : std::true_type {
+    };
+    template<typename ...T>
+    struct IsTuple<std::tuple<T...> &> : std::true_type {
+    };
+    template<typename ...T>
+    struct IsTuple<std::tuple<T...> const &> : std::true_type {
+    };
+    template<typename ...T>
+    constexpr bool IsTuple_v = IsTuple<T...>::value;
+
 
     template<typename T>
     struct IsShared : std::false_type {
     };
-
-    template <typename> 
-    struct IsTuple : std::false_type {};
-
-    template <typename ...T> 
-    struct IsTuple<std::tuple<T...>> : std::true_type {};
-
-    template <typename ...T> 
-    struct IsTuple<std::tuple<T...>&> : std::true_type {};
-
-    template <typename ...T> 
-    struct IsTuple<std::tuple<T...> const&> : std::true_type {};
-
-    template <typename ...T>
-    constexpr bool IsTuple_v = IsTuple<T...>::value;
-
-
-
     template<typename T>
     struct IsShared<std::shared_ptr<T>> : std::true_type {
     };
@@ -135,14 +128,13 @@ namespace xx {
     template<typename T>
     struct IsShared<std::shared_ptr<T> const &> : std::true_type {
     };
-
     template<typename T>
     constexpr bool IsShared_v = IsShared<T>::value;
+
 
     template<typename T>
     struct IsWeak : std::false_type {
     };
-
     template<typename T>
     struct IsWeak<std::weak_ptr<T>> : std::true_type {
     };
@@ -152,14 +144,13 @@ namespace xx {
     template<typename T>
     struct IsWeak<std::weak_ptr<T> const &> : std::true_type {
     };
-
     template<typename T>
     constexpr bool IsWeak_v = IsWeak<T>::value;
+
 
     template<typename T>
     struct IsUnique : std::false_type {
     };
-
     template<typename T>
     struct IsUnique<std::unique_ptr<T>> : std::true_type {
     };
@@ -169,16 +160,17 @@ namespace xx {
     template<typename T>
     struct IsUnique<std::unique_ptr<T> const &> : std::true_type {
     };
-
     template<typename T>
     constexpr bool IsUnique_v = IsUnique<T>::value;
 
 
-    template <typename T, typename = void>
-    struct IsContainer : std::false_type {};
-
-    template <typename T>
-    struct IsContainer<T, std::void_t<decltype(std::declval<T>().data()), decltype(std::declval<T>().size())>> : std::true_type {};
+    template<typename, typename = void>
+    struct IsContainer : std::false_type {
+    };
+    template<typename T>
+    struct IsContainer<T, std::void_t<decltype(std::declval<T>().data()), decltype(std::declval<T>().size())>>
+            : std::true_type {
+    };
 
 
     /************************************************************************************/
@@ -187,7 +179,6 @@ namespace xx {
     template<typename T>
     struct IsFunction : std::false_type {
     };
-
     template<typename T>
     struct IsFunction<std::function<T>> : std::true_type {
         using FT = T;
@@ -200,7 +191,6 @@ namespace xx {
     struct IsFunction<std::function<T> const &> : std::true_type {
         using FT = T;
     };
-
     template<typename T>
     constexpr bool IsFunction_v = IsFunction<T>::value;
     template<typename T>
@@ -311,10 +301,8 @@ namespace xx {
 
     template<typename T>
     using FuncR_t = typename FuncTraits<T>::R;
-
     template<typename T>
     using FuncA_t = typename FuncTraits<T>::A;
-
     template<typename T>
     using FuncC_t = typename FuncTraits<T>::C;
 
@@ -470,37 +458,20 @@ namespace xx {
 
 
     /************************************************************************************/
-    // Scope Guard
-
-    template<typename F, typename... Args>
-    auto MakeLambda(F &&f, Args &&... f_args) noexcept {
-        return [=]() -> std::result_of_t<F(Args...)> {
-            return f(std::forward<Args>(f_args)...);
-        };
-    }
+    // Scope Guard( F == lambda )
 
     template<class F>
     auto MakeScopeGuard(F &&f) noexcept {
         struct ScopeGuard {
-            using FT = decltype(MakeLambda(std::forward<F>(f)));
-            FT f;
+            F f;
             bool cancel;
 
-            explicit ScopeGuard(F &&fn) noexcept(std::is_nothrow_move_constructible<FT>::value)
-                    : f{MakeLambda(std::move(fn))}
-                    , cancel(false) {
-            }
+            explicit ScopeGuard(F &&f) noexcept: f(std::move(f)), cancel(false) {}
 
-            ~ScopeGuard() noexcept(noexcept(f())) {
-                if (!cancel) {
-                    f();
-                }
-            }
+            ~ScopeGuard() noexcept { if (!cancel) { f(); }}
 
-            inline void Cancel() noexcept {
-                cancel = true;
-            }
+            inline void Cancel() noexcept { cancel = true; }
         };
-        return ScopeGuard{std::forward<F>(f)};
+        return ScopeGuard(std::forward<F>(f));
     }
 }

@@ -151,6 +151,14 @@ int main() {
         xx::CoutN(r1.NextDouble(), "   ", r2.NextDouble(), "   ", r3.NextDouble());
     }
     xx::CoutN(r1, r2, r3);
+    {
+        auto sg1 = xx::MakeScopeGuard([]{
+            xx::CoutN(1);
+        });
+        auto sg2 = xx::MakeScopeGuard([]{
+            xx::CoutN(2,2);
+        });
+    }
     return 0;
 
     // 创建类型辅助器

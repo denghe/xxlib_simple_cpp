@@ -182,8 +182,7 @@ namespace xx {
 
     template<typename ...Args>
     void AppendEx(ObjectHelper &oh, Args const &... args) {
-        std::initializer_list<int> n{((::xx::Core::AppendEx(oh, args)), 0)...};
-        (void) (n);
+        (::xx::Core::AppendEx(oh, args), ...);
     }
 
     template<typename ...Args>
@@ -241,8 +240,7 @@ namespace xx {
         // 支持同时写入多个值. 覆盖基类的实现，以确保走 DataFuncsEx 适配模板
         template<typename ...TS>
         void Write(TS const &...vs) {
-            std::initializer_list<int> n{(DataFuncsEx<TS>::Write(*this, vs), 0)...};
-            (void) n;
+            (DataFuncsEx<TS>::Write(*this, vs), ...);
         }
 
         // 一次完整的写入。会备份长度（方便计算相对偏移量）和初始化指针字典
@@ -742,7 +740,7 @@ namespace xx {
             auto &&s = oh.s;
             s.push_back('[');
             std::apply([&](auto const &... args) {
-                std::initializer_list<int> n{((::xx::AppendEx(oh, args, ',')), 0)...};
+                (::xx::AppendEx(oh, args, ','), ...);
                 if constexpr(sizeof...(args)) {
                     s.resize(s.size() - 1);
                 }

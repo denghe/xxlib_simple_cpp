@@ -7,7 +7,6 @@
 
 #endif
 
-#include "xx_scopeguard.h"
 #include "xx_string.h"
 #include <mutex>        // for mysql_init
 
@@ -382,7 +381,7 @@ namespace xx::MySql {
         // todo: 关 SSL 的参数, 限制连接超时时长
         if (!mysql_real_connect(ctx, host.c_str(), username.c_str(), password.c_str(), db.c_str(), port, nullptr,
                                 CLIENT_MULTI_STATEMENTS)) {
-            ScopeGuard sg([this] { Close(); });
+            auto sg = xx::MakeScopeGuard([this] { Close(); });
             Throw((int) mysql_errno(ctx), mysql_error(ctx));
         }
     }
@@ -444,7 +443,7 @@ namespace xx::MySql {
         // 有结果集
         if (res) {
             // 确保 res 在出这层 {} 时得到回收
-            xx::ScopeGuard sgResult([&] {
+            auto sgResult = xx::MakeScopeGuard([&] {
                 mysql_free_result(res);
             });
 
