@@ -142,7 +142,17 @@ static std::shared_ptr<Objs::LuaFish> Create_Objs_LuaFish(T &&luaFileName) {
     return self;
 }
 
+#include "xx_randoms.h"
 int main() {
+    xx::Random1 r1;
+    xx::Random2 r2;
+    xx::Random3 r3;
+    for (int i = 0; i < 100; ++i) {
+        xx::CoutN(r1.NextDouble(), "   ", r2.NextDouble(), "   ", r3.NextDouble());
+    }
+    xx::CoutN(r1, r2, r3);
+    return 0;
+
     // 创建类型辅助器
     xx::ObjectHelper oh;
     Objs::PkgGenTypes::RegisterTo(oh);
@@ -155,7 +165,6 @@ int main() {
     gLuaState = L;
 
     auto r = XL::Try(L, [&] {
-
         XL::SetGlobal(L, "GetData", []()->std::shared_ptr<xx::Data> {
             auto&& d = xx::Make<xx::Data>();
             d->WriteBuf("12345",5);

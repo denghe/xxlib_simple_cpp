@@ -467,4 +467,40 @@ namespace xx {
     };
 }
 */
+
+
+    /************************************************************************************/
+    // Scope Guard
+
+    template<typename F, typename... Args>
+    auto MakeLambda(F &&f, Args &&... f_args) noexcept {
+        return [=]() -> std::result_of_t<F(Args...)> {
+            return f(std::forward<Args>(f_args)...);
+        };
+    }
+
+    template<class F>
+    auto MakeScopeGuard(F &&f) noexcept {
+        struct ScopeGuard {
+            using FT = decltype(MakeLambda(std::forward<F>(f)));
+            FT f;
+            bool cancel;
+
+            explicit ScopeGuard(F &&fn) noexcept(std::is_nothrow_move_constructible<FT>::value)
+                    : f{MakeLambda(std::move(fn))}
+                    , cancel(false) {
+            }
+
+            ~ScopeGuard() noexcept(noexcept(f())) {
+                if (!cancel) {
+                    f();
+                }
+            }
+
+            inline void Cancel() noexcept {
+                cancel = true;
+            }
+        };
+        return ScopeGuard{std::forward<F>(f)};
+    }
 }
