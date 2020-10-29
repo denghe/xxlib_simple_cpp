@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "xx_data_rw.h"
 #include "xx_string.h"
@@ -110,7 +110,7 @@ namespace xx {
         template<typename T>
         int ReadFrom(Data &d, T &v);
 
-        std::shared_ptr<Object> ReadFrom(Data &d);
+        std::shared_ptr<Object> ReadFrom(Data &d, size_t const& offset = 0);
 
         // s1 = a.ToString(), s2 = b.ToString(), return memcmp(s1, s2)
         template<typename T>
@@ -800,9 +800,10 @@ namespace xx {
         return dr.ReadOnce(v);
     }
 
-    inline std::shared_ptr<Object> ObjectHelper::ReadFrom(Data &d) {
+    inline std::shared_ptr<Object> ObjectHelper::ReadFrom(Data &d, size_t const& offset) {
         DataReaderEx dr(d, *this);
         std::shared_ptr<Object> o;
+        dr.offset = offset;
         lastRtv = dr.ReadOnce(o);
         return o;
     }
