@@ -7,8 +7,21 @@ struct B : A {};
 
 int main() {
     xx::Shared<A> a = xx::MakeShared<B>();
-    std::cout << a.useCount() << std::endl;
-
+    std::cout << a.useCount() << " " << a.refCount() << std::endl;
+    auto b = a.As<B>();
+    if (b) {
+        std::cout << a.useCount() << " " << a.refCount() << std::endl;
+    }
+    xx::Weak<A> wa = b;
+    std::cout << a.useCount() << " " << a.refCount() << std::endl;
+    b = wa.Lock().As<B>();
+    std::cout << wa.useCount() << " " << wa.refCount() << std::endl;
+    a.Reset();
+    std::cout << wa.useCount() << " " << wa.refCount() << std::endl;
+    b.Reset();
+    std::cout << wa.useCount() << " " << wa.refCount() << std::endl;
+    wa.Reset();
+    std::cout << wa.useCount() << " " << wa.refCount() << std::endl;
     return 0;
 }
 
