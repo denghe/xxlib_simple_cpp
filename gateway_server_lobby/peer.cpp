@@ -29,7 +29,7 @@ void Peer::Receive() {
         // 跳到数据区开始调用处理回调
         buf += sizeof(dataLen);
         {
-            if (LIKELY(id)) {
+            if (id) {
                 // 处理 ping 指令. 直接将内容 echo 回去
                 if (dataLen > sizeof(dataLen) && *(uint32_t*)(buf + dataLen) == 0xFFFFFFFFu) {
                     Send(buf + dataLen - sizeof(dataLen), dataLen + sizeof(dataLen));

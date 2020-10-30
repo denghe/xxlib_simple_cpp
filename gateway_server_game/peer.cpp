@@ -29,7 +29,7 @@ void Peer::Receive() {
         // 跳到数据区开始调用处理回调
         buf += sizeof(dataLen);
         {
-            if (LIKELY(id)) {
+            if (id) {
                 ReceivePackage(buf, dataLen);
             } else {
                 ReceiveFirstPackage(buf, dataLen);

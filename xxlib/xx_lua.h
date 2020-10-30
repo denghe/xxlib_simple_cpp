@@ -53,15 +53,15 @@ namespace xx::Lua {
         static inline void Fill(lua_State *const &L) {}
     };
 
-    // 压入指定类型的 metatable( 以 MetaFuncs<T>::name 为 key, 存放与注册表。没有找到就创建并放入 )
+    // 压入指定类型的 metatable( 以 MetaFuncs<T>::name.data() 为 key, 存放与注册表。没有找到就创建并放入 )
     template<typename T>
     void PushMeta(lua_State *const &L) {
         CheckStack(L, 3);
 #if LUA_VERSION_NUM == 501
-        lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name.data());                // ..., key
+        lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name.data());         // ..., key
         lua_rawget(L, LUA_REGISTRYINDEX);                                   // ..., mt?
 #else
-        lua_rawgetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());              // ..., mt?
+        lua_rawgetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());       // ..., mt?
 #endif
         if (lua_isnil(L, -1)) {
             lua_pop(L, 1);                                                  // ...
@@ -95,19 +95,10 @@ namespace xx::Lua {
             lua_rawset(L, LUA_REGISTRYINDEX);                               // ..., mt
 #else
             lua_pushvalue(L, -1);                                           // ..., mt, mt
-            lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());          // ..., mt
+            lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());   // ..., mt
 #endif
         }
     }
-
-    // 以 MetaFuncs<T>::name 为 key，将 T 的 metatable 压入 global
-    template<typename T>
-    void SetGlobalMeta(lua_State *const &L) {
-        if (MetaFuncs<T>::name == TypeName_v<T>.data()) Error(L, "SetGlobalMeta: forget set MetaFuncs<T>::name ?? T == ", TypeName_v<T>);
-        PushMeta<T>(L);
-        lua_setglobal(L, MetaFuncs<T>::name);
-    }
-
 
     /******************************************************************************************************************/
     // Lua push, to 系列基础适配模板. Push 返回实际入栈的参数个数( 通常是 1. 但如果传入一个队列并展开压栈则不一定 ). To 无返回值.

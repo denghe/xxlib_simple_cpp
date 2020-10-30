@@ -446,7 +446,7 @@ namespace xx::Epoll {
                 if (len == -1) {
                     auto er = errno;
                     if (er == EAGAIN || er == EWOULDBLOCK || er == ENOBUFS) return;
-                    ThrowRuntimeError(xx::ToString(__LINE__, " UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
+                    throw std::runtime_error(xx::ToString(__LINE__, " UdpPeer EpollEvent recvfrom rtv -1 errno = ", er));
                 }
                 // 可能收到 0 长度数据包. 或者没有发送地址的数据包. 忽略
                 if (len == 0 || addrLen == 0) return;

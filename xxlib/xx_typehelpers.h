@@ -9,48 +9,8 @@
 #include <functional>
 #include <stdexcept>
 
-#define LIKELY(x)       __builtin_expect(!!(x), 1)
-#define UNLIKELY(x)     __builtin_expect(!!(x), 0)
-#define __STRINGFY__(...) #__VA_ARGS__
-//#define __LINESTR__ __STRINGFY__(__LINE__)
-
-// 为一个类型附加 using 常用指针类型，以及 is 判断，以简化编码
-#define USING_USW_PTR(T) \
-using T##_u = std::unique_ptr<T>; \
-using T##_s = std::shared_ptr<T>; \
-using T##_w = std::weak_ptr<T>; \
-template<typename O> \
-constexpr bool Is##T##_u_v = std::is_same_v<O, T##_u>; \
-template<typename O> \
-constexpr bool Is##T##_s_v = std::is_same_v<O, T##_s>; \
-template<typename O> \
-constexpr bool Is##T##_w_v = std::is_same_v<O, T##_w>; \
-template<typename O> \
-constexpr bool Is##T##_uvw_v = std::is_same_v<O, T##_u> || std::is_same_v<O, T##_s> || std::is_same_v<O, T##_w>;
-
-
-/************************************************************************************/
-// throw 包一层，方便 coredump 里通过堆栈信息看到 throw 的内容
-/************************************************************************************/
-inline void ThrowRuntimeError(std::string const &s) {
-    throw std::runtime_error(s);
-}
-
-inline void ThrowRuntimeError(char const *const &s) {
-    throw std::runtime_error(s);
-}
-
-inline void ThrowLogicError(std::string const &s) {
-    throw std::logic_error(s);
-}
-
-inline void ThrowLogicError(char const *const &s) {
-    throw std::logic_error(s);
-}
 
 namespace xx {
-    struct Data;
-
     /************************************************************************************/
     // std::is_pod 的自定义扩展, 用于标识一个类可以在容器中被r memcpy | memmove
 
@@ -62,8 +22,6 @@ namespace xx {
     };
     template<typename T>
     constexpr bool IsPod_v = IsPod<T>::value;
-
-
 
 
     /************************************************************************************/

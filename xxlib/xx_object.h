@@ -833,9 +833,9 @@ namespace xx {
 
     template<typename T>
     void ObjectHelper::Clone(T const &in, T &out) {
-        oldNewObjs.clear();
         CloneFuncs<T>::Clone1(*this, in, out);
         CloneFuncs<T>::Clone2(*this, in, out);
+        oldNewObjs.clear();
     }
 
     template<typename T>

@@ -7,6 +7,21 @@ namespace XL = xx::Lua;
 
 thread_local lua_State *gLuaState;
 
+
+// 为一个类型附加 using 常用指针类型，以及 is 判断，以简化编码
+#define USING_USW_PTR(T) \
+using T##_u = std::unique_ptr<T>; \
+using T##_s = std::shared_ptr<T>; \
+using T##_w = std::weak_ptr<T>; \
+template<typename O> \
+constexpr bool Is##T##_u_v = std::is_same_v<std::decay_t<O>, T##_u>; \
+template<typename O> \
+constexpr bool Is##T##_s_v = std::is_same_v<std::decay_t<O>, T##_s>; \
+template<typename O> \
+constexpr bool Is##T##_w_v = std::is_same_v<std::decay_t<O>, T##_w>; \
+template<typename O> \
+constexpr bool Is##T##_uvw_v = std::is_same_v<std::decay_t<O>, T##_u> || std::is_same_v<std::decay_t<O>, T##_s> || std::is_same_v<std::decay_t<O>, T##_w>;
+
 namespace Objs {
     // todo: 这几句移到生成物
     USING_USW_PTR(FishBase)
@@ -85,7 +100,7 @@ namespace Objs {
 namespace xx::Lua {
     template<typename T>
     struct MetaFuncs<T, std::enable_if_t<Objs::IsFishBase_uvw_v<T>>> {
-        inline static char const *const name = "FishBase";
+        inline static std::string name = std::string(TypeName_v<T>);
 
         static inline void Fill(lua_State *const &L) {
             Meta<T>(L, name)
@@ -96,7 +111,7 @@ namespace xx::Lua {
 
     template<typename T>
     struct MetaFuncs<T, std::enable_if_t<Objs::IsLuaFishBase_uvw_v<T>>> {
-        inline static char const *const name = "LuaFishBase";
+        inline static std::string name = std::string(TypeName_v<T>);
 
         static inline void Fill(lua_State *const &L) {
             Meta<T, Objs::FishBase_s>(L, name)
@@ -106,7 +121,7 @@ namespace xx::Lua {
 
     template<typename T>
     struct MetaFuncs<T, std::enable_if_t<Objs::IsLuaFish_uvw_v<T>>> {
-        inline static char const *const name = "LuaFish";
+        inline static std::string name = std::string(TypeName_v<T>);
 
         static inline void Fill(lua_State *const &L) {
             Meta<T, Objs::LuaFishBase_s>(L, name)
@@ -119,11 +134,11 @@ namespace xx::Lua {
 
     template<typename T>
     struct MetaFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, std::shared_ptr<xx::Data>>>> {
-        inline static char const *const name = "xxData";
+        inline static std::string name = std::string(TypeName_v<T>);
 
         static inline void Fill(lua_State *const &L) {
             Meta<T, Objs::LuaFishBase_s>(L, name)
-                    .Lambda("GetLen", [](T& d)->int {
+                    .Lambda("GetLen", [](T &d) -> int {
                         return d ? d->len : 0;
                     });
         }
@@ -142,23 +157,18 @@ static std::shared_ptr<Objs::LuaFish> Create_Objs_LuaFish(T &&luaFileName) {
     return self;
 }
 
+
 #include "xx_randoms.h"
+
 int main() {
     xx::Random1 r1;
     xx::Random2 r2;
     xx::Random3 r3;
+    xx::Random4 r4;
     for (int i = 0; i < 100; ++i) {
-        xx::CoutN(r1.NextDouble(), "   ", r2.NextDouble(), "   ", r3.NextDouble());
+        xx::CoutN(r1.Next(), "   ", r2.Next(), "   ", r3.Next(), "   ", r4.Next());
     }
-    xx::CoutN(r1, r2, r3);
-    {
-        auto sg1 = xx::MakeScopeGuard([]{
-            xx::CoutN(1);
-        });
-        auto sg2 = xx::MakeScopeGuard([]{
-            xx::CoutN(2,2);
-        });
-    }
+
     return 0;
 
     // 创建类型辅助器
@@ -173,12 +183,12 @@ int main() {
     gLuaState = L;
 
     auto r = XL::Try(L, [&] {
-        XL::SetGlobal(L, "GetData", []()->std::shared_ptr<xx::Data> {
-            auto&& d = xx::Make<xx::Data>();
-            d->WriteBuf("12345",5);
+        XL::SetGlobal(L, "GetData", []() -> std::shared_ptr<xx::Data> {
+            auto &&d = xx::Make<xx::Data>();
+            d->WriteBuf("12345", 5);
             return d;
         });
-        XL::SetGlobal(L, "DumpData", [](std::shared_ptr<xx::Data> const& d) {
+        XL::SetGlobal(L, "DumpData", [](std::shared_ptr<xx::Data> const &d) {
             xx::CoutN(d);
         });
 
