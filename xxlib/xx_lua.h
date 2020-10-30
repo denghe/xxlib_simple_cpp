@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // 与 lua 交互的代码应 Try 执行, 方能正确响应 luaL_error 或 C++ 异常
 // luajit 有限支持 C++ 异常, 支持 中文变量名, 官方 lua 5.3/4 很多预编译库默认不支持, 必须强制以 C++ 方式自己编译
@@ -48,7 +48,7 @@ namespace xx::Lua {
     // 类型 metatable 填充函数适配模板
     template<typename T, typename ENABLED = void>
     struct MetaFuncs {
-        inline static char const *const name = TypeName_v<T>.data();
+        inline static std::string name = std::string(TypeName_v<T>);
 
         static inline void Fill(lua_State *const &L) {}
     };
@@ -58,10 +58,10 @@ namespace xx::Lua {
     void PushMeta(lua_State *const &L) {
         CheckStack(L, 3);
 #if LUA_VERSION_NUM == 501
-        lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);                // ..., key
+        lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name.data());                // ..., key
         lua_rawget(L, LUA_REGISTRYINDEX);                                   // ..., mt?
 #else
-        lua_rawgetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);              // ..., mt?
+        lua_rawgetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());              // ..., mt?
 #endif
         if (lua_isnil(L, -1)) {
             lua_pop(L, 1);                                                  // ...
@@ -90,12 +90,12 @@ namespace xx::Lua {
             MetaFuncs<T, void>::Fill(L);                                    // ..., mt
 
 #if LUA_VERSION_NUM == 501
-            lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);            // ..., mt, key
+            lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name.data());            // ..., mt, key
             lua_pushvalue(L, -2);                                           // ..., mt, key, mt
             lua_rawset(L, LUA_REGISTRYINDEX);                               // ..., mt
 #else
             lua_pushvalue(L, -1);                                           // ..., mt, mt
-            lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name);          // ..., mt
+            lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());          // ..., mt
 #endif
         }
     }
@@ -771,10 +771,10 @@ namespace xx::Lua {
         lua_getmetatable(L, idx);                                           // ... tar(idx) ..., mt
         if (lua_isnil(L, -1)) goto LabError;
 #if LUA_VERSION_NUM == 501
-        lua_pushlightuserdata(L, (void*)MetaFuncs<T>::name);                // ... tar(idx) ..., mt,  key
+        lua_pushlightuserdata(L, (void*)MetaFuncs<U>::name.data());                // ... tar(idx) ..., mt,  key
         lua_rawget(L, -2);                                                  // ... tar(idx) ..., mt, 1?
 #else
-        lua_rawgetp(L, -1, MetaFuncs<U>::name);                             // ... tar(idx) ..., mt, 1?
+        lua_rawgetp(L, -1, MetaFuncs<U>::name.data());                             // ... tar(idx) ..., mt, 1?
 #endif
         if (lua_isnil(L, -1)) goto LabError;
         lua_pop(L, 2);                                                      // ... tar(idx) ...
@@ -805,11 +805,11 @@ namespace xx::Lua {
     protected:
         lua_State *const &L;
     public:
-        explicit Meta(lua_State *const &L, char const *const &name) : L(L) {
+        explicit Meta(lua_State *const &L, std::string const &name) : L(L) {
             if constexpr(!std::is_void_v<B>) {
                 MetaFuncs<B, void>::Fill(L);
             }
-            SetField(L, (void *) name, 1);
+            SetField(L, (void *) name.data(), 1);
         }
 
         template<typename F>

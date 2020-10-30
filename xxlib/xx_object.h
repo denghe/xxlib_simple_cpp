@@ -247,8 +247,8 @@ namespace xx {
         template<typename T>
         void WriteOnce(T const &v) {
             oh.bak = data.len;
-            oh.objOffsets.clear();
             Write(v);
+            oh.objOffsets.clear();
         }
 
         // 写入 typeId + offset + data
@@ -316,8 +316,9 @@ namespace xx {
         template<typename T>
         int ReadOnce(T &v) {
             oh.bak = offset;
+            int r =  Read(v);
             oh.offsetObjs.clear();
-            return Read(v);
+            return r;
         }
 
         template<typename T>
