@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <cassert>
 #include <stdexcept>
+#include "xx_typename_islambda.h"
 
 // only can create by Make / MakeShared. usually can't be use by VALUE mode. no thread safe
 // careful: constructor Shared(this) only for no except mode
@@ -19,15 +20,15 @@ namespace xx {
 	struct PtrHeader {
 		union {
 			struct {
-				uint32_t useCount;
-				uint32_t refCount;
+				uint32_t useCount;	// for Shared
+				uint32_t refCount;	// for Weak
 			};
 			uint64_t data1;
 		};
 		union {
 			struct {
-				uint32_t typeId;
-				uint32_t offset;
+				uint32_t typeId;	// for type check & serialize / deserialize
+				uint32_t offset;	// for recursive serialize
 			};
 			uint64_t data2;
 		};
@@ -53,11 +54,11 @@ namespace xx {
 	struct Shared<T, std::enable_if_t<std::is_base_of_v<PtrBase, T>>> final {
 		T* pointer = nullptr;
 
-		explicit operator T* () noexcept {
+		operator T* () noexcept {
 			return pointer;
 		}
 
-		explicit operator T* const& () const noexcept {
+		operator T* const& () const noexcept {
 			return pointer;
 		}
 
@@ -88,7 +89,8 @@ namespace xx {
 
 		uint32_t useCount() const noexcept {
 			if (!pointer) return 0;
-			return Header().useCount;
+			auto&& h = Header();
+			return h.useCount;
 		}
 		uint32_t refCount() const noexcept {
 			if (!pointer) return 0;
@@ -99,8 +101,9 @@ namespace xx {
 			return Header().typeId;
 		}
 
-		template<typename U = T>
-		void Reset(std::enable_if_t<std::is_base_of_v<T, U>, U*> const& ptr = nullptr) {
+		template<typename U>
+		void Reset(U* const& ptr = nullptr) {
+			static_assert(std::is_base_of_v<T, U>);
 			if (pointer == ptr) return;
 			if (pointer) {
 				auto&& h = Header();
@@ -116,34 +119,39 @@ namespace xx {
 			}
 			if (ptr) {
 				pointer = ptr;
-				++Header().useCount;
+				auto&& h = Header();
+				++h.useCount;
 			}
 		}
 
 		~Shared() {
-			Reset();
+			Reset<T>();
 		}
 
 		Shared() = default;
 
-		template<typename U = T>
-		explicit Shared(std::enable_if_t<std::is_base_of_v<T, U>, U*> const& ptr) {
+		template<typename U>
+		Shared(U* const& ptr) {
+			static_assert(std::is_base_of_v<T, U>);
 			Reset(ptr);
 		}
 
-		template<typename U = T>
-		explicit Shared(std::enable_if_t<std::is_base_of_v<T, U>, Shared<U>> const& o) {
+		template<typename U>
+		Shared(Shared<U> const& o) {
+			static_assert(std::is_base_of_v<T, U>);
 			Reset(o.pointer);
 		}
 
-		template<typename U = T>
-		Shared& operator=(std::enable_if_t<std::is_base_of_v<T, U>, U*> const& ptr) {
+		template<typename U>
+		Shared& operator=(U* const& ptr) {
+			static_assert(std::is_base_of_v<T, U>);
 			Reset(ptr);
 			return *this;
 		}
 
-		template<typename U = T>
-		Shared& operator=(std::enable_if_t<std::is_base_of_v<T, U>, Shared<U>> const& o) {
+		template<typename U>
+		Shared& operator=(Shared<U> const& o) {
+			static_assert(std::is_base_of_v<T, U>);
 			Reset(o.pointer);
 			return *this;
 		}
@@ -157,18 +165,18 @@ namespace xx {
 			return *this;
 		}
 
-		template<typename U = T>
+		template<typename U>
 		bool operator==(Shared<U> const& o) const noexcept {
 			return pointer == o.pointer;
 		}
 
-		template<typename U = T>
+		template<typename U>
 		bool operator!=(Shared<U> const& o) const noexcept {
 			return pointer != o.pointer;
 		}
 
-		template<typename U = T>
-		Shared<std::enable_if_t<std::is_base_of_v<PtrBase, U>, U>> As() const noexcept {
+		template<typename U>
+		Shared<U> As() const noexcept {
 			if constexpr (std::is_same_v<U, T>) {
 				return *this;
 			}
@@ -179,31 +187,26 @@ namespace xx {
 				return dynamic_cast<U>(pointer);
 			}
 		}
-
-		template<typename...Args>
-		Shared& Make(Args &&...args) {
-			auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
-			h->data1 = 0;
-			h->data2 = 0;
-			try {
-				new (h + 1) T(std::forward<Args>(args)...);
-				Reset((T*)(h + 1));
-			}
-			catch (std::exception const& ex) {
-				free(h);
-				throw ex;
-			}
-			return *this;
-		}
 	};
 
 	template<typename T, typename...Args>
-	[[maybe_unused]] static Shared<T> MakeShared(Args &&...args) {
+	[[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
+		std::string typeName{ TypeName_v<T> };
 		Shared<T> rtv;
-		rtv.Make(std::forward<Args>(args)...);
+		auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
+		if (!h) throw std::runtime_error("out of memory");
+		h->data1 = 0;
+		h->data2 = 0;
+		// todo: fill typeId from T::typeId ?
+		try {
+			rtv.Reset(new (h + 1) T(std::forward<Args>(args)...));
+		}
+		catch (std::exception const& ex) {
+			free(h);
+			throw ex;
+		}
 		return rtv;
 	}
-
 
 	template<typename T>
 	struct Weak<T, std::enable_if_t<std::is_base_of_v<PtrBase, T>>> final {
@@ -227,8 +230,9 @@ namespace xx {
 			return Header().typeId;
 		}
 
-		template<typename U = T>
-		void Reset(std::enable_if_t<std::is_base_of_v<T, U>, Shared<U>> const& ptr = Shared<U>(nullptr)) {
+		template<typename U>
+		void Reset(Shared<U> const& ptr = {}) {
+			static_assert(std::is_base_of_v<T, U>);
 			if (pointer == ptr.pointer) return;
 			if (pointer) {
 				auto&& h = Header();
@@ -250,20 +254,22 @@ namespace xx {
 			return Shared<T>(pointer);
 		}
 
-		template<typename U = T>
+		template<typename U>
 		Weak& operator=(Shared<U> const& o) {
+			static_assert(std::is_base_of_v<T, U>);
 			Reset(o);
 			return *this;
 		}
 
-		template<typename U = T>
-		explicit Weak(Shared<U> const& o) {
+		template<typename U>
+		Weak(Shared<U> const& o) {
+			static_assert(std::is_base_of_v<T, U>);
 			Reset(o);
 		}
 
 
 		~Weak() {
-			Reset();
+			Reset<T>();
 		}
 
 		Weak() = default;

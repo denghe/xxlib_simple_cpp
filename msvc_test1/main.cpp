@@ -2,44 +2,69 @@
 #include <iostream>
 #include <vector>
 
-struct Foo : xx::PtrBase {
-    std::vector<xx::Weak<Foo>> parent;
-    std::vector<xx::Shared<Foo>> childs;
-    Foo() {
-        std::cout << "Foo" << std::endl;
-    }
-
-    void Test() {
-        std::cout << "Test" << std::endl;
-    }
-
-    ~Foo() override {
-        std::cout << "~Foo" << std::endl;
-    }
-};
+struct A : xx::PtrBase {};
+struct B : A {};
 
 int main() {
-    xx::Shared<Foo> sf;
-    sf.Make();
-    sf->childs.push_back(xx::MakeShared<Foo>());
-    sf->childs.push_back(xx::MakeShared<Foo>());
-    xx::Weak<Foo> wf(sf);
-    xx::Weak<Foo> wf2;
-    wf2 = sf;
-    sf.Reset();
-    auto&& sf2 = wf.Lock();
-    std::cout << sf2.Empty() << std::endl;
-    std::cout << wf.useCount() << std::endl;
-    std::cout << wf2.refCount() << std::endl;
-    wf.Reset();
-    std::cout << wf.useCount() << std::endl;
-    std::cout << wf2.refCount() << std::endl;
-    wf2.Reset();
-    std::cout << wf.useCount() << std::endl;
-    std::cout << wf2.refCount() << std::endl;
+    xx::Shared<A> a = xx::MakeShared<B>();
+    std::cout << a.useCount() << std::endl;
 
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+//#include "xx_ptr.h"
+//#include <iostream>
+//#include <vector>
+//
+//struct Foo : xx::PtrBase {
+//    std::vector<xx::Weak<Foo>> parent;
+//    std::vector<xx::Shared<Foo>> childs;
+//    Foo() {
+//        std::cout << "Foo" << std::endl;
+//    }
+//
+//    void Test() {
+//        std::cout << "Test" << std::endl;
+//    }
+//
+//    ~Foo() override {
+//        std::cout << "~Foo" << std::endl;
+//    }
+//};
+//
+//int main() {
+//    xx::Shared<Foo> sf;
+//    sf.Make();
+//    sf->childs.push_back(xx::MakeShared<Foo>());
+//    sf->childs.push_back(xx::MakeShared<Foo>());
+//    xx::Weak<Foo> wf(sf);
+//    xx::Weak<Foo> wf2;
+//    wf2 = sf;
+//    sf.Reset();
+//    auto&& sf2 = wf.Lock();
+//    std::cout << sf2.Empty() << std::endl;
+//    std::cout << wf.useCount() << std::endl;
+//    std::cout << wf2.refCount() << std::endl;
+//    wf.Reset();
+//    std::cout << wf.useCount() << std::endl;
+//    std::cout << wf2.refCount() << std::endl;
+//    wf2.Reset();
+//    std::cout << wf.useCount() << std::endl;
+//    std::cout << wf2.refCount() << std::endl;
+//
+//    return 0;
+//}
 
 
 
