@@ -22,6 +22,7 @@ int main() {
     xx::Shared<Foo> sf;
     sf.Make();
     sf->childs.push_back(xx::MakeShared<Foo>());
+    sf->childs.push_back(xx::MakeShared<Foo>());
     xx::Weak<Foo> wf(sf);
     xx::Weak<Foo> wf2;
     wf2 = sf;
@@ -39,6 +40,18 @@ int main() {
 
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 //#include <iostream>

@@ -19,6 +19,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)ikcp.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_asio.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_chrono.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_coro.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_queue.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_data_rw.h" />
@@ -28,6 +29,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_file.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_fixeddata.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_fixeddata_w.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_itempool.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_logger.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_looper.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_lua.h" />
@@ -36,12 +38,15 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_net.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_object.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_point.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_queue.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_randoms.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_sharedlist.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_signal.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_sqlite.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_string.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_threadpool.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_try.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_typehelpers.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_typename_islambda.h" />
   </ItemGroup>
