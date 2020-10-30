@@ -1,3 +1,116 @@
+#include <new>
+#include <type_traits>
+
+struct Obj {
+    int refCount = 0;
+    virtual ~Obj() = default;
+};
+
+template<typename, typename = void>
+struct Shared;
+
+template<typename T>
+struct Shared<T, std::enable_if_t<std::is_base_of_v<Obj, T>>> final {
+    T *pointer = nullptr;
+
+    operator T *() noexcept {
+        return pointer;
+    }
+
+    template<typename U = T>
+    void Reset(std::enable_if_t<std::is_base_of_v<T, U>, U*> const &ptr = nullptr) {
+        if (pointer) {
+            if (--pointer->refCount == 0) {
+                delete pointer;
+            }
+            pointer = nullptr;
+        }
+        if (ptr) {
+            pointer = ptr;
+            ++ptr->refCount;
+        }
+    }
+
+    ~Shared() {
+        Reset();
+    }
+
+    Shared() = default;
+
+    template<typename U = T>
+    Shared(std::enable_if_t<std::is_base_of_v<T, U>, U*> const &ptr) {
+        Reset(ptr);
+    }
+
+    template<typename U = T>
+    Shared(std::enable_if_t<std::is_base_of_v<T, U>, Shared<U>> const &o) {
+        Reset(o.pointer);
+    }
+
+    template<typename U = T>
+    Shared& operator=(std::enable_if_t<std::is_base_of_v<T, U>, U*> const &ptr) {
+        Reset(ptr);
+        return *this;
+    }
+
+    template<typename U = T>
+    Shared& operator=(std::enable_if_t<std::is_base_of_v<T, U>, Shared<U>> const &o) {
+        Reset(o.pointer);
+        return *this;
+    }
+
+    Shared(Shared &&o) noexcept {
+        std::swap(pointer, o.pointer);
+    }
+
+    Shared& operator=(Shared &&o) noexcept {
+        std::swap(pointer, o.pointer);
+        return *this;
+    }
+
+    template<typename U = T>
+    bool operator==(Shared<U> const &o) const noexcept {
+        return pointer == o.pointer;
+    }
+
+    template<typename U = T>
+    bool operator!=(Shared<U> const &o) const noexcept {
+        return pointer != o.pointer;
+    }
+
+    template<typename U = T>
+    Shared<std::enable_if_t<std::is_base_of_v<Obj, U>, U>> As() const noexcept {
+        if constexpr (std::is_same_v<U, T>) {
+            return *this;
+        }
+        else if constexpr (std::is_base_of_v<U, T>) {
+            return pointer;
+        }
+        else {
+            return dynamic_cast<U>(pointer);
+        }
+    }
+
+    template<typename...Args>
+    static Shared Make(Args &&...args) {
+        Shared<T> rtv;
+        rtv.pointer = new T(std::forward<Args>(args)...);
+        return rtv;
+    }
+};
+
+struct Foo : Obj {
+};
+#include <iostream>
+int main() {
+    Shared<Foo> sf;
+    Shared<Foo> sf2;
+    std::cout << (sf == sf2) << std::endl;
+
+    return 0;
+}
+
+
 //#include <iostream>
 //#include <string>
 //#include <memory>
@@ -50,56 +163,56 @@
 
 
 
-// test client
-#include <iostream>
-#include <string>
-#include <memory>
-#include <chrono>
-#include <asio.hpp>
-
-//socket.non_blocking(true);
-//size_t len = 0;
-//error = boost::asio::error::would_block;
-//while (error == boost::asio::error::would_block)
-////do other things here like go and make coffee
-//len = socket.receive_from(boost::asio::buffer(recv_buf), sender_endpoint, 0, error);
-//std::cout.write(recv_buf.data(), len);
-
-int main() {
-    std::cout << "begin" << std::endl;
-    try {
-        asio::io_context ioc;
-        asio::ip::udp::socket us(ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
-        us.non_blocking(true);
-        std::cout << "asdf" << std::endl;
-        char d[2048];
-
-        auto &&tar = asio::ip::udp::endpoint(asio::ip::address::from_string("10.0.0.13"), 12333);
-        us.send_to(asio::buffer("asdf", 4), tar);
-        std::cout << "qwer" << std::endl;
-        size_t len = 0;
-        asio::error_code error;
-        asio::ip::udp::endpoint rep;
-        for (int i = 0; i < 10; ++i) {
-            len = us.receive_from(asio::buffer(d), rep, 0, error);
-            if (len) break;
-            //else if (error != asio::error::would_block)
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            std::cout << "i = " << i << std::endl;
-        }
-
-        std::cout << len << std::endl;
-        //ioc.run();
-    }
-    catch (std::exception &e) {
-        std::cerr << e.what() << std::endl;
-    }
-    std::cout << "end" << std::endl;
-    return 0;
-}
-////us.async_receive_from(asio::buffer(d), rep, [&](const asio::error_code& e, size_t recvLen) {
-////	std::cout << "e = " << e << ", recvLen = " << recvLen << std::endl;
-////});
+//// test client
+//#include <iostream>
+//#include <string>
+//#include <memory>
+//#include <chrono>
+//#include <asio.hpp>
+//
+////socket.non_blocking(true);
+////size_t len = 0;
+////error = boost::asio::error::would_block;
+////while (error == boost::asio::error::would_block)
+//////do other things here like go and make coffee
+////len = socket.receive_from(boost::asio::buffer(recv_buf), sender_endpoint, 0, error);
+////std::cout.write(recv_buf.data(), len);
+//
+//int main() {
+//    std::cout << "begin" << std::endl;
+//    try {
+//        asio::io_context ioc;
+//        asio::ip::udp::socket us(ioc, asio::ip::udp::endpoint(asio::ip::udp::v4(), 0));
+//        us.non_blocking(true);
+//        std::cout << "asdf" << std::endl;
+//        char d[2048];
+//
+//        auto &&tar = asio::ip::udp::endpoint(asio::ip::address::from_string("10.0.0.13"), 12333);
+//        us.send_to(asio::buffer("asdf", 4), tar);
+//        std::cout << "qwer" << std::endl;
+//        size_t len = 0;
+//        asio::error_code error;
+//        asio::ip::udp::endpoint rep;
+//        for (int i = 0; i < 10; ++i) {
+//            len = us.receive_from(asio::buffer(d), rep, 0, error);
+//            if (len) break;
+//            //else if (error != asio::error::would_block)
+//            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//            std::cout << "i = " << i << std::endl;
+//        }
+//
+//        std::cout << len << std::endl;
+//        //ioc.run();
+//    }
+//    catch (std::exception &e) {
+//        std::cerr << e.what() << std::endl;
+//    }
+//    std::cout << "end" << std::endl;
+//    return 0;
+//}
+//////us.async_receive_from(asio::buffer(d), rep, [&](const asio::error_code& e, size_t recvLen) {
+//////	std::cout << "e = " << e << ", recvLen = " << recvLen << std::endl;
+//////});
 
 
 
