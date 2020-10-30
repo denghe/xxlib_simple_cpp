@@ -1,111 +1,41 @@
-#include <new>
-#include <type_traits>
-
-struct Obj {
-    int refCount = 0;
-    virtual ~Obj() = default;
-};
-
-template<typename, typename = void>
-struct Shared;
-
-template<typename T>
-struct Shared<T, std::enable_if_t<std::is_base_of_v<Obj, T>>> final {
-    T *pointer = nullptr;
-
-    operator T *() noexcept {
-        return pointer;
-    }
-
-    template<typename U = T>
-    void Reset(std::enable_if_t<std::is_base_of_v<T, U>, U*> const &ptr = nullptr) {
-        if (pointer) {
-            if (--pointer->refCount == 0) {
-                delete pointer;
-            }
-            pointer = nullptr;
-        }
-        if (ptr) {
-            pointer = ptr;
-            ++ptr->refCount;
-        }
-    }
-
-    ~Shared() {
-        Reset();
-    }
-
-    Shared() = default;
-
-    template<typename U = T>
-    Shared(std::enable_if_t<std::is_base_of_v<T, U>, U*> const &ptr) {
-        Reset(ptr);
-    }
-
-    template<typename U = T>
-    Shared(std::enable_if_t<std::is_base_of_v<T, U>, Shared<U>> const &o) {
-        Reset(o.pointer);
-    }
-
-    template<typename U = T>
-    Shared& operator=(std::enable_if_t<std::is_base_of_v<T, U>, U*> const &ptr) {
-        Reset(ptr);
-        return *this;
-    }
-
-    template<typename U = T>
-    Shared& operator=(std::enable_if_t<std::is_base_of_v<T, U>, Shared<U>> const &o) {
-        Reset(o.pointer);
-        return *this;
-    }
-
-    Shared(Shared &&o) noexcept {
-        std::swap(pointer, o.pointer);
-    }
-
-    Shared& operator=(Shared &&o) noexcept {
-        std::swap(pointer, o.pointer);
-        return *this;
-    }
-
-    template<typename U = T>
-    bool operator==(Shared<U> const &o) const noexcept {
-        return pointer == o.pointer;
-    }
-
-    template<typename U = T>
-    bool operator!=(Shared<U> const &o) const noexcept {
-        return pointer != o.pointer;
-    }
-
-    template<typename U = T>
-    Shared<std::enable_if_t<std::is_base_of_v<Obj, U>, U>> As() const noexcept {
-        if constexpr (std::is_same_v<U, T>) {
-            return *this;
-        }
-        else if constexpr (std::is_base_of_v<U, T>) {
-            return pointer;
-        }
-        else {
-            return dynamic_cast<U>(pointer);
-        }
-    }
-
-    template<typename...Args>
-    static Shared Make(Args &&...args) {
-        Shared<T> rtv;
-        rtv.pointer = new T(std::forward<Args>(args)...);
-        return rtv;
-    }
-};
-
-struct Foo : Obj {
-};
+#include "xx_ptr.h"
 #include <iostream>
+#include <vector>
+
+struct Foo : xx::PtrBase {
+    std::vector<xx::Weak<Foo>> parent;
+    std::vector<xx::Shared<Foo>> childs;
+    Foo() {
+        std::cout << "Foo" << std::endl;
+    }
+
+    void Test() {
+        std::cout << "Test" << std::endl;
+    }
+
+    ~Foo() override {
+        std::cout << "~Foo" << std::endl;
+    }
+};
+
 int main() {
-    Shared<Foo> sf;
-    Shared<Foo> sf2;
-    std::cout << (sf == sf2) << std::endl;
+    xx::Shared<Foo> sf;
+    sf.Make();
+    sf->childs.push_back(xx::MakeShared<Foo>());
+    xx::Weak<Foo> wf(sf);
+    xx::Weak<Foo> wf2;
+    wf2 = sf;
+    sf.Reset();
+    auto&& sf2 = wf.Lock();
+    std::cout << sf2.Empty() << std::endl;
+    std::cout << wf.useCount() << std::endl;
+    std::cout << wf2.refCount() << std::endl;
+    wf.Reset();
+    std::cout << wf.useCount() << std::endl;
+    std::cout << wf2.refCount() << std::endl;
+    wf2.Reset();
+    std::cout << wf.useCount() << std::endl;
+    std::cout << wf2.refCount() << std::endl;
 
     return 0;
 }
