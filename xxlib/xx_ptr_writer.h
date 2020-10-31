@@ -1,31 +1,19 @@
 ﻿#pragma once
 
-#include "xx_ptr_bytes.h"
-#include <vector>
-#include <optional>
-#include <string>
-#include <string_view>
+#include "xx_ptr.h"
+#include "xx_data.h"
 
 namespace xx {
-
-	template<typename T>
-	struct IsStdOptional : std::false_type {};
-	template<typename T>
-	struct IsStdOptional<std::optional<T>> : std::true_type {};
-	template<typename T>
-	struct IsStdVector : std::false_type {};
-	template<typename T>
-	struct IsStdVector<std::vector<T>> : std::true_type {};
 
 	struct BytesWriter {
 		std::vector<void*> ptrs;
 		size_t baseLen = 0;
-		xx::SharedBytes* data = nullptr;
+		xx::Data* data = nullptr;
 
 		template<typename T>
-		void Write(xx::SharedBytes& d, xx::Shared<T> const& v) {
+		void Write(xx::Data& d, xx::Shared<T> const& v) {
 			data = &d;
-			baseLen = d.len();
+			baseLen = d.len;
 			assert(ptrs.empty());
 
 			(*this)(v);
@@ -47,7 +35,7 @@ namespace xx {
 
 					auto&& h = PtrHeader::Get(v.pointer);
 					if (h.offset == 0) {
-						h.offset = (uint32_t)(d.len() - baseLen);
+						h.offset = (uint32_t)(d.len - baseLen);
 						ptrs.push_back(&h.offset);
 						d.WriteVarIntger(h.offset);
 						(*v.pointer)(*this);
@@ -69,7 +57,7 @@ namespace xx {
 			else if constexpr (IsPtrWeak_v<T>) {
 				(*this)(v.Lock());
 			}
-			else if constexpr (IsStdOptional<T>::value) {
+			else if constexpr (IsOptional<T>::value) {
 				if (v.has_value()) {
 					d.WriteFixed((uint8_t)1);
 					(*this)(*v);
@@ -78,7 +66,7 @@ namespace xx {
 					d.WriteFixed((uint8_t)0);
 				}
 			}
-			else if constexpr (IsStdVector<T>::value) {
+			else if constexpr (IsVector<T>::value) {
 				d.WriteVarIntger(v.size());
 				for (auto&& o : v) {
 					(*this)(o);

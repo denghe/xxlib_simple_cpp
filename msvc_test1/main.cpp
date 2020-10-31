@@ -1,6 +1,8 @@
 #include "xx_ptr_writer.h"
 #include "xx_chrono.h"
+#include "xx_string.h"
 #include <iostream>
+#include <memory>
 
 // todo: BytesReader StringWriter
 
@@ -32,19 +34,6 @@ template<> struct xx::PtrTypeId<A> { static const uint32_t value = 1; };
 template<> struct xx::PtrTypeId<B> { static const uint32_t value = 2; };
 
 
-inline std::ostream& operator<<(std::ostream& os, xx::SharedBytes const& c) {
-	os << '[';
-	auto len = c.len();
-	if (len > 1) {
-		for (uint32_t i = 0; i < len - 1; ++i) {
-			os << (uint32_t)c.pointer[i] << ',';
-		}
-	}
-	os << (uint32_t)c.pointer[len - 1];
-	os << ']';
-	return os;
-}
-
 int main() {
 	try {
 		auto c = xx::MakeShared<int>(2);
@@ -65,9 +54,9 @@ int main() {
 
 	xx::BytesWriter pw;
 
-	xx::SharedBytes d;
+	xx::Data d;
 	pw.Write(d, a);
-	std::cout << d << std::endl;
+	xx::CoutN(d);
 
 	// todo: BytesReader, StringWriter
 
@@ -77,7 +66,7 @@ int main() {
 	            d.Clear();
 	            pw.Write(d, a);
 	        }
-			std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << d << std::endl;
+			xx::CoutN((xx::NowSteadyEpochSeconds() - secs) ," ", d);
 	    }
 
 	    {
@@ -95,6 +84,24 @@ int main() {
 	        }
 			std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
 	    }
+
+
+    {
+        auto secs = xx::NowSteadyEpochSeconds();
+        struct D { int n = 1; };
+        auto c = xx::MakeShared<D>();
+        auto d = c.ToWeak();
+        int x = 0;
+        for (size_t i = 0; i < 1000000000; i++) {
+            try {
+                x += d.Lock()->n;
+            }
+            catch(std::exception const& ex) {
+                std::cout << ex.what() << std::endl;
+            }
+        }
+        std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
+    }
 	
 	    {
 	        auto secs = xx::NowSteadyEpochSeconds();

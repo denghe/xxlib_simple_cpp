@@ -31,8 +31,8 @@ namespace xx {
         };
 
         // unsafe: 从一个类指针反查引用到内存块头的 PtrHeader 类型
-        [[maybe_unused]] [[nodiscard]] inline static PtrHeader& Get(void* const& o) {
-            return *((PtrHeader*)o - 1);
+        [[maybe_unused]] [[nodiscard]] inline static PtrHeader &Get(void *const &o) {
+            return *((PtrHeader *) o - 1);
         };
     };
 
@@ -47,28 +47,17 @@ namespace xx {
 
     template<typename T>
     struct Shared {
+        using ElementType = T;
         T *pointer = nullptr;
 
-        using ElementType = T;
-
-        //// unsafe
-        //operator T *() noexcept {
-        //    return pointer;
-        //}
-
-        //// unsafe
-        //operator T *const &() const noexcept {
-        //    return pointer;
-        //}
-
-        T& Value() {
-            if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
-            return *pointer;
-        }
-
-        T* operator->() const {
+        T *operator->() const {
             if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
             return pointer;
+        }
+
+        T &Value() {
+            if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
+            return *pointer;
         }
 
         [[maybe_unused]] [[nodiscard]] bool Empty() const noexcept {
@@ -97,7 +86,7 @@ namespace xx {
 
         void Reset() {
             if (pointer) {
-                auto&& h = PtrHeader::Get(pointer);
+                auto &&h = PtrHeader::Get(pointer);
                 assert(h.useCount);
                 --h.useCount;
                 if (h.useCount == 0) {
@@ -145,6 +134,7 @@ namespace xx {
             pointer = o.pointer;
             o.pointer = nullptr;
         }
+
         template<typename U>
         Shared(Shared<U> &&o) noexcept {
             static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
@@ -193,7 +183,7 @@ namespace xx {
             } else if constexpr (std::is_base_of_v<U, T>) {
                 return pointer;
             } else {
-                return dynamic_cast<U*>(pointer);
+                return dynamic_cast<U *>(pointer);
             }
         }
 
@@ -208,9 +198,8 @@ namespace xx {
 
     template<typename T>
     struct Weak {
-        T *pointer = nullptr;
-
         using ElementType = T;
+        T *pointer = nullptr;
 
         [[maybe_unused]] [[nodiscard]] uint32_t useCount() const noexcept {
             if (!pointer) return 0;
@@ -240,7 +229,7 @@ namespace xx {
         }
 
         template<typename U>
-        void Reset(Shared<U> const& ptr) {
+        void Reset(Shared<U> const &ptr) {
             static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             if (pointer == ptr.pointer) return;
             Reset();
@@ -322,14 +311,13 @@ namespace xx {
     struct IsPtrShared<Shared<T>> : std::true_type {
     };
     template<typename T>
-    struct IsPtrShared<Shared<T>&> : std::true_type {
+    struct IsPtrShared<Shared<T> &> : std::true_type {
     };
     template<typename T>
-    struct IsPtrShared<Shared<T> const&> : std::true_type {
+    struct IsPtrShared<Shared<T> const &> : std::true_type {
     };
     template<typename T>
     constexpr bool IsPtrShared_v = IsPtrShared<T>::value;
-
 
 
     template<typename T>
@@ -339,10 +327,10 @@ namespace xx {
     struct IsPtrWeak<Weak<T>> : std::true_type {
     };
     template<typename T>
-    struct IsPtrWeak<Weak<T>&> : std::true_type {
+    struct IsPtrWeak<Weak<T> &> : std::true_type {
     };
     template<typename T>
-    struct IsPtrWeak<Weak<T> const&> : std::true_type {
+    struct IsPtrWeak<Weak<T> const &> : std::true_type {
     };
     template<typename T>
     constexpr bool IsPtrWeak_v = IsPtrWeak<T>::value;
@@ -372,7 +360,7 @@ namespace xx {
     template<typename T, typename...Args>
     [[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
         Shared<T> rtv;
-        auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
+        auto h = (PtrHeader *) malloc(sizeof(PtrHeader) + sizeof(T));
         if (!h) throw std::runtime_error("out of memory");
         h->data1 = 0;
         h->typeId = PtrTypeId_v<T>;
@@ -380,7 +368,7 @@ namespace xx {
         try {
             rtv.Reset(new(h + 1) T(std::forward<Args>(args)...));
         }
-        catch (std::exception const& ex) {
+        catch (std::exception const &ex) {
             free(h);
             throw ex;
         }
