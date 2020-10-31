@@ -3,4 +3,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="code.bak" />
+  </ItemGroup>
 </Project>

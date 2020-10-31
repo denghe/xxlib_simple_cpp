@@ -10,6 +10,7 @@ namespace xx {
 		char*				buf = nullptr;
 		size_t				len = 0;
 		size_t				cap = 0;
+		void*				ud = nullptr;	// user data. can store anything
 
 		// buf 头部预留空间大小. 至少需要装得下 sizeof(size_t)
 		static const size_t	recvLen = 16;
@@ -43,6 +44,7 @@ namespace xx {
 				buf = o.buf;
 				len = o.len;
 				cap = o.cap;
+				ud = o.ud;
 				++Refs();
 			}
 			else {
@@ -60,6 +62,7 @@ namespace xx {
 			std::swap(buf, o.buf);
 			std::swap(len, o.len);
 			std::swap(cap, o.cap);
+			std::swap(ud, o.ud);
 			return *this;
 		}
 
@@ -205,5 +208,4 @@ namespace xx {
         char const* const& buf;
         size_t const& len;
     };
-
 }

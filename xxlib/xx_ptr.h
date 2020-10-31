@@ -6,7 +6,6 @@
 #include <type_traits>
 #include <cassert>
 #include <stdexcept>
-#include "xx_typename_islambda.h"
 
 // only can create by Make / MakeShared. usually can't be use by VALUE mode. no thread safe
 // careful: constructor Shared(this) only for no except mode
@@ -34,24 +33,14 @@ namespace xx {
         };
     };
 
-    struct PtrBase {
-        [[maybe_unused]] [[nodiscard]] PtrHeader &GetPtrHeader() const {
-            return *((PtrHeader *) this - 1);
-        };
-
-        virtual ~PtrBase() = default;
+    // unsafe
+    [[maybe_unused]] [[nodiscard]] PtrHeader &GetPtrHeader(void* const& o) {
+        return *((PtrHeader *)o - 1);
     };
 
     // std::shared_ptr like
-    template<typename, typename = void>
-    struct Shared;
-
-    // std::weak_ptr like
-    template<typename, typename = void>
-    struct Weak;
-
     template<typename T>
-    struct Shared<T, std::enable_if_t<std::is_base_of_v<PtrBase, T>>> final {
+    struct Shared final {
         T *pointer = nullptr;
 
         operator T *() noexcept {
@@ -84,25 +73,20 @@ namespace xx {
             return pointer != nullptr;
         }
 
-        // unsafe
-        [[maybe_unused]] [[nodiscard]] PtrHeader &Header() const noexcept {
-            return *((PtrHeader *) pointer - 1);
-        }
-
         [[maybe_unused]] [[nodiscard]] uint32_t useCount() const noexcept {
             if (!pointer) return 0;
-            auto &&h = Header();
+            auto &&h = GetPtrHeader(pointer);
             return h.useCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t refCount() const noexcept {
             if (!pointer) return 0;
-            return Header().refCount;
+            return GetPtrHeader(pointer).refCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t typeId() const noexcept {
             if (!pointer) return 0;
-            return Header().typeId;
+            return GetPtrHeader(pointer).typeId;
         }
 
         template<typename U>
@@ -110,7 +94,7 @@ namespace xx {
             static_assert(std::is_base_of_v<T, U>);
             if (pointer == ptr) return;
             if (pointer) {
-                auto &&h = Header();
+                auto &&h = GetPtrHeader(pointer);
                 assert(h.useCount);
                 --h.useCount;
                 if (h.useCount == 0) {
@@ -123,7 +107,7 @@ namespace xx {
             }
             if (ptr) {
                 pointer = ptr;
-                auto &&h = Header();
+                auto &&h = GetPtrHeader(pointer);
                 ++h.useCount;
             }
         }
@@ -205,13 +189,12 @@ namespace xx {
 
     template<typename T, typename...Args>
     [[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
-        std::string typeName{TypeName_v<T>};
         Shared<T> rtv;
         auto h = (PtrHeader *) malloc(sizeof(PtrHeader) + sizeof(T));
         if (!h) throw std::runtime_error("out of memory");
         h->data1 = 0;
-        h->data2 = 0;
-        // todo: fill typeId from T::typeId ?
+        h->typeId = T::typeId;
+        h->offset = 0;
         try {
             rtv.Reset(new(h + 1) T(std::forward<Args>(args)...));
         }
@@ -222,28 +205,24 @@ namespace xx {
         return rtv;
     }
 
+    // std::weak_ptr like
     template<typename T>
-    struct Weak<T, std::enable_if_t<std::is_base_of_v<PtrBase, T>>> final {
+    struct Weak final {
         T *pointer = nullptr;
-
-        // unsafe
-        [[nodiscard]] PtrHeader &Header() const noexcept {
-            return *((PtrHeader *) pointer - 1);
-        }
 
         [[maybe_unused]] [[nodiscard]] uint32_t useCount() const noexcept {
             if (!pointer) return 0;
-            return Header().useCount;
+            return GetPtrHeader(pointer).useCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t refCount() const noexcept {
             if (!pointer) return 0;
-            return Header().refCount;
+            return GetPtrHeader(pointer).refCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t typeId() const noexcept {
             if (!pointer) return 0;
-            return Header().typeId;
+            return GetPtrHeader(pointer).typeId;
         }
 
         template<typename U>
@@ -251,7 +230,7 @@ namespace xx {
             static_assert(std::is_base_of_v<T, U>);
             if (pointer == ptr.pointer) return;
             if (pointer) {
-                auto &&h = Header();
+                auto &&h = GetPtrHeader(pointer);
                 assert(h.refCount);
                 --h.refCount;
                 if (h.refCount == 0 && h.useCount == 0) {
@@ -261,7 +240,7 @@ namespace xx {
             }
             if (ptr.pointer) {
                 pointer = ptr.pointer;
-                ++Header().refCount;
+                ++GetPtrHeader(pointer).refCount;
             }
         }
 
@@ -270,7 +249,7 @@ namespace xx {
         }
 
         [[maybe_unused]] [[nodiscard]] Shared<T> Lock() const {
-            if (!pointer || Header().useCount == 0) return {};
+            if (!pointer || GetPtrHeader(pointer).useCount == 0) return {};
             return Shared<T>(pointer);
         }
 
@@ -322,4 +301,41 @@ namespace xx {
             return pointer != o.pointer;
         }
     };
+
+
+
+    template<typename T>
+    struct IsPtrShared : std::false_type {
+    };
+    template<typename T>
+    struct IsPtrShared<Shared<T>> : std::true_type {
+    };
+    template<typename T>
+    struct IsPtrShared<Shared<T>&> : std::true_type {
+    };
+    template<typename T>
+    struct IsPtrShared<Shared<T> const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsPtrShared_v = IsPtrShared<T>::value;
+
+
+
+
+    template<typename T>
+    struct IsPtrWeak : std::false_type {
+    };
+    template<typename T>
+    struct IsPtrWeak<Weak<T>> : std::true_type {
+    };
+    template<typename T>
+    struct IsPtrWeak<Weak<T>&> : std::true_type {
+    };
+    template<typename T>
+    struct IsPtrWeak<Weak<T> const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsPtrWeak_v = IsPtrWeak<T>::value;
+
+
 }
