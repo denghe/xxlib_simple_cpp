@@ -58,63 +58,60 @@ int main() {
 	pw.Write(d, a);
 	xx::CoutN(d);
 
-	// todo: BytesReader, StringWriter
+	{
+		auto secs = xx::NowSteadyEpochSeconds();
+		for (size_t i = 0; i < 10000000; i++) {
+			d.Clear();
+			pw.Write(d, a);
+		}
+		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
+	}
 
-	    {
-	        auto secs = xx::NowSteadyEpochSeconds();
-	        for (size_t i = 0; i < 10000000; i++) {
-	            d.Clear();
-	            pw.Write(d, a);
-	        }
-			xx::CoutN((xx::NowSteadyEpochSeconds() - secs) ," ", d);
-	    }
+	{
+		auto secs = xx::NowSteadyEpochSeconds();
+		auto c = xx::MakeShared<int>(1);
+		auto d = c.ToWeak();
+		int x = 0;
+		for (size_t i = 0; i < 1000000000; i++) {
+			try {
+				x += d.Lock().Value();
+			}
+			catch (std::exception const& ex) {
+				std::cout << ex.what() << std::endl;
+			}
+		}
+		std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
+	}
 
-	    {
-	        auto secs = xx::NowSteadyEpochSeconds();
-	        auto c = xx::MakeShared<int>(1);
-	        auto d = c.ToWeak();
-	        int x = 0;
-	        for (size_t i = 0; i < 1000000000; i++) {
-	            try {
-	                x += d.Lock().Value();
-	            }
-	            catch(std::exception const& ex) {
-					std::cout << ex.what() << std::endl;
-	            }
-	        }
-			std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
-	    }
+	{
+		auto secs = xx::NowSteadyEpochSeconds();
+		struct D { int n = 1; };
+		auto c = xx::MakeShared<D>();
+		auto d = c.ToWeak();
+		int x = 0;
+		for (size_t i = 0; i < 1000000000; i++) {
+			try {
+				x += d.Lock()->n;
+			}
+			catch (std::exception const& ex) {
+				std::cout << ex.what() << std::endl;
+			}
+		}
+		std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
+	}
 
-
-    {
-        auto secs = xx::NowSteadyEpochSeconds();
-        struct D { int n = 1; };
-        auto c = xx::MakeShared<D>();
-        auto d = c.ToWeak();
-        int x = 0;
-        for (size_t i = 0; i < 1000000000; i++) {
-            try {
-                x += d.Lock()->n;
-            }
-            catch(std::exception const& ex) {
-                std::cout << ex.what() << std::endl;
-            }
-        }
-        std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
-    }
-	
-	    {
-	        auto secs = xx::NowSteadyEpochSeconds();
-	        auto c = std::make_shared<int>(1);
-	        std::weak_ptr<int> d = c;
-	        int x = 0;
-	        for (size_t i = 0; i < 1000000000; i++) {
-	            if (auto &&e = d.lock()) {
-	                x += *e;
-	            }
-	        }
-			std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
-	    }
+	{
+		auto secs = xx::NowSteadyEpochSeconds();
+		auto c = std::make_shared<int>(1);
+		std::weak_ptr<int> d = c;
+		int x = 0;
+		for (size_t i = 0; i < 1000000000; i++) {
+			if (auto&& e = d.lock()) {
+				x += *e;
+			}
+		}
+		std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
+	}
 
 	return 0;
 }
