@@ -98,8 +98,9 @@ namespace xx {
                 assert(h.useCount);
                 --h.useCount;
                 if (h.useCount == 0) {
+                    auto needFree = h.refCount == 0;
                     pointer->~T();
-                    if (h.refCount == 0) {
+                    if (needFree) {
                         free(&h);
                     }
                 }

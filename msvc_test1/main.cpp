@@ -24,8 +24,8 @@ int main() {
     // make data: A(A)-BB
     auto&& a = xx::MakeShared<A>();
     a->parent = a;
-    a->children.push_back(xx::MakeShared<B>());
-    a->children.push_back(xx::MakeShared<B>());
+    a->children.emplace_back(xx::MakeShared<B>());
+    a->children.emplace_back(xx::MakeShared<B>());
 
     xx::Data d;
 
