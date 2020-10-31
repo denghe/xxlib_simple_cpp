@@ -7,68 +7,69 @@
 #include <cassert>
 #include <stdexcept>
 
-// only can create by Make / MakeShared. usually can't be use by VALUE mode. no thread safe
-// careful: constructor Shared(this) only for no except mode
-// destructor can't Shared(this)
-
-// -> nullptr check throw for try catch
-#define XX_ENABLE_SHARED_NULL_THROW
+// 类似 std::shared_ptr / weak_ptr, 大 try catch 风格用法( 能捕获 空-> )
 
 namespace xx {
+
+    /************************************************************************************/
+    // Make 时会在内存块头部附加
 
     struct PtrHeader {
         union {
             struct {
-                uint32_t useCount;    // for Shared
-                uint32_t refCount;    // for Weak
+                uint32_t useCount;      // 强引用技术
+                uint32_t refCount;      // 弱引用技术
             };
             uint64_t data1;
         };
         union {
             struct {
-                uint32_t typeId;    // for type check & serialize / deserialize
-                uint32_t offset;    // for recursive serialize
+                uint32_t typeId;        // 序列化 或 类型转换用
+                uint32_t offset;        // 序列化等过程中使用
             };
             uint64_t data2;
         };
+
+        // unsafe: 从一个类指针反查引用到内存块头的 PtrHeader 类型
+        [[maybe_unused]] [[nodiscard]] inline static PtrHeader& Get(void* const& o) {
+            return *((PtrHeader*)o - 1);
+        };
     };
 
-    // unsafe
-    [[maybe_unused]] [[nodiscard]] PtrHeader &GetPtrHeader(void* const& o) {
-        return *((PtrHeader *)o - 1);
-    };
+
+
+
+    /************************************************************************************/
+    // std::shared_ptr like
 
     template<typename T>
     struct Weak;
 
-    // std::shared_ptr like
     template<typename T>
-    struct Shared final {
+    struct Shared {
         T *pointer = nullptr;
 
-        operator T *() noexcept {
-            return pointer;
-        }
+        using ElementType = T;
 
-        operator T *const &() const noexcept {
-            return pointer;
-        }
+        //// unsafe
+        //operator T *() noexcept {
+        //    return pointer;
+        //}
 
-#ifdef XX_ENABLE_SHARED_NULL_THROW
+        //// unsafe
+        //operator T *const &() const noexcept {
+        //    return pointer;
+        //}
+
+        T& Value() {
+            if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
+            return *pointer;
+        }
 
         T* operator->() const {
             if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
             return pointer;
         }
-
-#else
-
-        T *operator->() const noexcept {
-            assert(pointer);
-            return pointer;
-        }
-
-#endif
 
         [[maybe_unused]] [[nodiscard]] bool Empty() const noexcept {
             return pointer == nullptr;
@@ -80,26 +81,23 @@ namespace xx {
 
         [[maybe_unused]] [[nodiscard]] uint32_t useCount() const noexcept {
             if (!pointer) return 0;
-            auto &&h = GetPtrHeader(pointer);
-            return h.useCount;
+            return PtrHeader::Get(pointer).useCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t refCount() const noexcept {
             if (!pointer) return 0;
-            return GetPtrHeader(pointer).refCount;
+            return PtrHeader::Get(pointer).refCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t typeId() const noexcept {
             if (!pointer) return 0;
-            return GetPtrHeader(pointer).typeId;
+            assert(PtrHeader::Get(pointer).typeId);
+            return PtrHeader::Get(pointer).typeId;
         }
 
-        template<typename U>
-        void Reset(U *const &ptr) {
-            static_assert(std::is_base_of_v<T, U>);
-            if (pointer == ptr) return;
+        void Reset() {
             if (pointer) {
-                auto &&h = GetPtrHeader(pointer);
+                auto&& h = PtrHeader::Get(pointer);
                 assert(h.useCount);
                 --h.useCount;
                 if (h.useCount == 0) {
@@ -111,15 +109,18 @@ namespace xx {
                 }
                 pointer = nullptr;
             }
-            if (ptr) {
-                pointer = ptr;
-                auto &&h = GetPtrHeader(pointer);
-                ++h.useCount;
-            }
         }
 
-        void Reset() {
-            Reset<T>(nullptr);
+        template<typename U>
+        void Reset(U *const &ptr) {
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
+            if (pointer == ptr) return;
+            Reset();
+            if (ptr) {
+                pointer = ptr;
+                auto &&h = PtrHeader::Get(pointer);
+                ++h.useCount;
+            }
         }
 
         ~Shared() {
@@ -130,40 +131,44 @@ namespace xx {
 
         template<typename U>
         Shared(U *const &ptr) {
-            static_assert(std::is_base_of_v<T, U>);
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             Reset(ptr);
         }
 
         template<typename U>
         Shared(Shared<U> const &o) {
-            static_assert(std::is_base_of_v<T, U>);
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             Reset(o.pointer);
         }
 
+        Shared(Shared &&o) noexcept {
+            pointer = o.pointer;
+            o.pointer = nullptr;
+        }
         template<typename U>
         Shared(Shared<U> &&o) noexcept {
-            static_assert(std::is_base_of_v<T, U>);
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             pointer = o.pointer;
             o.pointer = nullptr;
         }
 
         template<typename U>
         Shared &operator=(U *const &ptr) {
-            static_assert(std::is_base_of_v<T, U>);
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             Reset(ptr);
             return *this;
         }
 
         template<typename U>
         Shared &operator=(Shared<U> const &o) {
-            static_assert(std::is_base_of_v<T, U>);
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             Reset(o.pointer);
             return *this;
         }
 
         template<typename U>
         Shared &operator=(Shared<U> &&o) {
-            static_assert(std::is_base_of_v<T, U>);
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             if constexpr (!std::is_same_v<U, T>) {
                 Reset();
             }
@@ -195,50 +200,36 @@ namespace xx {
         struct Weak<T> ToWeak() const noexcept;
     };
 
-    template<typename T, typename...Args>
-    [[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
-        Shared<T> rtv;
-        auto h = (PtrHeader *) malloc(sizeof(PtrHeader) + sizeof(T));
-        if (!h) throw std::runtime_error("out of memory");
-        h->data1 = 0;
-        h->typeId = T::typeId;
-        h->offset = 0;
-        try {
-            rtv.Reset(new(h + 1) T(std::forward<Args>(args)...));
-        }
-        catch (std::exception const &ex) {
-            free(h);
-            throw ex;
-        }
-        return rtv;
-    }
 
+
+
+    /************************************************************************************/
     // std::weak_ptr like
+
     template<typename T>
-    struct Weak final {
+    struct Weak {
         T *pointer = nullptr;
+
+        using ElementType = T;
 
         [[maybe_unused]] [[nodiscard]] uint32_t useCount() const noexcept {
             if (!pointer) return 0;
-            return GetPtrHeader(pointer).useCount;
+            return PtrHeader::Get(pointer).useCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t refCount() const noexcept {
             if (!pointer) return 0;
-            return GetPtrHeader(pointer).refCount;
+            return PtrHeader::Get(pointer).refCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t typeId() const noexcept {
             if (!pointer) return 0;
-            return GetPtrHeader(pointer).typeId;
+            return PtrHeader::Get(pointer).typeId;
         }
 
-        template<typename U>
-        void Reset(Shared<U> const &ptr) {
-            static_assert(std::is_base_of_v<T, U>);
-            if (pointer == ptr.pointer) return;
+        void Reset() {
             if (pointer) {
-                auto &&h = GetPtrHeader(pointer);
+                auto &&h = PtrHeader::Get(pointer);
                 assert(h.refCount);
                 --h.refCount;
                 if (h.refCount == 0 && h.useCount == 0) {
@@ -246,31 +237,34 @@ namespace xx {
                 }
                 pointer = nullptr;
             }
+        }
+
+        template<typename U>
+        void Reset(Shared<U> const& ptr) {
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
+            if (pointer == ptr.pointer) return;
+            Reset();
             if (ptr.pointer) {
                 pointer = ptr.pointer;
-                ++GetPtrHeader(pointer).refCount;
+                ++PtrHeader::Get(pointer).refCount;
             }
         }
 
-        void Reset() {
-            Reset<T>({});
-        }
-
         [[maybe_unused]] [[nodiscard]] Shared<T> Lock() const {
-            if (!pointer || GetPtrHeader(pointer).useCount == 0) return {};
+            if (!pointer || PtrHeader::Get(pointer).useCount == 0) return {};
             return Shared<T>(pointer);
         }
 
         template<typename U>
         Weak &operator=(Shared<U> const &o) {
-            static_assert(std::is_base_of_v<T, U>);
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             Reset(o);
             return *this;
         }
 
         template<typename U>
         Weak(Shared<U> const &o) {
-            static_assert(std::is_base_of_v<T, U>);
+            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
             Reset(o);
         }
 
@@ -317,6 +311,10 @@ namespace xx {
 
 
 
+
+    /************************************************************************************/
+    // type traits
+
     template<typename T>
     struct IsPtrShared : std::false_type {
     };
@@ -331,7 +329,6 @@ namespace xx {
     };
     template<typename T>
     constexpr bool IsPtrShared_v = IsPtrShared<T>::value;
-
 
 
 
@@ -350,5 +347,44 @@ namespace xx {
     template<typename T>
     constexpr bool IsPtrWeak_v = IsPtrWeak<T>::value;
 
+
+
+
+    /************************************************************************************/
+    // TypeId 映射
+
+    template<typename T>
+    struct PtrTypeId {
+        static const uint32_t value = 0;
+    };
+
+    template<typename T>
+    constexpr uint32_t PtrTypeId_v = PtrTypeId<T>::value;
+
+    //template<> struct xx::PtrTypeId<TTTTTTT> { static const uint32_t value = 111111111; };
+
+
+
+
+    /************************************************************************************/
+    // helpers
+
+    template<typename T, typename...Args>
+    [[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
+        Shared<T> rtv;
+        auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
+        if (!h) throw std::runtime_error("out of memory");
+        h->data1 = 0;
+        h->typeId = PtrTypeId_v<T>;
+        h->offset = 0;
+        try {
+            rtv.Reset(new(h + 1) T(std::forward<Args>(args)...));
+        }
+        catch (std::exception const& ex) {
+            free(h);
+            throw ex;
+        }
+        return rtv;
+    }
 
 }

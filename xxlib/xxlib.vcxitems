@@ -39,6 +39,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_object.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_point.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr_bytes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr_reader.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_ptr_writer.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)xx_queue.h" />
