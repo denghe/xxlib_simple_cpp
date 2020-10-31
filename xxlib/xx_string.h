@@ -127,7 +127,7 @@ namespace xx {
                 s.push_back(in);
             } else if constexpr (std::is_floating_point_v<T>) {
                 char buf[32];
-                sprintf(buf, "%g", (double) in);
+                snprintf(buf, 32, "%.16lf", (double) in);
                 s.append(buf);
             } else {
                 s.append(std::to_string(in));
