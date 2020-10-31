@@ -12,7 +12,7 @@
 // destructor can't Shared(this)
 
 // -> nullptr check throw for try catch
-//#define XX_ENABLE_SHARED_NULL_THROW
+#define XX_ENABLE_SHARED_NULL_THROW
 
 namespace xx {
 
@@ -52,10 +52,12 @@ namespace xx {
         }
 
 #ifdef XX_ENABLE_SHARED_NULL_THROW
+
         T* operator->() const {
             if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
             return pointer;
         }
+
 #else
 
         T *operator->() const noexcept {
