@@ -38,6 +38,9 @@ namespace xx {
         return *((PtrHeader *)o - 1);
     };
 
+    template<typename T>
+    struct Weak;
+
     // std::shared_ptr like
     template<typename T>
     struct Shared final {
@@ -188,6 +191,8 @@ namespace xx {
                 return dynamic_cast<U*>(pointer);
             }
         }
+
+        struct Weak<T> ToWeak() const noexcept;
     };
 
     template<typename T, typename...Args>
@@ -304,6 +309,11 @@ namespace xx {
             return pointer != o.pointer;
         }
     };
+
+    template<typename T>
+    Weak<T> Shared<T>::ToWeak() const noexcept {
+        return Weak<T>(*this);
+    }
 
 
 

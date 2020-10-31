@@ -28,9 +28,20 @@ struct C {
     static const uint32_t typeId = 3;
 };
 
-#include <memory>
-
 int main() {
+    try {
+        auto c = xx::MakeShared<C>();
+        auto wc = c.ToWeak();
+        xx::CoutN(wc.Lock()->n);
+        c.Reset();
+        xx::CoutN(wc.Lock()->n);
+    }
+    catch (std::exception const &ex) {
+        xx::CoutN(ex.what());
+    }
+
+
+
 //    // make data: A(A)-BB
 //    auto &&a = xx::MakeShared<A>();
 //    a->parent = a;
@@ -50,34 +61,37 @@ int main() {
 //        xx::CoutN(xx::NowSteadyEpochSeconds() - secs);
 //        xx::CoutN(d);
 //    }
-
-    {
-        auto secs = xx::NowSteadyEpochSeconds();
-        auto c = xx::MakeShared<C>();
-        xx::Weak<C> d = c;
-        int x = 0;
-        for (size_t i = 0; i < 1000000000; i++) {
-            if (auto &&e = d.Lock()) {
-                x += e->n;
-            }
-        }
-        xx::CoutN(xx::NowSteadyEpochSeconds() - secs);
-        xx::CoutN(x);
-    }
-
-    {
-        auto secs = xx::NowSteadyEpochSeconds();
-        auto c = std::make_shared<C>();
-        std::weak_ptr<C> d = c;
-        int x = 0;
-        for (size_t i = 0; i < 1000000000; i++) {
-            if (auto &&e = d.lock()) {
-                x += e->n;
-            }
-        }
-        xx::CoutN(xx::NowSteadyEpochSeconds() - secs);
-        xx::CoutN(x);
-    }
+//
+//    {
+//        auto secs = xx::NowSteadyEpochSeconds();
+//        auto c = xx::MakeShared<C>();
+//        xx::Weak<C> d = c;
+//        int x = 0;
+//        for (size_t i = 0; i < 1000000000; i++) {
+//            try {
+//                x += d.Lock()->n;
+//            }
+//            catch(std::exception const& ex) {
+//                xx::CoutN(ex.what());
+//            }
+//        }
+//        xx::CoutN(xx::NowSteadyEpochSeconds() - secs);
+//        xx::CoutN(x);
+//    }
+//
+//    {
+//        auto secs = xx::NowSteadyEpochSeconds();
+//        auto c = std::make_shared<C>();
+//        std::weak_ptr<C> d = c;
+//        int x = 0;
+//        for (size_t i = 0; i < 1000000000; i++) {
+//            if (auto &&e = d.lock()) {
+//                x += e->n;
+//            }
+//        }
+//        xx::CoutN(xx::NowSteadyEpochSeconds() - secs);
+//        xx::CoutN(x);
+//    }
 
     return 0;
 }
