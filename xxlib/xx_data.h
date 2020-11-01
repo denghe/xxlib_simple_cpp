@@ -10,7 +10,7 @@ namespace xx {
 		char*				buf = nullptr;
 		size_t				len = 0;
 		size_t				cap = 0;
-		void*				ud = nullptr;	// user data. can store anything
+		size_t				offset = 0;
 
 		// buf 头部预留空间大小. 至少需要装得下 sizeof(size_t)
 		static const size_t	recvLen = 16;
@@ -44,7 +44,7 @@ namespace xx {
 				buf = o.buf;
 				len = o.len;
 				cap = o.cap;
-				ud = o.ud;
+				offset = o.offset;
 				++Refs();
 			}
 			else {
@@ -62,7 +62,7 @@ namespace xx {
 			std::swap(buf, o.buf);
 			std::swap(len, o.len);
 			std::swap(cap, o.cap);
-			std::swap(ud, o.ud);
+			std::swap(offset, o.offset);
 			return *this;
 		}
 
@@ -139,7 +139,15 @@ namespace xx {
 		// 追加写入一段 pod 结构内存
 		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
 		void WriteFixed(T const& v) {
-			WriteBuf(&v, sizeof(T));
+			assert(cap != _1);
+			if constexpr (sizeof(T) == 1) {
+				Reserve(len + 1);
+				buf[len++] = *(char*)&v;
+				len += 1;
+			}
+			else {
+				WriteBuf(&v, sizeof(T));
+			}
 		}
 
 		// 追加写入整数( 7bit 变长格式 )
@@ -159,6 +167,55 @@ namespace xx {
 			};
 			buf[len++] = char(u);
 		}
+
+
+		// 读指定长度 buf 到 tar. 返回非 0 则读取失败
+		// 用之前需要自己初始化 offset
+		inline int ReadBuf(char* const& tar, size_t const& siz) {
+			if (offset + siz > len) return __LINE__;
+			memcpy(tar, buf + offset, siz);
+			offset += siz;
+			return 0;
+		}
+
+		// 定长读. 返回非 0 则读取失败
+		// 用之前需要自己初始化 offset
+		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
+		int ReadFixed(T& v) {
+			if constexpr (sizeof(T) == 1) {
+				if (offset == len) return __LINE__;
+				v = *(T*)(buf + offset);
+				++offset;
+				return 0;
+			}
+			else {
+				return ReadBuf((char*)&v, sizeof(T));
+			}
+		}
+
+		// 变长读. 返回非 0 则读取失败
+		// 用之前需要自己初始化 offset
+		template<typename T>
+		int ReadVarInteger(T& v) {
+			using UT = std::make_unsigned_t<T>;
+			UT u(0);
+			for (size_t shift = 0; shift < sizeof(T) * 8; shift += 7) {
+				if (offset == len) return __LINE__;
+				auto b = (UT)buf[offset++];
+				u |= UT((b & 0x7Fu) << shift);
+				if ((b & 0x80) == 0) {
+					if constexpr (std::is_signed_v<T>) {
+						v = ZigZagDecode(u);
+					}
+					else {
+						v = u;
+					}
+					return 0;
+				}
+			}
+			return __LINE__;
+		}
+
 
 		// 设置为只读模式, 并初始化引用计数( 开启只读引用计数模式. 没数据不允许开启 )
 		inline void SetReadonlyMode() {
@@ -196,6 +253,7 @@ namespace xx {
 				cap = 0;
 			}
 			len = 0;
+			offset = 0;
 		}
 	};
 

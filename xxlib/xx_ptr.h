@@ -1,11 +1,6 @@
 ﻿#pragma once
 
-#include <new>
-#include <cstdlib>
-#include <cstdint>
-#include <type_traits>
-#include <cassert>
-#include <stdexcept>
+#include "xx_typehelpers.h"
 
 // 类似 std::shared_ptr / weak_ptr, 大 try catch 风格用法( 能捕获 空-> )
 
@@ -58,6 +53,10 @@ namespace xx {
         T &Value() {
             if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
             return *pointer;
+        }
+
+        [[maybe_unused]] [[nodiscard]] operator bool() const noexcept {
+            return pointer != nullptr;
         }
 
         [[maybe_unused]] [[nodiscard]] bool Empty() const noexcept {
@@ -120,48 +119,63 @@ namespace xx {
 
         template<typename U>
         Shared(U *const &ptr) {
-            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
+            static_assert(std::is_base_of_v<T, U>);
+            Reset(ptr);
+        }
+        Shared(T *const &ptr) {
             Reset(ptr);
         }
 
         template<typename U>
         Shared(Shared<U> const &o) {
-            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
+            static_assert(std::is_base_of_v<T, U>);
             Reset(o.pointer);
         }
-
-        Shared(Shared &&o) noexcept {
-            pointer = o.pointer;
-            o.pointer = nullptr;
+        Shared(Shared const &o) {
+            Reset(o.pointer);
         }
 
         template<typename U>
         Shared(Shared<U> &&o) noexcept {
-            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
+            static_assert(std::is_base_of_v<T, U>);
+            pointer = o.pointer;
+            o.pointer = nullptr;
+        }
+        Shared(Shared&& o) noexcept {
             pointer = o.pointer;
             o.pointer = nullptr;
         }
 
         template<typename U>
         Shared &operator=(U *const &ptr) {
-            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
+            static_assert(std::is_base_of_v<T, U>);
+            Reset(ptr);
+            return *this;
+        }
+        Shared &operator=(T *const &ptr) {
             Reset(ptr);
             return *this;
         }
 
         template<typename U>
         Shared &operator=(Shared<U> const &o) {
-            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
+            static_assert(std::is_base_of_v<T, U>);
+            Reset(o.pointer);
+            return *this;
+        }
+        Shared &operator=(Shared const &o) {
             Reset(o.pointer);
             return *this;
         }
 
         template<typename U>
         Shared &operator=(Shared<U> &&o) {
-            static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
-            if constexpr (!std::is_same_v<U, T>) {
-                Reset();
-            }
+            static_assert(std::is_base_of_v<T, U>);
+            Reset();
+            std::swap(pointer, o.pointer);
+            return *this;
+        }
+        Shared& operator=(Shared&& o) {
             std::swap(pointer, o.pointer);
             return *this;
         }
@@ -338,21 +352,6 @@ namespace xx {
 
 
 
-    /************************************************************************************/
-    // TypeId 映射
-
-    template<typename T>
-    struct PtrTypeId {
-        static const uint32_t value = 0;
-    };
-
-    template<typename T>
-    constexpr uint32_t PtrTypeId_v = PtrTypeId<T>::value;
-
-    //template<> struct xx::PtrTypeId<TTTTTTT> { static const uint32_t value = 111111111; };
-
-
-
 
     /************************************************************************************/
     // helpers
@@ -363,7 +362,7 @@ namespace xx {
         auto h = (PtrHeader *) malloc(sizeof(PtrHeader) + sizeof(T));
         if (!h) throw std::runtime_error("out of memory");
         h->data1 = 0;
-        h->typeId = PtrTypeId_v<T>;
+        h->typeId = TypeId_v<T>;
         h->offset = 0;
         try {
             rtv.Reset(new(h + 1) T(std::forward<Args>(args)...));

@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <iterator>
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <intrin.h>     // _BitScanReverse  64
 #include <objbase.h>
 #endif

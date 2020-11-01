@@ -8,6 +8,8 @@
 #include <memory>
 #include <functional>
 #include <stdexcept>
+#include <cstdint>
+#include <cassert>
 
 
 namespace xx {
