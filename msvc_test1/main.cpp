@@ -81,8 +81,21 @@ int main() {
         //c.Reset();
         int x = 0;
         for (size_t i = 0; i < 1000000000; i++) {
-            if (auto&& o = d.Lock()) x += o.Value();
-
+			//if (auto&& o = d.Lock()) {
+			//	x += *o.pointer;
+			//}
+			if (d.useCount()) {
+				x += *d.Get();
+			}
+			//if (auto&& o = d.Get()) {
+			//	x += *o;
+			//}
+			//if (d.h && d.h->useCount) {
+			//	++d.h->useCount;
+			//	x += *(int*)(d.h + 1);
+			//	--d.h->useCount;
+			//}
+			//return {};
         }
         std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
     }

@@ -242,13 +242,20 @@ namespace xx {
 				++h->refCount;
 			}
 		}
-
+		
+		// msvc bad performance
 		[[maybe_unused]] [[nodiscard]] Shared<T> Lock() const {
 			if (h && h->useCount) {
                 auto p = h + 1;
                 return *(Shared<T> *) &p;
             }
 			return {};
+		}
+
+		// unsafe: for msvc. if (useCount()) Get()
+		[[maybe_unused]] [[nodiscard]] T* Get() const {
+			/*if (h && h->useCount) */return (T*)(h + 1);
+			//return nullptr;
 		}
 
 		template<typename U>
