@@ -2,7 +2,7 @@
 
 #include "xx_typehelpers.h"
 
-// 类 std::shared_ptr / weak_ptr
+// 类似 std::shared_ptr / weak_ptr，非线程安全，Weak 提供了无损 useCount 检测功能以方便直接搞事情
 
 namespace xx {
 
@@ -42,11 +42,14 @@ namespace xx {
 			return pointer;
 		}
 
-		T* operator->() const {
+		T* const& operator->() const noexcept {
 			return pointer;
 		}
 
-		T& Value() {
+		T const& Value() const noexcept {
+			return *pointer;
+		}
+		T& Value() noexcept {
 			return *pointer;
 		}
 
@@ -227,6 +230,10 @@ namespace xx {
 			return h->typeId;
 		}
 
+		[[maybe_unused]] [[nodiscard]] operator bool() const noexcept {
+			return h && h->useCount;
+		}
+
 		void Reset() {
 			if (h) {
 				assert(h->refCount);
@@ -248,7 +255,6 @@ namespace xx {
 			}
 		}
 		
-		// msvc bad performance
 		[[maybe_unused]] [[nodiscard]] Shared<T> Lock() const {
 			if (h && h->useCount) {
                 auto p = h + 1;
@@ -257,10 +263,18 @@ namespace xx {
 			return {};
 		}
 
-		// unsafe: for msvc. if (useCount()) Get()
-		[[maybe_unused]] [[nodiscard]] T* Get() const {
-			/*if (h && h->useCount) */return (T*)(h + 1);
-			//return nullptr;
+		// unsafe 系列: 每次先 if 一下有值再调用
+		[[maybe_unused]] [[nodiscard]] ElementType* operator->() const noexcept {
+			return (ElementType*)(h + 1);
+		}
+		[[maybe_unused]] [[nodiscard]] ElementType const& Value() const noexcept {
+			return *(ElementType*)(h + 1);
+		}
+		[[maybe_unused]] [[nodiscard]] ElementType& Value() noexcept {
+			return *(ElementType*)(h + 1);
+		}
+		operator ElementType* () const noexcept {
+			return (ElementType*)(h + 1);
 		}
 
 		template<typename U>

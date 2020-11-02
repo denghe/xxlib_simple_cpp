@@ -81,12 +81,8 @@ int main() {
 		//c.Reset();
 		int x = 0;
 		for (size_t i = 0; i < 1000000000; i++) {
-			//if (auto&& o = d.Lock()) {
-			//	x += *o;
-			//}
-			if (d.useCount()) {
-				x += *d.Get();
-			}
+			//if (auto&& o = d.Lock()) x += *o;
+			if (d) x += *d;
 		}
 		std::cout << (xx::NowEpoch10m() - ticks) << " " << x << std::endl;
 	}
