@@ -78,7 +78,7 @@ int main() {
 		auto secs = xx::NowEpochSeconds();
 		auto c = xx::MakeShared<int>(1);
 		auto d = c.ToWeak();
-		//c.Reset();
+		c.Reset();
 		int x = 0;
 		for (size_t i = 0; i < 100000000; i++) {
 			if (auto&& o = d.Lock()) x += *o;
@@ -91,7 +91,7 @@ int main() {
 		auto secs = xx::NowEpochSeconds();
 		auto c = std::make_shared<int>(1);
 		std::weak_ptr<int> d = c;
-        //c.reset();
+        c.reset();
 		int x = 0;
 		for (size_t i = 0; i < 100000000; i++) {
             if (auto&& o = d.lock()) x += *o;
