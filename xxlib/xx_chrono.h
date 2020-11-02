@@ -82,6 +82,19 @@ namespace xx {
 		return rtv;
 	}
 
+    // 得到当前 steady 时间点的 epoch (精度为秒. 精确到小数点后 6 位)
+    inline double NowEpochSeconds() noexcept {
+        return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000000.0;
+    }
+
+	// 更新并返回和 last 的时间差. last 可用 NowSteadyEpochSeconds 初始化 (精度为秒. 精确到小数点后 6 位)
+	inline double NowEpochSeconds(double& last) noexcept {
+		auto now = NowEpochSeconds();
+		auto rtv = now - last;
+		last = now;
+		return rtv;
+	}
+
 
 //	// 当前时间转为字符串并填充
 //	inline void NowToString(std::string& s) noexcept {
