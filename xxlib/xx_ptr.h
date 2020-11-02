@@ -263,7 +263,7 @@ namespace xx {
 			return {};
 		}
 
-		// unsafe 系列: 每次先 if 一下有值再调用
+		// unsafe 系列: 要安全使用，每次都 if 真 再调用这些函数 1 次。一次 if 多次调用的情景除非很有把握在期间 Shared 不会析构，否则还是 Lock()
 		[[maybe_unused]] [[nodiscard]] ElementType* operator->() const noexcept {
 			return (ElementType*)(h + 1);
 		}
