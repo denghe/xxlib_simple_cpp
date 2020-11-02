@@ -244,9 +244,11 @@ namespace xx {
 		}
 
 		[[maybe_unused]] [[nodiscard]] Shared<T> Lock() const {
-			if (!h || h->useCount == 0) return {};
-			auto p = h + 1;
-			return *(Shared<T>*)&p;
+			if (h && h->useCount) {
+                auto p = h + 1;
+                return *(Shared<T> *) &p;
+            }
+			return {};
 		}
 
 		template<typename U>
