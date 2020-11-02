@@ -2,7 +2,7 @@
 
 #include "xx_typehelpers.h"
 
-// 类似 std::shared_ptr / weak_ptr, 大 try catch 风格用法( 能捕获 空-> )
+// 类 std::shared_ptr / weak_ptr
 
 namespace xx {
 
@@ -35,13 +35,18 @@ namespace xx {
 		using ElementType = T;
 		T* pointer = nullptr;
 
+		operator T* const& () const noexcept {
+			return pointer;
+		}
+		operator T*& () noexcept {
+			return pointer;
+		}
+
 		T* operator->() const {
-			if (!pointer) throw __LINE__; //std::runtime_error("exception: pointer == nullptr");
 			return pointer;
 		}
 
 		T& Value() {
-			if (!pointer) throw __LINE__; // std::runtime_error("exception: pointer == nullptr");
 			return *pointer;
 		}
 
@@ -364,7 +369,6 @@ namespace xx {
 
 	template<typename T, typename...Args>
 	[[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
-		Shared<T> rtv;
 		auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
 		if (!h) throw __LINE__; //std::runtime_error("out of memory");
 		h->useCount = 0;
@@ -372,13 +376,11 @@ namespace xx {
 		h->typeId = TypeId_v<T>;
 		h->offset = 0;
 		try {
-			rtv.Reset(new(h + 1) T(std::forward<Args>(args)...));
+			return new(h + 1) T(std::forward<Args>(args)...);
 		}
 		catch (... /*std::exception const &ex*/) {
 			free(h);
-			throw __LINE__; //ex;
 		}
-		return rtv;
+		return nullptr;
 	}
-
 }
