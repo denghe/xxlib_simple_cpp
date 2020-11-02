@@ -272,7 +272,7 @@ namespace xx::Asio {
 					conv = *(uint32_t*)(recvBuf + 4);
 
 					// 记录创建毫秒数 for Update
-					createMS = NowSteadyEpochMS();
+					createMS = NowSteadyEpochMilliseconds();
 
 					// 创建并设置 kcp 的一些参数
 					kcp = ikcp_create(conv, this);
@@ -316,7 +316,7 @@ namespace xx::Asio {
 		// 被 Client 每帧调用, 驱动 kcp 逻辑
 		inline void Update() {
 			if (closed) return;
-			ikcp_update(kcp, (IUINT32)(NowSteadyEpochMS() - createMS));
+			ikcp_update(kcp, (IUINT32)(NowSteadyEpochMilliseconds() - createMS));
 		}
 
 		// 回收 kcp 并清空数据, 撤销超时回调

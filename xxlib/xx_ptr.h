@@ -298,7 +298,7 @@ namespace xx {
 		Weak() = default;
 
 		Weak(Weak const& o) {
-			if (h = o.h) {
+			if ((h = o.h)) {
 				++o.h->refCount;
 			}
 		}
