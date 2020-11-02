@@ -370,17 +370,10 @@ namespace xx {
 	template<typename T, typename...Args>
 	[[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
 		auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
-		if (!h) return nullptr;
 		h->useCount = 0;
 		h->refCount = 0;
 		h->typeId = TypeId_v<T>;
 		h->offset = 0;
-		try {
-			return new(h + 1) T(std::forward<Args>(args)...);
-		}
-		catch (... /*std::exception const &ex*/) {
-			free(h);
-		}
-		return nullptr;
+		return new(h + 1) T(std::forward<Args>(args)...);
 	}
 }
