@@ -46,12 +46,12 @@ namespace xx {
         T *pointer = nullptr;
 
         T *operator->() const {
-            if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
+            if (!pointer) throw __LINE__; //std::runtime_error("exception: pointer == nullptr");
             return pointer;
         }
 
         T &Value() {
-            if (!pointer) throw std::runtime_error("exception: pointer == nullptr");
+            if (!pointer) throw __LINE__; // std::runtime_error("exception: pointer == nullptr");
             return *pointer;
         }
 
@@ -213,30 +213,29 @@ namespace xx {
     template<typename T>
     struct Weak {
         using ElementType = T;
-        T *pointer = nullptr;
+        PtrHeader *pointer = nullptr;
 
         [[maybe_unused]] [[nodiscard]] uint32_t useCount() const noexcept {
             if (!pointer) return 0;
-            return PtrHeader::Get(pointer).useCount;
+            return pointer->useCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t refCount() const noexcept {
             if (!pointer) return 0;
-            return PtrHeader::Get(pointer).refCount;
+            return pointer->refCount;
         }
 
         [[maybe_unused]] [[nodiscard]] uint32_t typeId() const noexcept {
             if (!pointer) return 0;
-            return PtrHeader::Get(pointer).typeId;
+            return pointer->typeId;
         }
 
         void Reset() {
             if (pointer) {
-                auto &&h = PtrHeader::Get(pointer);
-                assert(h.refCount);
-                --h.refCount;
-                if (h.refCount == 0 && h.useCount == 0) {
-                    free(&h);
+                assert(pointer->refCount);
+                --pointer->refCount;
+                if (pointer->refCount == 0 && pointer->useCount == 0) {
+                    free(pointer);
                 }
                 pointer = nullptr;
             }
@@ -245,17 +244,16 @@ namespace xx {
         template<typename U>
         void Reset(Shared<U> const &ptr) {
             static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
-            if (pointer == ptr.pointer) return;
             Reset();
             if (ptr.pointer) {
-                pointer = ptr.pointer;
-                ++PtrHeader::Get(pointer).refCount;
+                pointer = &PtrHeader::Get(ptr.pointer);
+                ++pointer->refCount;
             }
         }
 
         [[maybe_unused]] [[nodiscard]] Shared<T> Lock() const {
-            if (!pointer || PtrHeader::Get(pointer).useCount == 0) return {};
-            return Shared<T>(pointer);
+            if (!pointer || pointer->useCount == 0) return {};
+            return *(Shared<T>*)(pointer + 1);
         }
 
         template<typename U>
@@ -279,7 +277,9 @@ namespace xx {
         Weak() = default;
 
         Weak(Weak const &o) {
-            Reset(o.pointer);
+            if(pointer = o.pointer) {
+                ++o.pointer->refCount;
+            }
         }
 
         Weak &operator=(Weak const &o) {
@@ -309,7 +309,8 @@ namespace xx {
 
     template<typename T>
     Weak<T> Shared<T>::ToWeak() const noexcept {
-        return Weak<T>(*this);
+        //return Weak<T>(*this);
+        return *(Weak<T>*)(&PtrHeader::Get(pointer));
     }
 
 
@@ -360,16 +361,16 @@ namespace xx {
     [[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
         Shared<T> rtv;
         auto h = (PtrHeader *) malloc(sizeof(PtrHeader) + sizeof(T));
-        if (!h) throw std::runtime_error("out of memory");
+        if (!h) throw __LINE__; //std::runtime_error("out of memory");
         h->data1 = 0;
         h->typeId = TypeId_v<T>;
         h->offset = 0;
         try {
             rtv.Reset(new(h + 1) T(std::forward<Args>(args)...));
         }
-        catch (std::exception const &ex) {
+        catch (... /*std::exception const &ex*/) {
             free(h);
-            throw ex;
+            throw __LINE__; //ex;
         }
         return rtv;
     }

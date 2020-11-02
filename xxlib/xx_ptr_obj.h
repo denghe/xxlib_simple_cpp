@@ -243,7 +243,7 @@ namespace xx {
 				}
 			}
 			else if constexpr (IsPtrWeak_v<T>) {
-				Shared<T::ElementType> o;
+				Shared<typename T::ElementType> o;
 				Read_(o);
 				v = o;
 			}
