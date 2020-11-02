@@ -244,7 +244,8 @@ namespace xx {
 		}
 
 		[[maybe_unused]] [[nodiscard]] Shared<T> Lock() const {
-			auto p = h ? h + 1 : nullptr;
+			if (!h || h->useCount == 0) return {};
+			auto p = h + 1;
 			return *(Shared<T>*)&p;
 		}
 

@@ -82,6 +82,7 @@ int main() {
         int x = 0;
         for (size_t i = 0; i < 1000000000; i++) {
             if (auto&& o = d.Lock()) x += o.Value();
+
         }
         std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
     }
@@ -115,7 +116,7 @@ int main() {
 	//	}
 	//	std::cout << (xx::NowSteadyEpochSeconds() - secs) << " " << x << std::endl;
 	//}
-
+    //__builtin_trap();
 	return 0;
 }
 
