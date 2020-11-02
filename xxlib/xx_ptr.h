@@ -53,7 +53,7 @@ namespace xx {
 			return *pointer;
 		}
 
-		[[maybe_unused]] [[nodiscard]] operator bool() const noexcept {
+		[[maybe_unused]] [[nodiscard]] explicit operator bool() const noexcept {
 			return pointer != nullptr;
 		}
 
@@ -230,7 +230,7 @@ namespace xx {
 			return h->typeId;
 		}
 
-		[[maybe_unused]] [[nodiscard]] operator bool() const noexcept {
+		[[maybe_unused]] [[nodiscard]] explicit operator bool() const noexcept {
 			return h && h->useCount;
 		}
 

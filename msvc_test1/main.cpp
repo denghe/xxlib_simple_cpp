@@ -75,29 +75,28 @@ int main() {
 	//	}
 
 	{
-		auto ticks = xx::NowEpochSeconds();
+		auto secs = xx::NowEpochSeconds();
 		auto c = xx::MakeShared<int>(1);
 		auto d = c.ToWeak();
 		//c.Reset();
 		int x = 0;
 		for (size_t i = 0; i < 100000000; i++) {
-			//if (auto&& o = d.Lock()) x += *o;
-			if (d) x += *d;
+			if (auto&& o = d.Lock()) x += *o;
+			//if (d) x += *d;
 		}
-		std::cout << (xx::NowEpochSeconds() - ticks) << " " << x << std::endl;
+		xx::CoutN(xx::NowEpochSeconds() - secs, " ", x);
 	}
 
 	{
-		auto ticks = xx::NowEpochSeconds();
+		auto secs = xx::NowEpochSeconds();
 		auto c = std::make_shared<int>(1);
 		std::weak_ptr<int> d = c;
+        //c.reset();
 		int x = 0;
 		for (size_t i = 0; i < 100000000; i++) {
-			if (auto&& e = d.lock()) {
-				x += *e;
-			}
+            if (auto&& o = d.lock()) x += *o;
 		}
-		std::cout << (xx::NowEpochSeconds() - ticks) << " " << x << std::endl;
+        xx::CoutN(xx::NowEpochSeconds() - secs, " ", x);
 	}
 
 	//__builtin_trap();
