@@ -370,7 +370,7 @@ namespace xx {
 	template<typename T, typename...Args>
 	[[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
 		auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
-		if (!h) throw __LINE__; //std::runtime_error("out of memory");
+		if (!h) return nullptr;
 		h->useCount = 0;
 		h->refCount = 0;
 		h->typeId = TypeId_v<T>;

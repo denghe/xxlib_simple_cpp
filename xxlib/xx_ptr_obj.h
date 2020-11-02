@@ -65,11 +65,11 @@ namespace xx {
 			fs[typeId] = []() -> ObjBase_s { return MakeShared<T>(); };
 		}
 
-		// 根据 typeId 来创建对象
+		// 根据 typeId 来创建对象. 失败返回空
 		template<typename T = ObjBase>
 		inline Shared<T> Create(uint16_t const& typeId) {
 			static_assert(std::is_base_of_v<ObjBase, T>);
-			if (!fs[typeId]) throw __LINE__;
+			if (!fs[typeId]) return nullptr;
 			return fs[typeId]();
 		}
 
