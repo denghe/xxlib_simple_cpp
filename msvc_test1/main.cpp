@@ -55,65 +55,42 @@ struct xx::TypeId<A> {
 
 
 #include <variant>
-#include <iostream>
-
-
-struct VariantStater {
-	inline static size_t intSum = 0;
-	inline static double floatSum = 0;
-	inline static size_t stringLenSum = 0;
-	void operator() (int& i) const {
-		intSum += i;
-	}
-	void operator() (double& f) const {
-		floatSum += f;
-	}
-	void operator() (std::string& s) const {
-		stringLenSum += s.size();
-	}
-};
-
-struct VariantPrinter {
-	template <class T>
-	void operator() (T t) const {
-		std::cout << t << std::endl;
-	}
-};
+using IFS = std::variant<int, float>;
 
 int main() {
-	using IFS = std::variant<int, double, std::string>;
 
-	size_t numInts = 0, numFloats = 0, numStrings = 0;
-	std::cout << "plz input numInts  numFloats  numStrings: " << std::endl;
-	std::cin >> numInts >> numFloats >> numStrings;
-	std::cout << numInts << "," << numFloats << "," << numStrings << std::endl;
+	size_t numInts = 0, numFloats = 0;
+	std::cout << "plz input numInts  numFloats: " << std::endl;
+	std::cin >> numInts >> numFloats;
+	std::cout << numInts << "," << numFloats << std::endl;
 
 	std::vector<IFS> vars;
+	vars.reserve(numInts + numFloats);
 	for (size_t i = 0; i < numInts; i++) {
-		//vars.emplace_back((int)i);
 		vars.emplace_back((int)1);
 	}
 	for (size_t i = 0; i < numFloats; i++) {
-		//vars.emplace_back((float)i);
-		vars.emplace_back((double)1.1);
-	}
-	for (size_t i = 0; i < numStrings; i++) {
-		//vars.emplace_back(std::to_string(i));
-		vars.emplace_back("aaaaaaaaaaaaabbbbbbbbbbbbbbbccccccccccccc");
+		vars.emplace_back((float)1.1);
 	}
 
-	auto secs = xx::NowEpochSeconds();
-	for (auto&& v : vars) {
-		//std::visit(VariantPrinter(), v);
-		std::visit(VariantStater(), v);
-		//switch (v.index()) {
-		//case 0: { intSum += std::get<int>(v); break; }
-		//case 1: { floatSum += std::get<double>(v); break; }
-		//case 2: { stringLenSum += std::get<std::string>(v).size(); break; }
-		//}
+	for (size_t i = 0; i < 10; i++)
+	{
+		auto secs = xx::NowEpochSeconds();
+		size_t counts0{};
+		double counts1{};
+		for (auto&& v : vars) {
+			switch (v.index()) {
+			case 0:
+				counts0 += *(int*)&v;
+				break;
+			case 1:
+				counts1 += *(float*)&v;
+				break;
+			}
+		}
+		std::cout << (xx::NowEpochSeconds() - secs) << std::endl;
+		std::cout << counts0 << "," << counts1 << std::endl;
 	}
-	std::cout << (xx::NowEpochSeconds() - secs) << std::endl;
-	std::cout << VariantStater::intSum << "," << VariantStater::floatSum << "," << VariantStater::stringLenSum << std::endl;
 
 	//{
 	//	auto secs = xx::NowEpochSeconds();
