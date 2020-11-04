@@ -63,6 +63,9 @@ struct xx::TypeId<A> {
 
 
 // for test
+
+
+
 template<typename T>
 void Write(xx::Data& d, T const& v) {
     if constexpr ( xx::IsVector_v<T>) {
@@ -81,6 +84,7 @@ void Write(xx::Data& d, T const& v) {
 int main() {
 
     xx::Data d;
+    d.Reserve(1024);
 	std::vector<std::vector<std::vector<std::string>>> v = {{{"asdfqwer"}}};
 	{
 		auto secs = xx::NowEpochSeconds();

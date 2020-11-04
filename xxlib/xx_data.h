@@ -7,10 +7,10 @@ namespace xx {
 
 	// 最基础的二进制数据容器. 两种模式: 1. 追加.  2. 只读引用	( 当 cap == -1 )
 	struct Data {
-		char*				buf = nullptr;
 		size_t				len = 0;
 		size_t				cap = 0;
 		size_t				offset = 0;
+        char*				buf = nullptr;
 
 		// buf 头部预留空间大小. 至少需要装得下 sizeof(size_t)
 		static const size_t	recvLen = 16;
@@ -22,7 +22,7 @@ namespace xx {
 		explicit Data(size_t const& newCap) {
 			if (newCap) {
 				auto siz = Round2n(recvLen + newCap);
-				buf = ((char*)::malloc(siz)) + recvLen;
+				buf = (char*)::malloc(siz) + recvLen;
 				cap = siz - recvLen;
 			}
 		}
@@ -41,10 +41,10 @@ namespace xx {
 		}
 		inline Data& operator=(Data const& o) {
 			if (o.cap == _1) {
-				buf = o.buf;
 				len = o.len;
 				cap = o.cap;
 				offset = o.offset;
+                buf = o.buf;
 				++Refs();
 			}
 			else {
@@ -59,10 +59,10 @@ namespace xx {
 			operator=(std::move(o));
 		}
 		inline Data& operator=(Data&& o)  noexcept {
-			std::swap(buf, o.buf);
 			std::swap(len, o.len);
 			std::swap(cap, o.cap);
 			std::swap(offset, o.offset);
+            std::swap(buf, o.buf);
 			return *this;
 		}
 
@@ -135,7 +135,7 @@ namespace xx {
 			::memcpy(buf + len, ptr, siz);
 			len += siz;
 		}
-		
+
 		// 追加写入一段 pod 结构内存
 		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
 		void WriteFixed(T const& v) {
@@ -159,7 +159,9 @@ namespace xx {
 				u = ZigZagEncode(v);
 			}
 			if constexpr (needReserve) {
-				Reserve(len + sizeof(T) + 1);
+			    if (len + sizeof(T) + 1 > cap) {
+                    Reserve(len + sizeof(T) + 1);
+                }
 			}
 			while (u >= 1 << 7) {
 				buf[len++] = char((u & 0x7fu) | 0x80u);
