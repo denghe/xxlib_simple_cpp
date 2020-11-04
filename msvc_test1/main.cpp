@@ -61,7 +61,41 @@ struct xx::TypeId<A> {
 //	return fib(x - 1) + fib(x - 2);
 //}
 
+
+// for test
+
+
+
+template<typename T>
+void Write(xx::Data& d, T const& v) {
+    if constexpr ( xx::IsVector_v<T>) {
+        d.WriteVarIntger(v.size());
+        for (auto &&o : v) {
+            Write(d, o);
+        }
+    }
+    else if constexpr (std::is_same_v<std::string, T>) {
+        auto siz = v.size();
+        d.WriteVarIntger(siz);
+        d.WriteBuf(v.data(), siz);
+    }
+}
+
 int main() {
+
+    xx::Data d;
+    d.Reserve(1024);
+	std::vector<std::vector<std::vector<std::string>>> v = {{{"asdfqwer"}}};
+	{
+		auto secs = xx::NowEpochSeconds();
+		for (size_t i = 0; i < 10000000; i++) {
+			d.Clear();
+			Write(d, v);
+		}
+		xx::CoutN((xx::NowEpochSeconds() - secs), " ", d);
+	}
+
+
 	//size_t input;
 	//std::cin >> input;
 
@@ -118,33 +152,33 @@ int main() {
 	//}
 
 
-	xx::ObjManager om;
-	om.Register<A>();
-
-	auto&& a = xx::MakeShared<A>();
-	a->parent = a;
-	a->children.emplace_back(xx::MakeShared<A>());
-	a->children.emplace_back(xx::MakeShared<A>());
-
-	xx::Data d;
-
-	{
-		auto secs = xx::NowSteadyEpochSeconds();
-		for (size_t i = 0; i < 10000000; i++) {
-			d.Clear();
-			om.WriteTo(d, a);
-		}
-		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
-	}
-	{
-		auto secs = xx::NowSteadyEpochSeconds();
-		xx::ObjBase_s o;
-		for (size_t i = 0; i < 10000000; i++) {
-			d.offset = 0;
-			om.ReadFrom(d, o);
-		}
-		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", o.As<A>()->children.size());
-	}
+//	xx::ObjManager om;
+//	om.Register<A>();
+//
+//	auto&& a = xx::MakeShared<A>();
+//	a->parent = a;
+//	a->children.emplace_back(xx::MakeShared<A>());
+//	a->children.emplace_back(xx::MakeShared<A>());
+//
+//	xx::Data d;
+//
+//	{
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		for (size_t i = 0; i < 10000000; i++) {
+//			d.Clear();
+//			om.WriteTo(d, a);
+//		}
+//		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
+//	}
+//	{
+//		auto secs = xx::NowSteadyEpochSeconds();
+//		xx::ObjBase_s o;
+//		for (size_t i = 0; i < 10000000; i++) {
+//			d.offset = 0;
+//			om.ReadFrom(d, o);
+//		}
+//		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", o.As<A>()->children.size());
+//	}
 
 	//try {
 	//	auto c = xx::MakeShared<int>(2);
