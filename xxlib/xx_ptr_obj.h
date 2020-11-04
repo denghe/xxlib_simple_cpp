@@ -177,6 +177,11 @@ namespace xx {
 			else if constexpr (std::is_floating_point_v<T>) {
 				d.WriteFixed(v);
 			}
+			else if constexpr (xx::IsTuple_v<T>) {
+				std::apply([&](auto const &... args) {
+					(Write_(args), ...);
+				}, v);
+			}
 			else {
 				throw __LINE__;
 			}
@@ -204,6 +209,17 @@ namespace xx {
 		}
 
 	protected:
+		template<std::size_t I = 0, typename... Tp>
+		std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) { 
+			return Read_(std::get<I>(t));
+		}
+
+		template<std::size_t I = 0, typename... Tp>
+		std::enable_if_t<I < sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
+			if (int r = Read_(std::get<I>(t))) return r;
+			return ReadTuple<I + 1, Tp...>(t);
+		}
+
 		// 内部函数
 		template<typename T>
 		int Read_(T& v) {
@@ -242,7 +258,7 @@ namespace xx {
 					Read_(hasValue);
 					if (!hasValue) {
 						v.Reset();
-						return;
+						return 0;
 					}
 					if (v.Empty()) {
 						v = MakeShared<U>();
@@ -260,7 +276,7 @@ namespace xx {
 				Read_(hasValue);
 				if (!hasValue) {
 					v.reset();
-					return;
+					return 0;
 				}
 				if (!v.has_value()) {
 					v.emplace();
@@ -304,6 +320,9 @@ namespace xx {
 			}
 			else if constexpr (std::is_floating_point_v<T>) {
 				if (int r = d.ReadFixed(v))  return __LINE__ * 1000000 + r;
+			}
+			else if constexpr (xx::IsTuple_v<T>) {
+				return ReadTuple(v);
 			}
 			else {
 				return __LINE__;
