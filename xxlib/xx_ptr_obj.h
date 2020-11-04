@@ -242,7 +242,7 @@ namespace xx {
 					Read_(hasValue);
 					if (!hasValue) {
 						v.Reset();
-						return;
+						return 0;
 					}
 					if (v.Empty()) {
 						v = MakeShared<U>();
@@ -260,7 +260,7 @@ namespace xx {
 				Read_(hasValue);
 				if (!hasValue) {
 					v.reset();
-					return;
+					return 0;
 				}
 				if (!v.has_value()) {
 					v.emplace();
