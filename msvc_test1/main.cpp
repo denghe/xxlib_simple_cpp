@@ -53,44 +53,63 @@ struct xx::TypeId<A> {
 //	return x;
 //}
 
-
-#include <variant>
-using IFS = std::variant<int, float>;
+//#include <variant>
+//using IFS = std::variant<int, float>;
+//
+//uint64_t fib(uint64_t x) {
+//	if (x < 2) return x;
+//	return fib(x - 1) + fib(x - 2);
+//}
 
 int main() {
+	//size_t input;
+	//std::cin >> input;
 
-	size_t numInts = 0, numFloats = 0;
-	std::cout << "plz input numInts  numFloats: " << std::endl;
-	std::cin >> numInts >> numFloats;
-	std::cout << numInts << "," << numFloats << std::endl;
+	//for (size_t i = 0; i < 10; i++)
+	//{
+	//	auto secs = xx::NowEpochSeconds();
+	//	auto res = fib(input);
+	//	std::cout << (xx::NowEpochSeconds() - secs) << std::endl;
+	//	std::cout << res << std::endl;
+	//}
+	//return 0;
 
-	std::vector<IFS> vars;
-	vars.reserve(numInts + numFloats);
-	for (size_t i = 0; i < numInts; i++) {
-		vars.emplace_back((int)1);
-	}
-	for (size_t i = 0; i < numFloats; i++) {
-		vars.emplace_back((float)1.1);
-	}
+	//size_t numInts = 0, numFloats = 0;
+	//std::cout << "plz input numInts  numFloats: " << std::endl;
+	//std::cin >> numInts >> numFloats;
+	//std::cout << numInts << "," << numFloats << std::endl;
 
-	for (size_t i = 0; i < 10; i++)
-	{
-		auto secs = xx::NowEpochSeconds();
-		size_t counts0{};
-		double counts1{};
-		for (auto&& v : vars) {
-			switch (v.index()) {
-			case 0:
-				counts0 += *(int*)&v;
-				break;
-			case 1:
-				counts1 += *(float*)&v;
-				break;
-			}
-		}
-		std::cout << (xx::NowEpochSeconds() - secs) << std::endl;
-		std::cout << counts0 << "," << counts1 << std::endl;
-	}
+	//std::vector<IFS> vars;
+	//vars.reserve(numInts + numFloats);
+	//for (size_t i = 0; i < numInts; i++) {
+	//	vars.emplace_back((int)1);
+	//}
+	//for (size_t i = 0; i < numFloats; i++) {
+	//	vars.emplace_back((float)1.1);
+	//}
+
+	//for (size_t i = 0; i < 10; i++)
+	//{
+	//	auto secs = xx::NowEpochSeconds();
+	//	size_t counts0{};
+	//	double counts1{};
+	//	for (auto&& v : vars) {
+	//		switch (v.index()) {
+	//		case 0:
+	//			counts0 += *(int*)&v;
+	//			break;
+	//		case 1:
+	//			counts1 += *(float*)&v;
+	//			break;
+	//		}
+	//	}
+	//	std::cout << (xx::NowEpochSeconds() - secs) << std::endl;
+	//	std::cout << counts0 << "," << counts1 << std::endl;
+	//}
+
+
+	
+
 
 	//{
 	//	auto secs = xx::NowEpochSeconds();
@@ -99,33 +118,33 @@ int main() {
 	//}
 
 
-	//xx::ObjManager om;
-	//om.Register<A>();
+	xx::ObjManager om;
+	om.Register<A>();
 
-	//auto&& a = xx::MakeShared<A>();
-	//a->parent = a;
-	//a->children.emplace_back(xx::MakeShared<A>());
-	//a->children.emplace_back(xx::MakeShared<A>());
+	auto&& a = xx::MakeShared<A>();
+	a->parent = a;
+	a->children.emplace_back(xx::MakeShared<A>());
+	a->children.emplace_back(xx::MakeShared<A>());
 
-	//xx::Data d;
+	xx::Data d;
 
-	//{
-	//	auto secs = xx::NowSteadyEpochSeconds();
-	//	for (size_t i = 0; i < 10000000; i++) {
-	//		d.Clear();
-	//		om.WriteTo(d, a);
-	//	}
-	//	xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
-	//}
-	//{
-	//	auto secs = xx::NowSteadyEpochSeconds();
-	//	xx::ObjBase_s o;
-	//	for (size_t i = 0; i < 10000000; i++) {
-	//		d.offset = 0;
-	//		om.ReadFrom(d, o);
-	//	}
-	//	xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", o.As<A>()->children.size());
-	//}
+	{
+		auto secs = xx::NowSteadyEpochSeconds();
+		for (size_t i = 0; i < 10000000; i++) {
+			d.Clear();
+			om.WriteTo(d, a);
+		}
+		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
+	}
+	{
+		auto secs = xx::NowSteadyEpochSeconds();
+		xx::ObjBase_s o;
+		for (size_t i = 0; i < 10000000; i++) {
+			d.offset = 0;
+			om.ReadFrom(d, o);
+		}
+		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", o.As<A>()->children.size());
+	}
 
 	//try {
 	//	auto c = xx::MakeShared<int>(2);

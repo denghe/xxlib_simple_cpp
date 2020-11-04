@@ -56,6 +56,7 @@ namespace xx {
 		std::vector<void*> ptrs;
 		Data* data = nullptr;
 		std::string str;
+		int err = 0;
 
 
 		// 类实例 创建函数
@@ -96,6 +97,7 @@ namespace xx {
 			(Write_(std::forward<Args>(args)), ...);
 		}
 
+	protected:
 		// 内部函数
 		template<typename T>
 		void Write_(T const& v) {
@@ -182,6 +184,7 @@ namespace xx {
 			// else if constexpr (HasMember_Write for normal struct support?
 		}
 
+	public:
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
 		void Write(Args&&...args) {
@@ -193,23 +196,24 @@ namespace xx {
 		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
 		// 可传入开始读取的位置
 		template<typename...Args>
-		void ReadFrom(Data& d, Args&...args) {
+		int ReadFrom(Data& d, Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
 			ptrs.clear();
-			(Read_(args), ...);
+			return Read_(args...);
 		}
 
+	protected:
 		// 内部函数
 		template<typename T>
-		void Read_(T& v) {
+		int Read_(T& v) {
 			auto& d = *data;
 			if constexpr (IsPtrShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 					uint16_t typeId;
 					Read_(typeId);
-					if (!typeId) return;
+					if (!typeId) return 0;
 
 					auto len = (uint32_t)ptrs.size();
 					uint32_t offs;
@@ -220,17 +224,17 @@ namespace xx {
 							auto&& o = Create(typeId);
 							// Register 时如果要求传入 BaseType 则能避免 dynamic_cast, 实现快速转换. 理论上讲两种方案可并行
 							v = o.As<U>();
-							if (!v) throw __LINE__;
+							if (!v) return __LINE__;
 						}
 						ptrs.emplace_back(v.pointer);
 						v->Read(*this);
 					}
 					else {
-						if (offs > len)throw __LINE__;
+						if (offs > len)return __LINE__;
 						auto& o = *(ObjBase_s*)&ptrs[offs - 1];
-						if (o.typeId() != typeId) throw __LINE__;
+						if (o.typeId() != typeId) return __LINE__;
 						v = o.As<U>();
-						if (!v) throw __LINE__;
+						if (!v) return __LINE__;
 					}
 				}
 				else {
@@ -266,9 +270,9 @@ namespace xx {
 			else if constexpr (IsVector<T>::value) {
 				size_t siz = 0;
 				Read_(siz);
-				if (d.offset + siz > d.len) throw __LINE__;
+				if (d.offset + siz > d.len) return __LINE__;
 				v.resize(siz);
-				if (siz == 0) return;
+				if (siz == 0) return 0;
 				auto buf = v.data();
 				if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
 					::memcpy(buf, d.buf + d.offset, siz * sizeof(T));
@@ -283,36 +287,44 @@ namespace xx {
 			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
 				size_t siz;
 				Read_(siz);
-				if (d.offset + siz > d.len) throw __LINE__;
+				if (d.offset + siz > d.len) return __LINE__;
 				v.assign((char*)d.buf + d.offset, siz);
 				d.offset += siz;
 			}
 			else if constexpr (std::is_integral_v<T>) {
 				if constexpr (sizeof(T) == 1) {
-					if (int r = d.ReadFixed(v))  throw __LINE__ * 1000000 + r;
+					if (int r = d.ReadFixed(v))  return __LINE__ * 1000000 + r;
 				}
 				else {
-					if (int r = d.ReadVarInteger(v)) throw __LINE__ * 1000000 + r;
+					if (int r = d.ReadVarInteger(v)) return __LINE__ * 1000000 + r;
 				}
 			}
 			else if constexpr (std::is_enum_v<T>) {
 				Read_(*(std::underlying_type_t<T>*) & v);
 			}
 			else if constexpr (std::is_floating_point_v<T>) {
-				if (int r = d.ReadFixed(v))  throw __LINE__ * 1000000 + r;
+				if (int r = d.ReadFixed(v))  return __LINE__ * 1000000 + r;
 			}
 			else {
-				throw std::runtime_error("write: unsupported type");
+				return __LINE__;
 			}
 
 			// else map? pair? tuple? ...
 			// else if constexpr (HasMember_Write for normal struct support?
+			return 0;
 		}
 
+		template<typename T, typename ...TS>
+		int Read_(T& v, TS &...vs) {
+			if (auto r = Read_(v)) return r;
+			return Read_(vs...);
+		}
+
+	public:
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		void Read(Args&...args) {
-			(Read_(args), ...);
+		int Read(Args&...args) {
+			return Read_(args...);
 		}
 
 
@@ -321,86 +333,86 @@ namespace xx {
 		// 内部函数
 		template<typename T>
 		void Append_(T const& v) {
-		//	if constexpr (IsPtrShared_v<T>) {
-		//		using U = typename T::ElementType;
-		//		if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-		//			auto typeId = v.typeId();
-		//			d.WriteVarIntger(typeId);
-		//			if (typeId == 0) return;
+			//	if constexpr (IsPtrShared_v<T>) {
+			//		using U = typename T::ElementType;
+			//		if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
+			//			auto typeId = v.typeId();
+			//			d.WriteVarIntger(typeId);
+			//			if (typeId == 0) return;
 
-		//			auto&& h = PtrHeader::Get(v.pointer);
-		//			if (h.offset == 0) {
-		//				ptrs.push_back(&h.offset);
-		//				h.offset = (uint32_t)ptrs.size();
-		//				//h.offset = (uint32_t)(d.len - baseLen);
-		//				d.WriteVarIntger(h.offset);
-		//				v.pointer->Write(*this);
-		//			}
-		//			else {
-		//				d.WriteVarIntger(h.offset);
-		//			}
-		//		}
-		//		else {
-		//			if (v) {
-		//				d.WriteFixed((uint8_t)1);
-		//				Write_(*v);
-		//			}
-		//			else {
-		//				d.WriteFixed((uint8_t)0);
-		//			}
-		//		}
-		//	}
-		//	else if constexpr (IsPtrWeak_v<T>) {
-		//		Write_(v.Lock());
-		//	}
-		//	else if constexpr (IsOptional<T>::value) {
-		//		if (v.has_value()) {
-		//			d.WriteFixed((uint8_t)1);
-		//			Write_(*v);
-		//		}
-		//		else {
-		//			d.WriteFixed((uint8_t)0);
-		//		}
-		//	}
-		//	else if constexpr (IsVector<T>::value) {
-		//		auto buf = v.data();
-		//		auto len = v.size();
-		//		d.Reserve(d.len + 5 + len * sizeof(T));
-		//		d.WriteVarIntger(len);
-		//		if (!len) return;
-		//		if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
-		//			memcpy(d.buf + d.len, buf, len * sizeof(T));
-		//			d.len += len * sizeof(T);
-		//		}
-		//		else {
-		//			for (size_t i = 0; i < len; ++i) {
-		//				Write_(buf[i]);
-		//			}
-		//		}
-		//	}
-		//	else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
-		//		d.WriteVarIntger(v.size());
-		//		d.WriteBuf(v.data(), v.size());
-		//	}
-		//	else if constexpr (std::is_integral_v<T>) {
-		//		if constexpr (sizeof(T) == 1) {
-		//			d.WriteFixed(v);
-		//		}
-		//		else {
-		//			d.WriteVarIntger(v);
-		//		}
-		//	}
-		//	else if constexpr (std::is_enum_v<T>) {
-		//		Write_(*(std::underlying_type_t<T>*) & v);
-		//	}
-		//	else if constexpr (std::is_floating_point_v<T>) {
-		//		d.WriteFixed(v);
-		//	}
-		//	else {
-		//		throw __LINE__;
-		//	}
-		//	// else map? pair? tuple? ...
-		//	// else if constexpr (HasMember_Write for normal struct support?
+			//			auto&& h = PtrHeader::Get(v.pointer);
+			//			if (h.offset == 0) {
+			//				ptrs.push_back(&h.offset);
+			//				h.offset = (uint32_t)ptrs.size();
+			//				//h.offset = (uint32_t)(d.len - baseLen);
+			//				d.WriteVarIntger(h.offset);
+			//				v.pointer->Write(*this);
+			//			}
+			//			else {
+			//				d.WriteVarIntger(h.offset);
+			//			}
+			//		}
+			//		else {
+			//			if (v) {
+			//				d.WriteFixed((uint8_t)1);
+			//				Write_(*v);
+			//			}
+			//			else {
+			//				d.WriteFixed((uint8_t)0);
+			//			}
+			//		}
+			//	}
+			//	else if constexpr (IsPtrWeak_v<T>) {
+			//		Write_(v.Lock());
+			//	}
+			//	else if constexpr (IsOptional<T>::value) {
+			//		if (v.has_value()) {
+			//			d.WriteFixed((uint8_t)1);
+			//			Write_(*v);
+			//		}
+			//		else {
+			//			d.WriteFixed((uint8_t)0);
+			//		}
+			//	}
+			//	else if constexpr (IsVector<T>::value) {
+			//		auto buf = v.data();
+			//		auto len = v.size();
+			//		d.Reserve(d.len + 5 + len * sizeof(T));
+			//		d.WriteVarIntger(len);
+			//		if (!len) return;
+			//		if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
+			//			memcpy(d.buf + d.len, buf, len * sizeof(T));
+			//			d.len += len * sizeof(T);
+			//		}
+			//		else {
+			//			for (size_t i = 0; i < len; ++i) {
+			//				Write_(buf[i]);
+			//			}
+			//		}
+			//	}
+			//	else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
+			//		d.WriteVarIntger(v.size());
+			//		d.WriteBuf(v.data(), v.size());
+			//	}
+			//	else if constexpr (std::is_integral_v<T>) {
+			//		if constexpr (sizeof(T) == 1) {
+			//			d.WriteFixed(v);
+			//		}
+			//		else {
+			//			d.WriteVarIntger(v);
+			//		}
+			//	}
+			//	else if constexpr (std::is_enum_v<T>) {
+			//		Write_(*(std::underlying_type_t<T>*) & v);
+			//	}
+			//	else if constexpr (std::is_floating_point_v<T>) {
+			//		d.WriteFixed(v);
+			//	}
+			//	else {
+			//		throw __LINE__;
+			//	}
+			//	// else map? pair? tuple? ...
+			//	// else if constexpr (HasMember_Write for normal struct support?
 		}
 	};
 }
