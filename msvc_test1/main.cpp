@@ -66,26 +66,76 @@ struct xx::TypeId<A> {
 
 
 
+//template<typename T, bool needReserve = true, typename ENABLED = std::enable_if_t<std::is_integral_v<T>>>
+//__forceinline void WriteVarIntger(char* const& buf, size_t& len, T const& v) {
+//	using UT = std::make_unsigned_t<T>;
+//	UT u(v);
+//	if constexpr (std::is_signed_v<T>) {
+//		u = xx::ZigZagEncode(v);
+//	}
+//	while (u >= 1 << 7) {
+//		buf[len++] = char((u & 0x7fu) | 0x80u);
+//		u = UT(u >> 7);
+//	};
+//	buf[len++] = char(u);
+//}
+//
+//template<typename T>
+//__forceinline void Write(char* const& buf, size_t& len, T const& v) {
+//	if constexpr (xx::IsVector_v<T>) {
+//		WriteVarIntger(buf, len, v.size());
+//		for (auto&& o : v) {
+//			Write(buf, len, o);
+//		}
+//	}
+//	else if constexpr (std::is_same_v<int, T>) {
+//		WriteVarIntger(buf, len, v);
+//	}
+//}
+//
+//int main() {
+//	char buf[1024];
+//	size_t len = 0;
+//	int i = 0;
+//	std::cout << "plz type a int:" << std::endl;
+//	std::cin >> i;
+//	std::vector<std::vector<std::vector<int>>> v = { {{i}} };
+//	auto secs = xx::NowEpochSeconds();
+//	for (size_t i = 0; i < 10000000; i++) {
+//		len = 0;
+//		Write(buf, len, v);
+//	}
+//	xx::CoutN((xx::NowEpochSeconds() - secs), " ", xx::DataView{ buf, len });
+
+
+
+
 template<typename T>
-void Write(xx::Data& d, T const& v) {
-    if constexpr ( xx::IsVector_v<T>) {
-        d.WriteVarIntger(v.size());
-        for (auto &&o : v) {
-            Write(d, o);
-        }
-    }
-    else if constexpr (std::is_same_v<std::string, T>) {
-        auto siz = v.size();
-        d.WriteVarIntger(siz);
-        d.WriteBuf(v.data(), siz);
-    }
+XX_FORCEINLINE void Write(xx::Data& d, T const& v) {
+	if constexpr (xx::IsVector_v<T>) {
+		d.WriteVarIntger(v.size());
+		for (auto&& o : v) {
+			Write(d, o);
+		}
+	}
+	else if constexpr (std::is_same_v<std::string, T>) {
+		auto siz = v.size();
+		d.WriteVarIntger(siz);
+		d.WriteBuf(v.data(), siz);
+	}
+	else if constexpr (std::is_integral_v<T>) {
+		d.WriteVarIntger(v);
+	}
 }
 
 int main() {
 
-    xx::Data d;
-    d.Reserve(1024);
-	std::vector<std::vector<std::vector<std::string>>> v = {{{"asdfqwer"}}};
+	xx::Data d;
+	d.Reserve(1024);
+	int i = 0;
+	std::cout << "plz input i:" << std::endl;
+	std::cin >> i;
+	std::vector<std::vector<std::vector<int>>> v = { {{i}} };
 	{
 		auto secs = xx::NowEpochSeconds();
 		for (size_t i = 0; i < 10000000; i++) {
@@ -142,7 +192,7 @@ int main() {
 	//}
 
 
-	
+
 
 
 	//{

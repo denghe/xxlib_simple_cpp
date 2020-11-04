@@ -12,6 +12,15 @@
 #include <cassert>
 
 
+#ifdef _MSC_VER
+#define XX_NOINLINE __declspec(noinline)
+#define XX_FORCEINLINE __forceinline
+#else
+#define XX_NOINLINE __attribute__((noinline))
+#define XX_FORCEINLINE __attribute__((always_inline))
+#endif
+#define XX_INLINE inline
+
 namespace xx {
     /************************************************************************************/
     // std::is_pod 的自定义扩展, 用于标识一个类可以在容器中被r memcpy | memmove

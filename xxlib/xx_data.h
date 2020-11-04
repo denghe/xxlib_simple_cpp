@@ -39,7 +39,8 @@ namespace xx {
 		Data(Data const& o) {
 			operator=(o);
 		}
-		inline Data& operator=(Data const& o) {
+
+		XX_FORCEINLINE Data& operator=(Data const& o) {
 			if (o.cap == _1) {
 				len = o.len;
 				cap = o.cap;
@@ -58,7 +59,8 @@ namespace xx {
 		Data(Data&& o)  noexcept {
 			operator=(std::move(o));
 		}
-		inline Data& operator=(Data&& o)  noexcept {
+
+		XX_FORCEINLINE Data& operator=(Data&& o)  noexcept {
 			std::swap(len, o.len);
 			std::swap(cap, o.cap);
 			std::swap(offset, o.offset);
@@ -67,19 +69,19 @@ namespace xx {
 		}
 
 		// 判断数据是否一致
-		inline bool operator==(Data const& o) {
+		XX_FORCEINLINE bool operator==(Data const& o) {
 			if (&o == this) return true;
 			if (len != o.len) return false;
 			return 0 == ::memcmp(buf, o.buf, len);
 		}
-		inline bool operator!=(Data const& o) {
+
+		XX_FORCEINLINE bool operator!=(Data const& o) {
 			return !this->operator==(o);
 		}
 
-		// todo: 大小比较?
-
 		// 确保空间足够
-		inline void Reserve(size_t const& newCap) {
+
+		XX_NOINLINE void Reserve(size_t const& newCap) {
 			assert(cap != _1);
 			if (newCap <= cap) return;
 
@@ -96,7 +98,7 @@ namespace xx {
 		}
 
 		// 返回旧长度
-		inline size_t Resize(size_t const& newLen) {
+		XX_FORCEINLINE size_t Resize(size_t const& newLen) {
 			assert(cap != _1);
 			if (newLen > len) {
 				Reserve(newLen);
@@ -107,18 +109,19 @@ namespace xx {
 		}
 
 		// 下标访问
-		inline char& operator[](size_t const& idx) {
+		XX_FORCEINLINE char& operator[](size_t const& idx) {
 			assert(idx < len);
 			return buf[idx];
 		}
-		inline char const& operator[](size_t const& idx) const {
+
+		XX_FORCEINLINE char const& operator[](size_t const& idx) const {
 			assert(idx < len);
 			return buf[idx];
 		}
 
 
 		// 从头部移除指定长度数据( 常见于拆包处理移除掉已经访问过的包数据, 将残留部分移动到头部 )
-		inline void RemoveFront(size_t const& siz) {
+		XX_FORCEINLINE void RemoveFront(size_t const& siz) {
 			assert(cap != _1);
 			assert(siz <= len);
 			if (!siz) return;
@@ -129,7 +132,7 @@ namespace xx {
 		}
 
 		// 追加写入一段 buf
-		inline void WriteBuf(void const* const& ptr, size_t const& siz) {
+		XX_FORCEINLINE void WriteBuf(void const* const& ptr, size_t const& siz) {
 			assert(cap != _1);
 			Reserve(len + siz);
 			::memcpy(buf + len, ptr, siz);
@@ -138,7 +141,7 @@ namespace xx {
 
 		// 追加写入一段 pod 结构内存
 		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
-		void WriteFixed(T const& v) {
+		XX_FORCEINLINE void WriteFixed(T const& v) {
 			assert(cap != _1);
 			if constexpr (sizeof(T) == 1) {
 				Reserve(len + 1);
@@ -152,7 +155,7 @@ namespace xx {
 
 		// 追加写入整数( 7bit 变长格式 )
 		template<typename T, bool needReserve = true, typename ENABLED = std::enable_if_t<std::is_integral_v<T>>>
-		void WriteVarIntger(T const& v) {
+		XX_FORCEINLINE void WriteVarIntger(T const& v) {
 			using UT = std::make_unsigned_t<T>;
 			UT u(v);
 			if constexpr (std::is_signed_v<T>) {
@@ -173,7 +176,7 @@ namespace xx {
 
 		// 读指定长度 buf 到 tar. 返回非 0 则读取失败
 		// 用之前需要自己初始化 offset
-		inline int ReadBuf(char* const& tar, size_t const& siz) {
+		XX_FORCEINLINE int ReadBuf(char* const& tar, size_t const& siz) {
 			if (offset + siz > len) return __LINE__;
 			memcpy(tar, buf + offset, siz);
 			offset += siz;
@@ -183,7 +186,7 @@ namespace xx {
 		// 定长读. 返回非 0 则读取失败
 		// 用之前需要自己初始化 offset
 		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
-		int ReadFixed(T& v) {
+		XX_FORCEINLINE int ReadFixed(T& v) {
 			if constexpr (sizeof(T) == 1) {
 				if (offset == len) return __LINE__;
 				v = *(T*)(buf + offset);
@@ -198,7 +201,7 @@ namespace xx {
 		// 变长读. 返回非 0 则读取失败
 		// 用之前需要自己初始化 offset
 		template<typename T>
-		int ReadVarInteger(T& v) {
+		XX_FORCEINLINE int ReadVarInteger(T& v) {
 			using UT = std::make_unsigned_t<T>;
 			UT u(0);
 			for (size_t shift = 0; shift < sizeof(T) * 8; shift += 7) {
@@ -220,7 +223,7 @@ namespace xx {
 
 
 		// 设置为只读模式, 并初始化引用计数( 开启只读引用计数模式. 没数据不允许开启 )
-		inline void SetReadonlyMode() {
+		XX_FORCEINLINE void SetReadonlyMode() {
 			assert(cap != _1);
 			assert(len);
 			cap = _1;
@@ -228,12 +231,12 @@ namespace xx {
 		}
 
 		// 判断是否为只读模式
-		inline bool Readonly() const {
+		XX_FORCEINLINE bool Readonly() const {
 			return cap == _1;
 		}
 
 		// 访问引用计数
-		inline size_t& Refs() const {
+		XX_FORCEINLINE size_t& Refs() const {
 			assert(cap == _1);
 			return *(size_t*)(buf - recvLen);
 		}
@@ -247,7 +250,7 @@ namespace xx {
 		}
 
 		// len 清 0, 可彻底释放 buf
-		inline void Clear(bool const& freeBuf = false) {
+		XX_FORCEINLINE void Clear(bool const& freeBuf = false) {
 			assert(cap != _1);
 			if (freeBuf && cap) {
 				::free(buf - recvLen);
