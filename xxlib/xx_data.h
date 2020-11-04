@@ -80,10 +80,10 @@ namespace xx {
 		}
 
 		// 确保空间足够
-
+		template<bool CheckCap = true>
 		XX_NOINLINE void Reserve(size_t const& newCap) {
 			assert(cap != _1);
-			if (newCap <= cap) return;
+			if (CheckCap && newCap <= cap) return;
 
 			auto siz = Round2n(recvLen + newCap);
 			auto newBuf = (char*)::malloc(siz) + recvLen;
@@ -101,7 +101,7 @@ namespace xx {
 		XX_FORCEINLINE size_t Resize(size_t const& newLen) {
 			assert(cap != _1);
 			if (newLen > len) {
-				Reserve(newLen);
+				Reserve<false>(newLen);
 			}
 			auto rtv = len;
 			len = newLen;
@@ -132,24 +132,33 @@ namespace xx {
 		}
 
 		// 追加写入一段 buf
+		template<bool needReserve = true>
 		XX_FORCEINLINE void WriteBuf(void const* const& ptr, size_t const& siz) {
 			assert(cap != _1);
-			Reserve(len + siz);
+			if constexpr (needReserve) {
+				if (len + siz > cap) {
+					Reserve<false>(len + siz);
+				}
+			}
 			::memcpy(buf + len, ptr, siz);
 			len += siz;
 		}
 
 		// 追加写入一段 pod 结构内存
-		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
+		template<typename T, bool needReserve = true, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
 		XX_FORCEINLINE void WriteFixed(T const& v) {
 			assert(cap != _1);
 			if constexpr (sizeof(T) == 1) {
-				Reserve(len + 1);
+				if constexpr (needReserve) {
+					if (len + 1 > cap) {
+						Reserve<false>(len + 1);
+					}
+				}
 				buf[len++] = *(char*)&v;
 				len += 1;
 			}
 			else {
-				WriteBuf(&v, sizeof(T));
+				WriteBuf<needReserve>(&v, sizeof(T));
 			}
 		}
 
@@ -163,7 +172,7 @@ namespace xx {
 			}
 			if constexpr (needReserve) {
 			    if (len + sizeof(T) + 1 > cap) {
-                    Reserve(len + sizeof(T) + 1);
+                    Reserve<false>(len + sizeof(T) + 1);
                 }
 			}
 			while (u >= 1 << 7) {

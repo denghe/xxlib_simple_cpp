@@ -74,7 +74,7 @@ namespace xx {
 
 		// 根据 typeId 来创建对象. 失败返回空
 		template<typename T = ObjBase>
-		inline Shared<T> Create(uint16_t const& typeId) {
+		XX_FORCEINLINE Shared<T> Create(uint16_t const& typeId) {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			if (!fs[typeId]) return nullptr;
 			return fs[typeId]();
@@ -84,7 +84,7 @@ namespace xx {
 
 		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		template<typename...Args>
-		void WriteTo(Data& d, Args&&...args) {
+		XX_FORCEINLINE void WriteTo(Data& d, Args&&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
 			ptrs.clear();
@@ -100,7 +100,7 @@ namespace xx {
 	protected:
 		// 内部函数
 		template<typename T>
-		void Write_(T const& v) {
+		XX_FORCEINLINE void Write_(T const& v) {
 			auto& d = *data;
 			if constexpr (IsPtrShared_v<T>) {
 				using U = typename T::ElementType;
@@ -113,7 +113,6 @@ namespace xx {
 					if (h.offset == 0) {
 						ptrs.push_back(&h.offset);
 						h.offset = (uint32_t)ptrs.size();
-						//h.offset = (uint32_t)(d.len - baseLen);
 						d.WriteVarIntger(h.offset);
 						v.pointer->Write(*this);
 					}
@@ -144,18 +143,19 @@ namespace xx {
 				}
 			}
 			else if constexpr (IsVector<T>::value) {
-				auto buf = v.data();
-				auto len = v.size();
-				d.Reserve(d.len + 5 + len * sizeof(T));
-				d.WriteVarIntger(len);
-				if (!len) return;
+				d.WriteVarIntger(v.size());
+				if (v.empty()) return;
 				if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
-					memcpy(d.buf + d.len, buf, len * sizeof(T));
-					d.len += len * sizeof(T);
+					d.WriteBuf(v.data(), v.size() * sizeof(T));
+				}
+				else if constexpr (std::is_integral_v<T::value_type>) {
+					for (auto&& o : v) {
+						d.WriteVarIntger(o);
+					}
 				}
 				else {
-					for (size_t i = 0; i < len; ++i) {
-						Write_(buf[i]);
+					for (auto&& o : v) {
+						Write_(o);
 					}
 				}
 			}
@@ -180,7 +180,7 @@ namespace xx {
 			else if constexpr (xx::IsTuple_v<T>) {
 				std::apply([&](auto const &... args) {
 					(Write_(args), ...);
-				}, v);
+					}, v);
 			}
 			else {
 				throw __LINE__;
@@ -192,7 +192,7 @@ namespace xx {
 	public:
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		void Write(Args&&...args) {
+		XX_FORCEINLINE void Write(Args&&...args) {
 			static_assert(sizeof...(args) > 0);
 			(Write_(std::forward<Args>(args)), ...);
 		}
@@ -210,12 +210,12 @@ namespace xx {
 
 	protected:
 		template<std::size_t I = 0, typename... Tp>
-		std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) { 
+		std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
 			return Read_(std::get<I>(t));
 		}
 
 		template<std::size_t I = 0, typename... Tp>
-		std::enable_if_t<I < sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
+		std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
 			if (int r = Read_(std::get<I>(t))) return r;
 			return ReadTuple<I + 1, Tp...>(t);
 		}
@@ -394,20 +394,6 @@ namespace xx {
 			//		}
 			//	}
 			//	else if constexpr (IsVector<T>::value) {
-			//		auto buf = v.data();
-			//		auto len = v.size();
-			//		d.Reserve(d.len + 5 + len * sizeof(T));
-			//		d.WriteVarIntger(len);
-			//		if (!len) return;
-			//		if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
-			//			memcpy(d.buf + d.len, buf, len * sizeof(T));
-			//			d.len += len * sizeof(T);
-			//		}
-			//		else {
-			//			for (size_t i = 0; i < len; ++i) {
-			//				Write_(buf[i]);
-			//			}
-			//		}
 			//	}
 			//	else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
 			//		d.WriteVarIntger(v.size());

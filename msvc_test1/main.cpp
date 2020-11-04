@@ -110,37 +110,20 @@ struct xx::TypeId<A> {
 
 
 
-template<typename T>
-XX_FORCEINLINE void Write(xx::Data& d, T const& v) {
-	if constexpr (xx::IsVector_v<T>) {
-		d.WriteVarIntger(v.size());
-		for (auto&& o : v) {
-			Write(d, o);
-		}
-	}
-	else if constexpr (std::is_same_v<std::string, T>) {
-		auto siz = v.size();
-		d.WriteVarIntger(siz);
-		d.WriteBuf(v.data(), siz);
-	}
-	else if constexpr (std::is_integral_v<T>) {
-		d.WriteVarIntger(v);
-	}
-}
-
 int main() {
-
+	xx::ObjManager om;
 	xx::Data d;
 	d.Reserve(1024);
 	int i = 0;
 	std::cout << "plz input i:" << std::endl;
 	std::cin >> i;
 	std::vector<std::vector<std::vector<int>>> v = { {{i}} };
+	om.data = &d;
 	{
 		auto secs = xx::NowEpochSeconds();
 		for (size_t i = 0; i < 10000000; i++) {
 			d.Clear();
-			Write(d, v);
+			om.Write(v);
 		}
 		xx::CoutN((xx::NowEpochSeconds() - secs), " ", d);
 	}
