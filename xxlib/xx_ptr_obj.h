@@ -148,7 +148,7 @@ namespace xx {
 				if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
 					d.WriteBuf(v.data(), v.size() * sizeof(T));
 				}
-				else if constexpr (std::is_integral_v<T::value_type>) {
+				else if constexpr (std::is_integral_v<typename T::value_type>) {
 					for (auto&& o : v) {
 						d.WriteVarIntger(o);
 					}
