@@ -114,10 +114,15 @@ int main() {
 	xx::ObjManager om;
 	xx::Data d;
 	d.Reserve(1024);
-	int i = 0;
-	std::cout << "plz input i:" << std::endl;
+	using T = std::string;
+	T i;
+	std::cout << "plz input:" << std::endl;
 	std::cin >> i;
-	std::vector<std::vector<std::vector<int>>> v = { {{i}} };
+	std::vector<std::vector<std::vector<T>>> v = { {{i}} };
+	//auto& vs = v[0][0];
+	//for (size_t j = 0; j < 100; j++) {
+	//	ints.emplace_back(i);
+	//}
 	om.data = &d;
 	{
 		auto secs = xx::NowEpochSeconds();
