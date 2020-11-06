@@ -2,8 +2,11 @@
 
 #include "xx_ptr.h"
 #include "xx_data.h"
+#include "xx_string.h"
 #include <unordered_map>
 #include <array>
+
+// todo: 从 xx_string.h   xx_data_rw.h   复制代码 整合到一起
 
 namespace xx {
 
@@ -23,6 +26,39 @@ namespace xx {
 	using ObjBase_s = Shared<ObjBase>;
 
 	struct ObjManager;
+
+
+	// 默认转发到 DataFunc 模板
+	template<typename T, typename ENABLED = void>
+	struct DataFuncsEx {
+		static inline void Write(ObjManager& dw, T const& in) {
+			DataFuncs<T>::Write(dw, in);
+		}
+
+		static inline int Read(ObjManager& dr, T& out) {
+			return DataFuncs<T>::Read(dr, out);
+		}
+	};
+
+	// 默认转发到 StringFuncs 模板
+	template<typename T, typename ENABLED = void>
+	struct StringFuncsEx {
+		static void Append(ObjManager& oh, T const& in);
+	};
+
+	// 这是新的适配模板 for clone 功能
+	template<typename T, typename ENABLED = void>
+	struct CloneFuncs {
+		static inline void Clone1(ObjManager& oh, T const& in, T& out) {
+			out = in;
+		}
+
+		static inline void Clone2(ObjManager& oh, T const& in, T& out) {
+			// do nothing
+		}
+	};
+
+
 
 	struct ObjBase {
 		ObjBase() = default;
@@ -55,8 +91,7 @@ namespace xx {
 		// 公共上下文
 		std::vector<void*> ptrs;
 		Data* data = nullptr;
-		std::string str;
-		int err = 0;
+		std::string* str = nullptr;
 
 
 		// 类实例 创建函数
@@ -347,77 +382,52 @@ namespace xx {
 		}
 
 
-		// todo: ToString, Cout
+		// 向 s 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
+		template<typename...Args>
+		XX_FORCEINLINE void AppendTo(std::string& s, Args&&...args) {
+			static_assert(sizeof...(args) > 0);
+			str = &s;
+			ptrs.clear();
+			auto sg = MakeScopeGuard([this] {
+				for (auto&& p : ptrs) {
+					*(uint32_t*)p = 0;
+				}
+				});
+
+			(Append_(std::forward<Args>(args)), ...);
+		}
 
 		// 内部函数
 		template<typename T>
-		void Append_(T const& v) {
-			//	if constexpr (IsPtrShared_v<T>) {
-			//		using U = typename T::ElementType;
-			//		if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-			//			auto typeId = v.typeId();
-			//			d.WriteVarIntger(typeId);
-			//			if (typeId == 0) return;
+		XX_FORCEINLINE void Append_(T const& v) {
+			auto& s = *str;
+			if constexpr (IsPtrShared_v<T>) {
+				using U = typename T::ElementType;
+				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
+					if (v) {
+						v->ToString(*this);
+					}
+					else {
+						s.append("null");
+					}
+				}
+				else {
+					::xx::Append(s, v);
+				}
+			}
+			else if constexpr (IsPtrWeak_v<T>) {
+				Append_(v.Lock());
+			}
+			else {
+				::xx::Append(s, v);
+			}
+		}
 
-			//			auto&& h = PtrHeader::Get(v.pointer);
-			//			if (h.offset == 0) {
-			//				ptrs.push_back(&h.offset);
-			//				h.offset = (uint32_t)ptrs.size();
-			//				//h.offset = (uint32_t)(d.len - baseLen);
-			//				d.WriteVarIntger(h.offset);
-			//				v.pointer->Write(*this);
-			//			}
-			//			else {
-			//				d.WriteVarIntger(h.offset);
-			//			}
-			//		}
-			//		else {
-			//			if (v) {
-			//				d.WriteFixed((uint8_t)1);
-			//				Write_(*v);
-			//			}
-			//			else {
-			//				d.WriteFixed((uint8_t)0);
-			//			}
-			//		}
-			//	}
-			//	else if constexpr (IsPtrWeak_v<T>) {
-			//		Write_(v.Lock());
-			//	}
-			//	else if constexpr (IsOptional<T>::value) {
-			//		if (v.has_value()) {
-			//			d.WriteFixed((uint8_t)1);
-			//			Write_(*v);
-			//		}
-			//		else {
-			//			d.WriteFixed((uint8_t)0);
-			//		}
-			//	}
-			//	else if constexpr (IsVector<T>::value) {
-			//	}
-			//	else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
-			//		d.WriteVarIntger(v.size());
-			//		d.WriteBuf(v.data(), v.size());
-			//	}
-			//	else if constexpr (std::is_integral_v<T>) {
-			//		if constexpr (sizeof(T) == 1) {
-			//			d.WriteFixed(v);
-			//		}
-			//		else {
-			//			d.WriteVarIntger(v);
-			//		}
-			//	}
-			//	else if constexpr (std::is_enum_v<T>) {
-			//		Write_(*(std::underlying_type_t<T>*) & v);
-			//	}
-			//	else if constexpr (std::is_floating_point_v<T>) {
-			//		d.WriteFixed(v);
-			//	}
-			//	else {
-			//		throw __LINE__;
-			//	}
-			//	// else map? pair? tuple? ...
-			//	// else if constexpr (HasMember_Write for normal struct support?
+		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
+		template<typename...Args>
+		XX_FORCEINLINE void Append(Args&&...args) {
+			static_assert(sizeof...(args) > 0);
+			(Append_(std::forward<Args>(args)), ...);
 		}
 	};
 }
