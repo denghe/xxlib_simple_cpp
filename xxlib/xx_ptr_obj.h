@@ -67,7 +67,7 @@ namespace xx {
 
 		// 注册类型 & ptrTypeId. 将创建函数塞入容器
 		template<typename T>
-		void Register(uint32_t const& typeId = TypeId_v<T>) {
+		void Register(uint16_t const& typeId = TypeId_v<T>) {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			fs[typeId] = []() -> ObjBase_s { return MakeShared<T>(); };
 		}
