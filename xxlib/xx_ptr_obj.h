@@ -15,15 +15,18 @@ namespace xx {
 	template<typename T, typename ENABLED = void>
 	struct ObjFuncs {
 		static inline void Write(ObjManager& om, T const& in) {
+			std::string s(xx::TypeName_v<T>);
 		}
 		static inline int Read(ObjManager& om, T& out) {
 			return 0;
 		}
 		static inline void ToString(ObjManager& om, T const& in) {
+			std::string s(xx::TypeName_v<T>);
 		}
 		static inline void ToStringCore(ObjManager& om, T const& in) {
 		}
 		static inline void Clone1(ObjManager& om, T const& in, T& out) {
+			out = in;
 		}
 		static inline void Clone2(ObjManager& om, T const& in, T& out) {
 		}
@@ -59,11 +62,11 @@ namespace xx {
 		// 输出 json 长相时用于输出花括号内部的成员拼接
 		virtual void ToStringCore(ObjManager& o) const = 0;
 
-		// 克隆步骤1: 拷贝普通数据，遇到 shared_ptr 就同型新建, 并保存映射关系
-		virtual void Clone1(ObjManager& o, ObjBase_s const& tar) const = 0;
+		// 克隆步骤1: 拷贝普通数据，遇到 Shared 就同型新建, 并保存映射关系
+		virtual void Clone1(ObjManager& o, void* tar) const = 0;
 
-		// 克隆步骤2: 只处理成员中的 weak_ptr 类型。根据步骤 1 建立的映射关系来填充
-		virtual void Clone2(ObjManager& o, ObjBase_s const& tar) const = 0;
+		// 克隆步骤2: 只处理成员中的 Weak 类型。根据步骤 1 建立的映射关系来填充
+		virtual void Clone2(ObjManager& o, void* tar) const = 0;
 	};
 
 
@@ -75,7 +78,7 @@ namespace xx {
 		std::vector<void*> ptrs;
 		Data* data = nullptr;
 		std::string* str = nullptr;
-
+		std::unordered_map<void*, void*> oldNewObjs;
 
 		// 类实例 创建函数
 		typedef ObjBase_s(*FT)();
@@ -100,7 +103,7 @@ namespace xx {
 
 		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		template<typename...Args>
-		XX_FORCEINLINE void WriteTo(Data& d, Args&&...args) {
+		XX_FORCEINLINE void WriteTo(Data& d, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
 			ptrs.clear();
@@ -110,7 +113,7 @@ namespace xx {
 				}
 				});
 
-			(Write_(std::forward<Args>(args)), ...);
+			(Write_(args), ...);
 		}
 
 	protected:
@@ -152,7 +155,7 @@ namespace xx {
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				v.Write(*this);
 			}
-			else if constexpr (IsOptional<T>::value) {
+			else if constexpr (IsOptional_v<T>) {
 				if (v.has_value()) {
 					d.WriteFixed((uint8_t)1);
 					Write_(*v);
@@ -161,21 +164,31 @@ namespace xx {
 					d.WriteFixed((uint8_t)0);
 				}
 			}
-			else if constexpr (IsVector<T>::value) {
+			else if constexpr (IsVector_v<T>) {
 				d.WriteVarIntger(v.size());
 				if (v.empty()) return;
 				if constexpr (sizeof(T) == 1 || std::is_floating_point_v<T>) {
 					d.WriteBuf(v.data(), v.size() * sizeof(T));
 				}
 				else if constexpr (std::is_integral_v<typename T::value_type>) {
+					auto cap = v.size() * (sizeof(T) + 1);
+					if (d.cap < cap) {
+						d.Reserve<false>();
+					}
 					for (auto&& o : v) {
-						d.WriteVarIntger(o);
+						d.WriteVarIntger<false>(o);
 					}
 				}
 				else {
 					for (auto&& o : v) {
 						Write_(o);
 					}
+				}
+			}
+			else if constexpr (IsUnorderedSet_v<T>) {
+				d.WriteVarIntger(v.size());
+				for (auto&& o : v) {
+					Write_(o);
 				}
 			}
 			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
@@ -201,7 +214,15 @@ namespace xx {
 					(Write_(args), ...);
 					}, v);
 			}
-			// else map? pair? ...
+			else if constexpr (IsPair_v<T>) {
+				Write(v.first, v.second);
+			}
+			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+				d.WriteVarIntger(v.size());
+				for (auto&& kv : v) {
+					Write(kv.first, kv.second);
+				}
+			}
 			else {
 				ObjFuncs<T>::Write(*this, v);
 			}
@@ -210,9 +231,9 @@ namespace xx {
 	public:
 		// 转发到 Write_
 		template<typename...Args>
-		XX_FORCEINLINE void Write(Args&&...args) {
+		XX_FORCEINLINE void Write(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
-			(Write_(std::forward<Args>(args)), ...);
+			(Write_(args), ...);
 		}
 
 		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
@@ -291,7 +312,7 @@ namespace xx {
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				return v.Read(*this);
 			}
-			else if constexpr (IsOptional<T>::value) {
+			else if constexpr (IsOptional_v<T>) {
 				uint8_t hasValue;
 				if (int r = Read_(hasValue)) return r;
 				if (!hasValue) {
@@ -303,7 +324,7 @@ namespace xx {
 				}
 				return Read_(v.value());
 			}
-			else if constexpr (IsVector<T>::value) {
+			else if constexpr (IsVector_v<T>) {
 				size_t siz = 0;
 				if (int r = Read_(siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
@@ -320,7 +341,17 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
+			else if constexpr (IsUnorderedSet_v<T>) {
+				size_t siz = 0;
+				if (int r = Read_(siz)) return r;
+				if (d.offset + siz > d.len) return __LINE__;
+				v.clear();
+				if (siz == 0) return 0;
+				for (size_t i = 0; i < siz; ++i) {
+					if (int r = Read_(v.emplace())) return r;
+				}
+			}
+			else if constexpr (std::is_same_v<T, std::string>) {
 				size_t siz;
 				if (int r = Read_(siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
@@ -344,7 +375,21 @@ namespace xx {
 			else if constexpr (IsTuple_v<T>) {
 				return ReadTuple(v);
 			}
-			// else map? pair? ...
+			else if constexpr (IsPair_v<T>) {
+				return Read(v.first, v.second);
+			}
+			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+				size_t siz;
+				if (int r = Read_(siz)) return r;
+				if (siz == 0) return 0;
+				if (d.offset + siz * 2 > d.len) return __LINE__;
+				for (size_t i = 0; i < siz; ++i) {
+					UnorderedMap_Pair_t<T> kv;
+					if (int r = Read_(kv.first, kv.second)) return r;
+					v.insert(std::move(kv));
+				}
+				return 0;
+			}
 			else {
 				return ObjFuncs<T>::Read(*this, v);;
 			}
@@ -367,7 +412,7 @@ namespace xx {
 
 		// 向 s 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		template<typename...Args>
-		XX_FORCEINLINE void AppendTo(std::string& s, Args&&...args) {
+		XX_FORCEINLINE void AppendTo(std::string& s, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			str = &s;
 			ptrs.clear();
@@ -377,7 +422,7 @@ namespace xx {
 				}
 				});
 
-			(Append_(std::forward<Args>(args)), ...);
+			(Append_(args), ...);
 		}
 
 		// 内部函数
@@ -388,7 +433,15 @@ namespace xx {
 				using U = typename T::ElementType;
 				if (v) {
 					if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-						v->ToString(*this);
+						auto&& h = PtrHeader::Get(v.pointer);
+						if (h.offset == 0) {
+							ptrs.push_back(&h.offset);
+							h.offset = (uint32_t)ptrs.size();
+							Append_(*v);
+						}
+						else {
+							s.append(std::to_string(h.offset));
+						}
 					}
 					else {
 						ObjFuncs<U>::ToString(*this, *v);
@@ -420,7 +473,7 @@ namespace xx {
 					s.append(std::to_string(v));
 				}
 			}
-			else if constexpr (std::is_same_v<T, char*> || std::is_same_v<T, char const*> || IsLiteral_v<T>) {
+			else if constexpr (IsLiteral_v<T> || std::is_same_v<T, char*> || std::is_same_v<T, char const*>) {
 				s.append(v);
 			}
 			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
@@ -481,7 +534,7 @@ namespace xx {
 					if constexpr (sizeof...(args) > 0) {
 						s.resize(s.size() - 1);
 					}
-				}, v);
+					}, v);
 				s.push_back(']');
 			}
 			else if constexpr (IsTimePoint_v<T>) {
@@ -495,8 +548,8 @@ namespace xx {
 #endif
 				ss << std::put_time(&tm, "%F %T");
 				s.append(ss.str());
-			}
-			else if constexpr (std::is_same_v<std::decay<T>, Data> || std::is_same_v<std::decay<T>, DataView>) {
+		}
+			else if constexpr (std::is_same_v<T, Data> || std::is_same_v<T, DataView>) {
 				s.push_back('[');
 				if (auto inLen = v.len) {
 					for (size_t i = 0; i < inLen; ++i) {
@@ -517,13 +570,13 @@ namespace xx {
 			else {
 				ObjFuncs<T>::ToString(*this, v);
 			}
-		}
+	}
 
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		XX_FORCEINLINE void Append(Args&&...args) {
+		XX_FORCEINLINE void Append(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
-			(Append_(std::forward<Args>(args)), ...);
+			(Append_(args), ...);
 		}
 
 
@@ -548,5 +601,177 @@ namespace xx {
 			CoutN("[", std::chrono::system_clock::now(), "] ", args...);
 		}
 
-	};
+
+		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
+		template<typename T>
+		void Clone(T& out, T const& in) {
+			oldNewObjs.clear();
+			ptrs.clear();
+			auto sg = MakeScopeGuard([this] {
+				for (auto&& p : ptrs) {
+					*(uint32_t*)p = 0;
+				}
+				});
+
+			Clone1(out, in);
+			Clone2(out, in);
+		}
+
+		template<class Tuple, std::size_t N>
+		struct TupleForeachClone {
+			static void Clone1(ObjManager& self, Tuple& out, Tuple const& in) {
+				self.Clone1(std::get<N - 1>(out), std::get<N - 1>(in));
+				TupleForeachClone<Tuple, N - 1>::Clone1(in, out);
+			}
+
+			static void Clone2(ObjManager& self, Tuple& out, Tuple const& in) {
+				self.Clone2(std::get<N - 1>(out), std::get<N - 1>(in));
+				TupleForeachClone<Tuple, N - 1>::Clone2(out, in);
+			}
+		};
+
+		template<class Tuple>
+		struct TupleForeachClone<Tuple, 1> {
+			static void Clone1(ObjManager& self, Tuple const& out, Tuple& in) {}
+			static void Clone2(ObjManager& self, Tuple const& out, Tuple& in) {}
+		};
+
+
+		template<typename T>
+		void Clone1(T& out, T const& in) {
+			if constexpr (IsPtrShared_v<T>) {
+				if (!in) {
+					out.Reset();
+				}
+				else {
+					auto&& h = PtrHeader::Get(in.pointer);
+					if (h.offset == 0) {
+						ptrs.push_back(&h.offset);
+						h.offset = (uint32_t)ptrs.size();
+
+						auto inTypeId = in.typeId();
+						if (out.typeId() != inTypeId) {
+							out = Create(inTypeId).As<typename T::ElementType>();
+						}
+						oldNewObjs[in.pointer] = out.pointer;
+						Clone1(*out, *in);
+					}
+					else {
+						out = *(T*)oldNewObjs[(void*)in.pointer];
+					}
+				}
+			}
+			else if constexpr (IsPtrWeak_v<T>) {
+				out.Reset();
+			}
+			else if constexpr (std::is_base_of_v<ObjBase, T>) {
+				out.Clone1(*this, (void*)&in);
+			}
+			else if constexpr (IsOptional_v<T>) {
+				if (in.has_value()) {
+					if (!out.has_value()) {
+						out.emplace();
+					}
+					Clone1(*out, *in);
+				}
+				else {
+					out.reset();
+				}
+			}
+			else if constexpr (IsVector_v<T>) {
+				auto siz = in.size();
+				out.resize(siz);
+				if constexpr (xx::IsPod_v<typename T::value_type>) {
+					memcpy(out.data(), in.data(), siz * sizeof(typename T::value_type));
+				}
+				else {
+					for (size_t i = 0; i < siz; ++i) {
+						Clone1(out[i], in[i]);
+					}
+				}
+			}
+			else if constexpr (IsUnorderedSet_v<T>) {
+				out.clear();
+				for (auto&& o : in) {
+					Clone1(o, out.emplace());
+				}
+			}
+			else if constexpr (IsTuple_v<T>) {
+				TupleForeachClone<T, std::tuple_size_v<T>>::Clone1(*this, in, out);
+			}
+			else if constexpr (IsPair_v<T>) {
+				Clone1(out.first, in.first);
+				Clone1(out.second, in.second);
+			}
+			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+				out.clear();
+				for (auto&& kv : in) {
+					std::pair<typename T::key_type, typename T::value_type> tar;
+					Clone1(kv.first, tar.first);
+					Clone1(kv.second, tar.second);
+					out.insert(std::move(tar));
+				}
+			}
+			else {
+				ObjFuncs<T>::Clone1(*this, in, out);
+			}
+		}
+
+		template<typename T>
+		void Clone2(T& out, T const& in) {
+			if constexpr (IsPtrShared_v<T>) {
+				if (in) {
+					Clone2(*out, *in);
+				}
+			}
+			else if constexpr (IsPtrWeak_v<T>) {
+				if (!in) return;
+				auto&& iter = oldNewObjs.find((void*)in.pointer());
+				if (iter == oldNewObjs.end()) {
+					out = in;
+				}
+				else {
+					out = *(T*)iter->second;
+				}
+			}
+			else if constexpr (std::is_base_of_v<ObjBase, T>) {
+				out.Clone2(*this, (void*)&in);
+			}
+			else if constexpr (IsOptional_v<T>) {
+				if (in.has_value()) {
+					Clone2(*out, *in);
+				}
+			}
+			else if constexpr (IsVector_v<T>) {
+				auto siz = in.size();
+				if constexpr (xx::IsPod_v<typename T::value_type>) {
+				}
+				else {
+					for (size_t i = 0; i < siz; ++i) {
+						Clone2(out[i], in[i]);
+					}
+				}
+			}
+			else if constexpr (IsUnorderedSet_v<T>) {
+				static_assert(xx::IsPod_v<T>);
+			}
+			else if constexpr (IsTuple_v<T>) {
+				TupleForeachClone<T, std::tuple_size_v<T>>::Clone2(*this, out, in);
+			}
+			else if constexpr (IsPair_v<T>) {
+				Clone2(out.first, in.first);
+				Clone2(out.second, in.second);
+			}
+			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+				for (auto&& kv : in) {
+					auto&& iter = out.find(kv.first);
+					//Clone2(kv.first, *(K*)&iter->first);	// 理论上讲 key 应该为简单类型 否则可能出问题
+					Clone2(kv.second, iter->second);
+				}
+			}
+			else {
+				ObjFuncs<T>::Clone2(*this, in, out);
+			}
+		}
+};
 }

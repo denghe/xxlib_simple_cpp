@@ -234,6 +234,11 @@ namespace xx {
 			return h && h->useCount;
 		}
 
+		// unsafe: 直接计算出指针
+		[[maybe_unused]] [[nodiscard]] T* pointer() const {
+			return (T*)(h + 1);
+		}
+
 		void Reset() {
 			if (h) {
 				assert(h->refCount);
@@ -305,7 +310,7 @@ namespace xx {
 
 		Weak& operator=(Weak const& o) {
 			if (&o != this) {
-				Reset(o.h);
+				Reset(o.Lock());
 			}
 			return *this;
 		}

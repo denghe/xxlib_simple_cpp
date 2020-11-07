@@ -51,14 +51,14 @@ namespace xx {
     template<typename T, typename = void>
     struct IsLiteral : std::false_type {
     };
-    template<typename T>
-    struct IsLiteral<T, std::enable_if_t<
-        (std::is_convertible_v<T, const char*> || std::is_convertible_v<T, char*>) &&
-        !std::is_rvalue_reference_v<T> &&
-        !std::is_pointer_v<T> &&
-        !std::is_array_v<T> &&
-        !std::is_class_v<T>
-        >> : std::true_type {
+    template<size_t L>
+    struct IsLiteral<char[L], void> : std::true_type {
+    };
+    template<size_t L>
+    struct IsLiteral<char const [L], void> : std::true_type {
+    };
+    template<size_t L>
+    struct IsLiteral<char const (&)[L], void> : std::true_type {
     };
     template<typename T>
     constexpr bool IsLiteral_v = IsLiteral<T>::value;
@@ -197,15 +197,20 @@ namespace xx {
     };
     template<typename K, typename V>
     struct IsUnorderedMap<std::unordered_map<K, V>> : std::true_type {
+        typedef std::pair<K, V> PT;
     };
     template<typename K, typename V>
     struct IsUnorderedMap<std::unordered_map<K, V>&> : std::true_type {
+        typedef std::pair<K, V> PT;
     };
     template<typename K, typename V>
     struct IsUnorderedMap<std::unordered_map<K, V> const&> : std::true_type {
+        typedef std::pair<K, V> PT;
     };
     template<typename T>
     constexpr bool IsUnorderedMap_v = IsUnorderedMap<T>::value;
+    template<typename T>
+    using UnorderedMap_Pair_t = typename IsUnorderedMap<T>::PT;
 
 
     template<typename T>
@@ -213,15 +218,20 @@ namespace xx {
     };
     template<typename K, typename V>
     struct IsMap<std::map<K, V>> : std::true_type {
+        typedef std::pair<K, V> PT;
     };
     template<typename K, typename V>
     struct IsMap<std::map<K, V>&> : std::true_type {
+        typedef std::pair<K, V> PT;
     };
     template<typename K, typename V>
     struct IsMap<std::map<K, V> const&> : std::true_type {
+        typedef std::pair<K, V> PT;
     };
     template<typename T>
     constexpr bool IsMap_v = IsMap<T>::value;
+    template<typename T>
+    using Map_Pair_t = typename IsMap<T>::PT;
 
 
     template<typename T>

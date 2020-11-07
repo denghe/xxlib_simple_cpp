@@ -7,17 +7,35 @@ struct A : xx::ObjBase {
 	xx::Weak<A> parent;
 	std::vector<xx::Shared<A>> children;
 
-	inline void Write(xx::ObjManager& o) const override { o.Write(parent, children); }
+	inline void Write(xx::ObjManager& o) const override { 
+		o.Write(parent, children);
+	}
 
-	inline int Read(xx::ObjManager& o) override { return o.Read(parent, children); }
+	inline int Read(xx::ObjManager& o) override {
+		return o.Read(parent, children); 
+	}
 
-	inline void ToString(xx::ObjManager& o) const override {}
+	inline void ToString(xx::ObjManager& o) const override {
+		o.Append("{");
+		this->ToStringCore(o);
+		o.Append("}");
+	}
 
-	inline void ToStringCore(xx::ObjManager& o) const override {}
+	inline void ToStringCore(xx::ObjManager& o) const override {
+		o.Append("\"parent\":", parent, ",\"children\":", children);
+	}
 
-	inline void Clone1(xx::ObjManager& o, xx::ObjBase_s const& tar) const override {}
+	inline void Clone1(xx::ObjManager& o, void* tar) const override {
+		auto&& out = (A*)tar;
+		o.Clone1(out->parent, this->parent);
+		o.Clone1(out->children, this->children);
+	}
 
-	inline void Clone2(xx::ObjManager& o, xx::ObjBase_s const& tar) const override {}
+	inline void Clone2(xx::ObjManager& o, void* tar) const override {
+		auto&& out = (A*)tar;
+		o.Clone2(out->parent, this->parent);
+		o.Clone2(out->children, this->children);
+	}
 };
 
 template<>
@@ -194,29 +212,36 @@ int main() {
 	om.Register<A>();
 
 	auto&& a = xx::MakeShared<A>();
-	a->parent = a;
-	a->children.emplace_back(xx::MakeShared<A>());
-	a->children.emplace_back(xx::MakeShared<A>());
+	a->children.emplace_back(a);	// recursive
+	a->children.emplace_back(xx::MakeShared<A>())->parent = a;
 
-	xx::Data d;
+	om.CoutN(a);
 
-	{
-		auto secs = xx::NowSteadyEpochSeconds();
-		for (size_t i = 0; i < 10000000; i++) {
-			d.Clear();
-			om.WriteTo(d, a);
-		}
-		om.CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
-	}
-	{
-		auto secs = xx::NowSteadyEpochSeconds();
-		xx::ObjBase_s o;
-		for (size_t i = 0; i < 10000000; i++) {
-			d.offset = 0;
-			om.ReadFrom(d, o);
-		}
-		om.CoutN((xx::NowSteadyEpochSeconds() - secs), " ", o.As<A>()->children.size());
-	}
+	xx::Shared<A> b;
+	om.Clone(b, a);
+	om.CoutN(b);
+
+
+	//xx::Data d;
+
+	//{
+	//	auto secs = xx::NowSteadyEpochSeconds();
+	//	for (size_t i = 0; i < 10000000; i++) {
+	//		d.Clear();
+	//		om.WriteTo(d, a);
+	//	}
+	//	om.CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
+	//}
+	//{
+	//	auto secs = xx::NowSteadyEpochSeconds();
+	//	xx::ObjBase_s o;
+	//	for (size_t i = 0; i < 10000000; i++) {
+	//		d.offset = 0;
+	//		om.ReadFrom(d, o);
+	//	}
+	//	om.CoutN((xx::NowSteadyEpochSeconds() - secs), " ", o.As<A>()->children.size());
+	//}
+
 
 	//try {
 	//	auto c = xx::MakeShared<int>(2);
