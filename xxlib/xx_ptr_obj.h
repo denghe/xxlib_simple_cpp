@@ -25,10 +25,10 @@ namespace xx {
 		}
 		static inline void ToStringCore(ObjManager& om, T const& in) {
 		}
-		static inline void Clone1(ObjManager& om, T const& in, T& out) {
+		static inline void Clone1(ObjManager& om, T& out, T const& in) {
 			out = in;
 		}
-		static inline void Clone2(ObjManager& om, T const& in, T& out) {
+		static inline void Clone2(ObjManager& om, T& out, T const& in) {
 		}
 	};
 
@@ -621,7 +621,7 @@ namespace xx {
 		struct TupleForeachClone {
 			static void Clone1(ObjManager& self, Tuple& out, Tuple const& in) {
 				self.Clone1(std::get<N - 1>(out), std::get<N - 1>(in));
-				TupleForeachClone<Tuple, N - 1>::Clone1(in, out);
+				TupleForeachClone<Tuple, N - 1>::Clone1(out, in);
 			}
 
 			static void Clone2(ObjManager& self, Tuple& out, Tuple const& in) {
@@ -697,7 +697,7 @@ namespace xx {
 				}
 			}
 			else if constexpr (IsTuple_v<T>) {
-				TupleForeachClone<T, std::tuple_size_v<T>>::Clone1(*this, in, out);
+				TupleForeachClone<T, std::tuple_size_v<T>>::Clone1(*this, out, in);
 			}
 			else if constexpr (IsPair_v<T>) {
 				Clone1(out.first, in.first);
@@ -713,7 +713,7 @@ namespace xx {
 				}
 			}
 			else {
-				ObjFuncs<T>::Clone1(*this, in, out);
+				ObjFuncs<T>::Clone1(*this, out, in);
 			}
 		}
 
@@ -770,7 +770,7 @@ namespace xx {
 				}
 			}
 			else {
-				ObjFuncs<T>::Clone2(*this, in, out);
+				ObjFuncs<T>::Clone2(*this, out, in);
 			}
 		}
 };
