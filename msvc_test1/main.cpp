@@ -1,6 +1,5 @@
 #include "xx_ptr_obj.h"
 #include "xx_chrono.h"
-#include "xx_string.h"
 #include <iostream>
 #include <memory>
 
@@ -10,7 +9,7 @@ struct A : xx::ObjBase {
 
 	inline void Write(xx::ObjManager& o) const override { o.Write(parent, children); }
 
-	inline void Read(xx::ObjManager& o) override { o.Read(parent, children); }
+	inline int Read(xx::ObjManager& o) override { return o.Read(parent, children); }
 
 	inline void ToString(xx::ObjManager& o) const override {}
 
@@ -111,27 +110,27 @@ struct xx::TypeId<A> {
 
 
 int main() {
-	xx::ObjManager om;
-	xx::Data d;
-	d.Reserve(1024);
-	using T = std::string;
-	T i;
-	std::cout << "plz input:" << std::endl;
-	std::cin >> i;
-	std::vector<std::vector<std::vector<T>>> v = { {{i}} };
-	//auto& vs = v[0][0];
-	//for (size_t j = 0; j < 100; j++) {
-	//	ints.emplace_back(i);
+	//xx::ObjManager om;
+	//xx::Data d;
+	//d.Reserve(1024);
+	//using T = std::string;
+	//T i;
+	//std::cout << "plz input:" << std::endl;
+	//std::cin >> i;
+	//std::vector<std::vector<std::vector<T>>> v = { {{i}} };
+	////auto& vs = v[0][0];
+	////for (size_t j = 0; j < 100; j++) {
+	////	ints.emplace_back(i);
+	////}
+	//om.data = &d;
+	//{
+	//	auto secs = xx::NowEpochSeconds();
+	//	for (size_t i = 0; i < 10000000; i++) {
+	//		d.Clear();
+	//		om.Write(v);
+	//	}
+	//	xx::CoutN((xx::NowEpochSeconds() - secs), " ", d);
 	//}
-	om.data = &d;
-	{
-		auto secs = xx::NowEpochSeconds();
-		for (size_t i = 0; i < 10000000; i++) {
-			d.Clear();
-			om.Write(v);
-		}
-		xx::CoutN((xx::NowEpochSeconds() - secs), " ", d);
-	}
 
 
 	//size_t input;
@@ -190,33 +189,34 @@ int main() {
 	//}
 
 
-//	xx::ObjManager om;
-//	om.Register<A>();
-//
-//	auto&& a = xx::MakeShared<A>();
-//	a->parent = a;
-//	a->children.emplace_back(xx::MakeShared<A>());
-//	a->children.emplace_back(xx::MakeShared<A>());
-//
-//	xx::Data d;
-//
-//	{
-//		auto secs = xx::NowSteadyEpochSeconds();
-//		for (size_t i = 0; i < 10000000; i++) {
-//			d.Clear();
-//			om.WriteTo(d, a);
-//		}
-//		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
-//	}
-//	{
-//		auto secs = xx::NowSteadyEpochSeconds();
-//		xx::ObjBase_s o;
-//		for (size_t i = 0; i < 10000000; i++) {
-//			d.offset = 0;
-//			om.ReadFrom(d, o);
-//		}
-//		xx::CoutN((xx::NowSteadyEpochSeconds() - secs), " ", o.As<A>()->children.size());
-//	}
+
+	xx::ObjManager om;
+	om.Register<A>();
+
+	auto&& a = xx::MakeShared<A>();
+	a->parent = a;
+	a->children.emplace_back(xx::MakeShared<A>());
+	a->children.emplace_back(xx::MakeShared<A>());
+
+	xx::Data d;
+
+	{
+		auto secs = xx::NowSteadyEpochSeconds();
+		for (size_t i = 0; i < 10000000; i++) {
+			d.Clear();
+			om.WriteTo(d, a);
+		}
+		om.CoutN((xx::NowSteadyEpochSeconds() - secs), " ", d);
+	}
+	{
+		auto secs = xx::NowSteadyEpochSeconds();
+		xx::ObjBase_s o;
+		for (size_t i = 0; i < 10000000; i++) {
+			d.offset = 0;
+			om.ReadFrom(d, o);
+		}
+		om.CoutN((xx::NowSteadyEpochSeconds() - secs), " ", o.As<A>()->children.size());
+	}
 
 	//try {
 	//	auto c = xx::MakeShared<int>(2);

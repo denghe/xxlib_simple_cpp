@@ -5,11 +5,20 @@
 #include <optional>
 #include <vector>
 #include <string>
+#include <chrono>
+#include <unordered_set>
+#include <unordered_map>
+#include <map>
 #include <memory>
 #include <functional>
 #include <stdexcept>
 #include <cstdint>
 #include <cassert>
+#include <ctime>  // std::tm
+#include <iomanip>  // std::put_time
+#include <array>
+#include <sstream>
+#include <iostream>
 
 
 #ifdef _MSC_VER
@@ -38,6 +47,39 @@ namespace xx {
     /************************************************************************************/
     // 模板类型识别系列
 
+
+    template<typename T, typename = void>
+    struct IsLiteral : std::false_type {
+    };
+    template<typename T>
+    struct IsLiteral<T, std::enable_if_t<
+        (std::is_convertible_v<T, const char*> || std::is_convertible_v<T, char*>) &&
+        !std::is_rvalue_reference_v<T> &&
+        !std::is_pointer_v<T> &&
+        !std::is_array_v<T> &&
+        !std::is_class_v<T>
+        >> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsLiteral_v = IsLiteral<T>::value;
+
+
+    template<typename T>
+    struct IsTimePoint : std::false_type {
+    };
+    template<typename C, typename D>
+    struct IsTimePoint<std::chrono::time_point<C, D>> : std::true_type {
+    };
+    template<typename C, typename D>
+    struct IsTimePoint<std::chrono::time_point<C, D>&> : std::true_type {
+    };
+    template<typename C, typename D>
+    struct IsTimePoint<std::chrono::time_point<C, D>const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsTimePoint_v = IsTimePoint<T>::value;
+
+
     template<typename T>
     struct IsOptional : std::false_type {
     };
@@ -52,6 +94,7 @@ namespace xx {
     };
     template<typename T>
     constexpr bool IsOptional_v = IsOptional<T>::value;
+
 
     template<typename T>
     struct IsVector : std::false_type {
@@ -81,8 +124,8 @@ namespace xx {
     template<typename ...T>
     struct IsTuple<std::tuple<T...> const &> : std::true_type {
     };
-    template<typename ...T>
-    constexpr bool IsTuple_v = IsTuple<T...>::value;
+    template<typename T>
+    constexpr bool IsTuple_v = IsTuple<T>::value;
 
 
     template<typename T>
@@ -131,6 +174,86 @@ namespace xx {
     };
     template<typename T>
     constexpr bool IsUnique_v = IsUnique<T>::value;
+
+
+    template<typename T>
+    struct IsUnorderedSet : std::false_type {
+    };
+    template<typename T>
+    struct IsUnorderedSet<std::unordered_set<T>> : std::true_type {
+    };
+    template<typename T>
+    struct IsUnorderedSet<std::unordered_set<T>&> : std::true_type {
+    };
+    template<typename T>
+    struct IsUnorderedSet<std::unordered_set<T> const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsUnorderedSet_v = IsUnorderedSet<T>::value;
+
+
+    template<typename T>
+    struct IsUnorderedMap : std::false_type {
+    };
+    template<typename K, typename V>
+    struct IsUnorderedMap<std::unordered_map<K, V>> : std::true_type {
+    };
+    template<typename K, typename V>
+    struct IsUnorderedMap<std::unordered_map<K, V>&> : std::true_type {
+    };
+    template<typename K, typename V>
+    struct IsUnorderedMap<std::unordered_map<K, V> const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsUnorderedMap_v = IsUnorderedMap<T>::value;
+
+
+    template<typename T>
+    struct IsMap : std::false_type {
+    };
+    template<typename K, typename V>
+    struct IsMap<std::map<K, V>> : std::true_type {
+    };
+    template<typename K, typename V>
+    struct IsMap<std::map<K, V>&> : std::true_type {
+    };
+    template<typename K, typename V>
+    struct IsMap<std::map<K, V> const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsMap_v = IsMap<T>::value;
+
+
+    template<typename T>
+    struct IsPair : std::false_type {
+    };
+    template<typename F, typename S>
+    struct IsPair<std::pair<F, S>> : std::true_type {
+    };
+    template<typename F, typename S>
+    struct IsPair<std::pair<F, S>&> : std::true_type {
+    };
+    template<typename F, typename S>
+    struct IsPair<std::pair<F, S>const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsPair_v = IsPair<T>::value;
+
+
+    template<typename T>
+    struct IsArray : std::false_type {
+    };
+    template<typename T, size_t S>
+    struct IsArray<std::array<T, S>> : std::true_type {
+    };
+    template<typename T, size_t S>
+    struct IsArray<std::array<T, S>&> : std::true_type {
+    };
+    template<typename T, size_t S>
+    struct IsArray<std::array<T, S>const&> : std::true_type {
+    };
+    template<typename T>
+    constexpr bool IsArray_v = IsArray<T>::value;
 
 
     template<typename, typename = void>

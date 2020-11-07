@@ -2,63 +2,45 @@
 
 #include "xx_ptr.h"
 #include "xx_data.h"
-#include "xx_string.h"
-#include <unordered_map>
-#include <array>
-
-// todo: 从 xx_string.h   xx_data_rw.h   复制代码 整合到一起
+#include "xx_typename_islambda.h"
 
 namespace xx {
+
+	struct ObjBase;
+	using ObjBase_s = Shared<ObjBase>;
+	struct ObjManager;
+
+	/************************************************************************************/
+	// 接口函数适配模板. 特化 以扩展类型支持
+	template<typename T, typename ENABLED = void>
+	struct ObjFuncs {
+		static inline void Write(ObjManager& om, T const& in) {
+		}
+		static inline int Read(ObjManager& om, T& out) {
+			return 0;
+		}
+		static inline void ToString(ObjManager& om, T const& in) {
+		}
+		static inline void ToStringCore(ObjManager& om, T const& in) {
+		}
+		static inline void Clone1(ObjManager& om, T const& in, T& out) {
+		}
+		static inline void Clone2(ObjManager& om, T const& in, T& out) {
+		}
+	};
+
 
 	/************************************************************************************/
 	// ObjBase: 仅用于 Shared<> Weak<> 包裹的类型基类
 	// 方便复制
 	/*
 	inline void Write(xx::ObjManager& o) const override { }
-	inline void Read(xx::ObjManager& o) override { }
+	inline int Read(xx::ObjManager& o) override { }
 	inline void ToString(xx::ObjManager& o) const override { }
 	inline void ToStringCore(xx::ObjManager& o) const override { }
 	inline void Clone1(xx::ObjManager& o, xx::ObjBase_s const& tar) const override { }
 	inline void Clone2(xx::ObjManager& o, xx::ObjBase_s const& tar) const override { }
 	*/
-
-	struct ObjBase;
-	using ObjBase_s = Shared<ObjBase>;
-
-	struct ObjManager;
-
-
-	// 默认转发到 DataFunc 模板
-	template<typename T, typename ENABLED = void>
-	struct DataFuncsEx {
-		static inline void Write(ObjManager& dw, T const& in) {
-			DataFuncs<T>::Write(dw, in);
-		}
-
-		static inline int Read(ObjManager& dr, T& out) {
-			return DataFuncs<T>::Read(dr, out);
-		}
-	};
-
-	// 默认转发到 StringFuncs 模板
-	template<typename T, typename ENABLED = void>
-	struct StringFuncsEx {
-		static void Append(ObjManager& oh, T const& in);
-	};
-
-	// 这是新的适配模板 for clone 功能
-	template<typename T, typename ENABLED = void>
-	struct CloneFuncs {
-		static inline void Clone1(ObjManager& oh, T const& in, T& out) {
-			out = in;
-		}
-
-		static inline void Clone2(ObjManager& oh, T const& in, T& out) {
-			// do nothing
-		}
-	};
-
-
 
 	struct ObjBase {
 		ObjBase() = default;
@@ -69,7 +51,7 @@ namespace xx {
 		virtual void Write(ObjManager& o) const = 0;
 
 		// 反序列化
-		virtual void Read(ObjManager& o) = 0;
+		virtual int Read(ObjManager& o) = 0;
 
 		// 输出 json 长相时用于输出外包围 {  } 部分
 		virtual void ToString(ObjManager& o) const = 0;
@@ -83,6 +65,7 @@ namespace xx {
 		// 克隆步骤2: 只处理成员中的 weak_ptr 类型。根据步骤 1 建立的映射关系来填充
 		virtual void Clone2(ObjManager& o, ObjBase_s const& tar) const = 0;
 	};
+
 
 	/************************************************************************************/
 	// ObjBase 相关操作类. 注册 typeId 与 关联 Create 函数
@@ -114,8 +97,6 @@ namespace xx {
 			if (!fs[typeId]) return nullptr;
 			return fs[typeId]();
 		}
-
-
 
 		// 向 data 写入数据. 会初始化写入上下文, 并在写入结束后擦屁股( 主要入口 )
 		template<typename...Args>
@@ -149,7 +130,7 @@ namespace xx {
 						ptrs.push_back(&h.offset);
 						h.offset = (uint32_t)ptrs.size();
 						d.WriteVarIntger(h.offset);
-						v.pointer->Write(*this);
+						Write_(*v.pointer);
 					}
 					else {
 						d.WriteVarIntger(h.offset);
@@ -167,6 +148,9 @@ namespace xx {
 			}
 			else if constexpr (IsPtrWeak_v<T>) {
 				Write_(v.Lock());
+			}
+			else if constexpr (std::is_base_of_v<ObjBase, T>) {
+				v.Write(*this);
 			}
 			else if constexpr (IsOptional<T>::value) {
 				if (v.has_value()) {
@@ -212,31 +196,29 @@ namespace xx {
 			else if constexpr (std::is_floating_point_v<T>) {
 				d.WriteFixed(v);
 			}
-			else if constexpr (xx::IsTuple_v<T>) {
+			else if constexpr (IsTuple_v<T>) {
 				std::apply([&](auto const &... args) {
 					(Write_(args), ...);
 					}, v);
 			}
+			// else map? pair? ...
 			else {
-				throw __LINE__;
+				ObjFuncs<T>::Write(*this, v);
 			}
-			// else map? pair? tuple? ...
-			// else if constexpr (HasMember_Write for normal struct support?
 		}
 
 	public:
-		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
+		// 转发到 Write_
 		template<typename...Args>
 		XX_FORCEINLINE void Write(Args&&...args) {
 			static_assert(sizeof...(args) > 0);
 			(Write_(std::forward<Args>(args)), ...);
 		}
 
-
 		// 从 data 读入 / 反序列化, 填充到 v. 原则: 尽量复用, 不新建对象( 主要入口 )
 		// 可传入开始读取的位置
 		template<typename...Args>
-		int ReadFrom(Data& d, Args&...args) {
+		XX_FORCEINLINE int ReadFrom(Data& d, Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
 			ptrs.clear();
@@ -245,30 +227,30 @@ namespace xx {
 
 	protected:
 		template<std::size_t I = 0, typename... Tp>
-		std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
+		XX_FORCEINLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
 			return Read_(std::get<I>(t));
 		}
 
 		template<std::size_t I = 0, typename... Tp>
-		std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
+		XX_FORCEINLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> ReadTuple(std::tuple<Tp...>& t) {
 			if (int r = Read_(std::get<I>(t))) return r;
 			return ReadTuple<I + 1, Tp...>(t);
 		}
 
 		// 内部函数
 		template<typename T>
-		int Read_(T& v) {
+		XX_FORCEINLINE int Read_(T& v) {
 			auto& d = *data;
 			if constexpr (IsPtrShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 					uint16_t typeId;
-					Read_(typeId);
+					if (int r = Read_(typeId)) return r;
 					if (!typeId) return 0;
 
 					auto len = (uint32_t)ptrs.size();
 					uint32_t offs;
-					Read_(offs);
+					if (int r = Read_(offs)) return r;
 
 					if (offs == len + 1) {
 						if (!v || v.typeId() != typeId) {
@@ -278,7 +260,7 @@ namespace xx {
 							if (!v) return __LINE__;
 						}
 						ptrs.emplace_back(v.pointer);
-						v->Read(*this);
+						if (int r = Read_(*v)) return r;
 					}
 					else {
 						if (offs > len)return __LINE__;
@@ -290,7 +272,7 @@ namespace xx {
 				}
 				else {
 					uint8_t hasValue;
-					Read_(hasValue);
+					if (int r = Read_(hasValue)) return r;
 					if (!hasValue) {
 						v.Reset();
 						return 0;
@@ -298,17 +280,20 @@ namespace xx {
 					if (v.Empty()) {
 						v = MakeShared<U>();
 					}
-					Read_(v.Value());
+					return Read_(v.Value());
 				}
 			}
 			else if constexpr (IsPtrWeak_v<T>) {
 				Shared<typename T::ElementType> o;
-				Read_(o);
+				if (int r = Read_(o)) return r;
 				v = o;
+			}
+			else if constexpr (std::is_base_of_v<ObjBase, T>) {
+				return v.Read(*this);
 			}
 			else if constexpr (IsOptional<T>::value) {
 				uint8_t hasValue;
-				Read_(hasValue);
+				if (int r = Read_(hasValue)) return r;
 				if (!hasValue) {
 					v.reset();
 					return 0;
@@ -316,11 +301,11 @@ namespace xx {
 				if (!v.has_value()) {
 					v.emplace();
 				}
-				Read_(v.value());
+				return Read_(v.value());
 			}
 			else if constexpr (IsVector<T>::value) {
 				size_t siz = 0;
-				Read_(siz);
+				if (int r = Read_(siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
 				v.resize(siz);
 				if (siz == 0) return 0;
@@ -331,13 +316,13 @@ namespace xx {
 				}
 				else {
 					for (size_t i = 0; i < siz; ++i) {
-						Read_(buf[i]);
+						if (int r = Read_(buf[i])) return r;
 					}
 				}
 			}
 			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
 				size_t siz;
-				Read_(siz);
+				if (int r = Read_(siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
 				v.assign((char*)d.buf + d.offset, siz);
 				d.offset += siz;
@@ -351,25 +336,23 @@ namespace xx {
 				}
 			}
 			else if constexpr (std::is_enum_v<T>) {
-				Read_(*(std::underlying_type_t<T>*) & v);
+				return Read_(*(std::underlying_type_t<T>*) & v);
 			}
 			else if constexpr (std::is_floating_point_v<T>) {
 				if (int r = d.ReadFixed(v))  return __LINE__ * 1000000 + r;
 			}
-			else if constexpr (xx::IsTuple_v<T>) {
+			else if constexpr (IsTuple_v<T>) {
 				return ReadTuple(v);
 			}
+			// else map? pair? ...
 			else {
-				return __LINE__;
+				return ObjFuncs<T>::Read(*this, v);;
 			}
-
-			// else map? pair? tuple? ...
-			// else if constexpr (HasMember_Write for normal struct support?
 			return 0;
 		}
 
 		template<typename T, typename ...TS>
-		int Read_(T& v, TS &...vs) {
+		XX_FORCEINLINE int Read_(T& v, TS &...vs) {
 			if (auto r = Read_(v)) return r;
 			return Read_(vs...);
 		}
@@ -377,7 +360,7 @@ namespace xx {
 	public:
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
-		int Read(Args&...args) {
+		XX_FORCEINLINE int Read(Args&...args) {
 			return Read_(args...);
 		}
 
@@ -403,23 +386,136 @@ namespace xx {
 			auto& s = *str;
 			if constexpr (IsPtrShared_v<T>) {
 				using U = typename T::ElementType;
-				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-					if (v) {
+				if (v) {
+					if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 						v->ToString(*this);
 					}
 					else {
-						s.append("null");
+						ObjFuncs<U>::ToString(*this, *v);
 					}
 				}
 				else {
-					::xx::Append(s, v);
+					s.append("null");
 				}
 			}
 			else if constexpr (IsPtrWeak_v<T>) {
 				Append_(v.Lock());
 			}
+			else if constexpr (std::is_base_of_v<ObjBase, T>) {
+				v.ToString(*this);
+			}
+			else if constexpr (std::is_arithmetic_v<T>) {
+				if constexpr (std::is_same_v<bool, T>) {
+					s.append(v ? "true" : "false");
+				}
+				else if constexpr (std::is_same_v<char, T>) {
+					s.push_back(v);
+				}
+				else if constexpr (std::is_floating_point_v<T>) {
+					char buf[32];
+					snprintf(buf, 32, "%.16lf", (double)v);
+					s.append(buf);
+				}
+				else {
+					s.append(std::to_string(v));
+				}
+			}
+			else if constexpr (std::is_same_v<T, char*> || std::is_same_v<T, char const*> || IsLiteral_v<T>) {
+				s.append(v);
+			}
+			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
+				s.push_back('\"');
+				s.append(v);
+				s.push_back('\"');
+			}
+			else if constexpr (std::is_enum_v<T>) {
+				Append_(*(std::underlying_type_t<T>*) & v);
+			}
+			else if constexpr (IsOptional_v<T>) {
+				if (v.has_value()) {
+					Append_(*v);
+				}
+				else {
+					s.append("null");
+				}
+			}
+			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T>) {
+				s.push_back('[');
+				if (!v.empty()) {
+					for (auto&& o : v) {
+						Append_(o);
+						s.push_back(',');
+					}
+					s[s.size() - 1] = ']';
+				}
+				else {
+					s.push_back(']');
+				}
+			}
+			else if constexpr (IsUnorderedMap_v<T> || IsMap_v<T>) {
+				s.push_back('[');
+				if (!v.empty()) {
+					for (auto& kv : v) {
+						Append_(kv.first);
+						s.push_back(',');
+						Append_(kv.second);
+						s.push_back(',');
+					}
+					s[s.size() - 1] = ']';
+				}
+				else {
+					s.push_back(']');
+				}
+			}
+			else if constexpr (IsPair_v<T>) {
+				s.push_back('[');
+				Append_(v.first);
+				s.push_back(',');
+				Append_(v.second);
+				s.push_back(']');
+			}
+			else if constexpr (IsTuple_v<T>) {
+				s.push_back('[');
+				std::apply([&](auto const &... args) {
+					Append(args..., ',');
+					if constexpr (sizeof...(args) > 0) {
+						s.resize(s.size() - 1);
+					}
+				}, v);
+				s.push_back(']');
+			}
+			else if constexpr (IsTimePoint_v<T>) {
+				auto&& t = std::chrono::system_clock::to_time_t(v);
+				std::stringstream ss;
+				std::tm tm{};
+#ifdef _WIN32
+				localtime_s(&tm, &t);
+#else
+				localtime_r(&t, &tm);
+#endif
+				ss << std::put_time(&tm, "%F %T");
+				s.append(ss.str());
+			}
+			else if constexpr (std::is_same_v<std::decay<T>, Data> || std::is_same_v<std::decay<T>, DataView>) {
+				s.push_back('[');
+				if (auto inLen = v.len) {
+					for (size_t i = 0; i < inLen; ++i) {
+						Append_((uint8_t)v[i]);
+						s.push_back(',');
+					}
+					s[s.size() - 1] = ']';
+				}
+				else {
+					s.push_back(']');
+				}
+			}
+			else if constexpr (std::is_same_v<T, std::type_info>) {
+				s.push_back('\"');
+				s.append(v.name());
+				s.push_back('\"');
+			}
 			else {
-				::xx::Append(s, v);
+				ObjFuncs<T>::ToString(*this, v);
 			}
 		}
 
@@ -429,5 +525,28 @@ namespace xx {
 			static_assert(sizeof...(args) > 0);
 			(Append_(std::forward<Args>(args)), ...);
 		}
+
+
+		// 替代 std::cout。可根据适配模板调用相应的函数
+		template<typename...Args>
+		inline void Cout(Args const &...args) {
+			std::string s;
+			AppendTo(s, args...);
+			std::cout << s;
+		}
+
+		// 在 Cout 基础上添加了换行
+		template<typename...Args>
+		inline void CoutN(Args const &...args) {
+			Cout(args...);
+			std::cout << std::endl;
+		}
+
+		// 在 CoutN 基础上于头部添加了时间
+		template<typename...Args>
+		inline void CoutTN(Args const &...args) {
+			CoutN("[", std::chrono::system_clock::now(), "] ", args...);
+		}
+
 	};
 }
