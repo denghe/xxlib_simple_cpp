@@ -6,6 +6,9 @@
 struct A : xx::ObjBase {
 	xx::Weak<A> parent;
 	std::vector<xx::Shared<A>> children;
+	~A() {
+		
+	}
 
 	inline void Write(xx::ObjManager& o) const override { 
 		o.Write(parent, children);
@@ -27,15 +30,20 @@ struct A : xx::ObjBase {
 
 	inline void Clone1(xx::ObjManager& o, void* tar) const override {
 		auto&& out = (A*)tar;
-		o.Clone1(out->parent, this->parent);
-		o.Clone1(out->children, this->children);
+		o.Clone1(this->parent, out->parent);
+		o.Clone1(this->children, out->children);
 	}
 
 	inline void Clone2(xx::ObjManager& o, void* tar) const override {
 		auto&& out = (A*)tar;
-		o.Clone2(out->parent, this->parent);
-		o.Clone2(out->children, this->children);
+		o.Clone2(this->parent, out->parent);
+		o.Clone2(this->children, out->children);
 	}
+
+	inline void RecursiveReset(xx::ObjManager& o) override {
+		o.RecursiveReset(this->parent, this->children);
+	}
+	// todo: RecursiveReset 遍历所有 Shared 成员, 遇到不空的就改 h.offset 并进入继续遍历其成员. 如果 h.offset 已被改动 那就直接 reset 该 Shared
 };
 
 template<>
@@ -215,12 +223,16 @@ int main() {
 	a->children.emplace_back(a);	// recursive
 	a->children.emplace_back(xx::MakeShared<A>())->parent = a;
 
-	om.CoutN(a);
-
 	xx::Shared<A> b;
-	om.Clone(b, a);
+	om.Clone(a, b);
+
+	om.CoutN(a);
 	om.CoutN(b);
 
+	om.RecursiveResetRoot(a);
+	om.CoutN(a);
+	om.RecursiveResetRoot(b);
+	om.CoutN(b);
 
 	//xx::Data d;
 

@@ -25,10 +25,12 @@ namespace xx {
 		}
 		static inline void ToStringCore(ObjManager& om, T const& in) {
 		}
-		static inline void Clone1(ObjManager& om, T& out, T const& in) {
+		static inline void Clone1(ObjManager& om, T const& in, T& out) {
 			out = in;
 		}
-		static inline void Clone2(ObjManager& om, T& out, T const& in) {
+		static inline void Clone2(ObjManager& om, T const& in, T& out) {
+		}
+		static inline void RecursiveReset(ObjManager& om, T& in) {
 		}
 	};
 
@@ -67,6 +69,12 @@ namespace xx {
 
 		// 克隆步骤2: 只处理成员中的 Weak 类型。根据步骤 1 建立的映射关系来填充
 		virtual void Clone2(ObjManager& o, void* tar) const = 0;
+
+		// 向 o 传递所有 Shared<T> member 以斩断循环引用 防止内存泄露
+		virtual void RecursiveReset(ObjManager& o) = 0;
+
+		// 
+		//ObjManager& GetObjManager() const noexcept;
 	};
 
 
@@ -420,6 +428,7 @@ namespace xx {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
+				ptrs.clear();
 				});
 
 			(Append_(args), ...);
@@ -548,7 +557,7 @@ namespace xx {
 #endif
 				ss << std::put_time(&tm, "%F %T");
 				s.append(ss.str());
-		}
+			}
 			else if constexpr (std::is_same_v<T, Data> || std::is_same_v<T, DataView>) {
 				s.push_back('[');
 				if (auto inLen = v.len) {
@@ -570,7 +579,7 @@ namespace xx {
 			else {
 				ObjFuncs<T>::ToString(*this, v);
 			}
-	}
+		}
 
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
@@ -582,7 +591,7 @@ namespace xx {
 
 		// 替代 std::cout。可根据适配模板调用相应的函数
 		template<typename...Args>
-		inline void Cout(Args const &...args) {
+		XX_FORCEINLINE void Cout(Args const &...args) {
 			std::string s;
 			AppendTo(s, args...);
 			std::cout << s;
@@ -590,55 +599,56 @@ namespace xx {
 
 		// 在 Cout 基础上添加了换行
 		template<typename...Args>
-		inline void CoutN(Args const &...args) {
+		XX_FORCEINLINE void CoutN(Args const &...args) {
 			Cout(args...);
 			std::cout << std::endl;
 		}
 
 		// 在 CoutN 基础上于头部添加了时间
 		template<typename...Args>
-		inline void CoutTN(Args const &...args) {
+		XX_FORCEINLINE void CoutTN(Args const &...args) {
 			CoutN("[", std::chrono::system_clock::now(), "] ", args...);
 		}
 
 
-		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
+		// 向 out 深度复制 in. 会初始化 ptrs, oldNewObjs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
-		void Clone(T& out, T const& in) {
+		XX_FORCEINLINE void Clone(T const& in, T& out) {
 			oldNewObjs.clear();
 			ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
+				ptrs.clear();
 				});
-
-			Clone1(out, in);
-			Clone2(out, in);
+			Clone1(in, out);
+			sg.f();
+			Clone2(in, out);
 		}
 
 		template<class Tuple, std::size_t N>
 		struct TupleForeachClone {
-			static void Clone1(ObjManager& self, Tuple& out, Tuple const& in) {
-				self.Clone1(std::get<N - 1>(out), std::get<N - 1>(in));
-				TupleForeachClone<Tuple, N - 1>::Clone1(out, in);
+			XX_FORCEINLINE static void Clone1(ObjManager& self, Tuple const& in, Tuple& out) {
+				self.Clone1(std::get<N - 1>(in), std::get<N - 1>(out));
+				TupleForeachClone<Tuple, N - 1>::Clone1(in, out);
 			}
 
-			static void Clone2(ObjManager& self, Tuple& out, Tuple const& in) {
-				self.Clone2(std::get<N - 1>(out), std::get<N - 1>(in));
-				TupleForeachClone<Tuple, N - 1>::Clone2(out, in);
+			XX_FORCEINLINE static void Clone2(ObjManager& self, Tuple& out, Tuple const& in) {
+				self.Clone1(std::get<N - 1>(in), std::get<N - 1>(out));
+				TupleForeachClone<Tuple, N - 1>::Clone1(in, out);
 			}
 		};
 
 		template<class Tuple>
 		struct TupleForeachClone<Tuple, 1> {
-			static void Clone1(ObjManager& self, Tuple const& out, Tuple& in) {}
-			static void Clone2(ObjManager& self, Tuple const& out, Tuple& in) {}
+			static void Clone1(ObjManager& self, Tuple const& in, Tuple& out) {}
+			static void Clone2(ObjManager& self, Tuple const& in, Tuple& out) {}
 		};
 
 
 		template<typename T>
-		void Clone1(T& out, T const& in) {
+		XX_FORCEINLINE void Clone1(T const& in, T& out) {
 			if constexpr (IsPtrShared_v<T>) {
 				if (!in) {
 					out.Reset();
@@ -654,10 +664,11 @@ namespace xx {
 							out = Create(inTypeId).As<typename T::ElementType>();
 						}
 						oldNewObjs[in.pointer] = out.pointer;
-						Clone1(*out, *in);
+						Clone1(*in, *out);
 					}
 					else {
-						out = *(T*)oldNewObjs[(void*)in.pointer];
+						auto&& p = oldNewObjs[(void*)in.pointer];
+						out = *(T*)&p;
 					}
 				}
 			}
@@ -665,14 +676,14 @@ namespace xx {
 				out.Reset();
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
-				out.Clone1(*this, (void*)&in);
+				in.Clone1(*this, (void*)&out);
 			}
 			else if constexpr (IsOptional_v<T>) {
 				if (in.has_value()) {
 					if (!out.has_value()) {
 						out.emplace();
 					}
-					Clone1(*out, *in);
+					Clone1(*in, *out);
 				}
 				else {
 					out.reset();
@@ -686,7 +697,7 @@ namespace xx {
 				}
 				else {
 					for (size_t i = 0; i < siz; ++i) {
-						Clone1(out[i], in[i]);
+						Clone1(in[i], out[i]);
 					}
 				}
 			}
@@ -697,7 +708,7 @@ namespace xx {
 				}
 			}
 			else if constexpr (IsTuple_v<T>) {
-				TupleForeachClone<T, std::tuple_size_v<T>>::Clone1(*this, out, in);
+				TupleForeachClone<T, std::tuple_size_v<T>>::Clone1(*this, in, out);
 			}
 			else if constexpr (IsPair_v<T>) {
 				Clone1(out.first, in.first);
@@ -713,15 +724,21 @@ namespace xx {
 				}
 			}
 			else {
-				ObjFuncs<T>::Clone1(*this, out, in);
+				ObjFuncs<T>::Clone1(*this, in, out);
 			}
 		}
 
 		template<typename T>
-		void Clone2(T& out, T const& in) {
+		XX_FORCEINLINE void Clone2(T const& in, T& out) {
 			if constexpr (IsPtrShared_v<T>) {
 				if (in) {
-					Clone2(*out, *in);
+					auto&& h = PtrHeader::Get(in.pointer);
+					if (h.offset == 0) {
+						ptrs.push_back(&h.offset);
+						h.offset = (uint32_t)ptrs.size();
+
+						Clone2(*in.pointer, *out.pointer);
+					}
 				}
 			}
 			else if constexpr (IsPtrWeak_v<T>) {
@@ -731,15 +748,15 @@ namespace xx {
 					out = in;
 				}
 				else {
-					out = *(T*)iter->second;
+					out = *(Shared<typename T::ElementType>*) & iter->second;
 				}
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
-				out.Clone2(*this, (void*)&in);
+				in.Clone2(*this, (void*)&out);
 			}
 			else if constexpr (IsOptional_v<T>) {
 				if (in.has_value()) {
-					Clone2(*out, *in);
+					Clone2(*in, *out);
 				}
 			}
 			else if constexpr (IsVector_v<T>) {
@@ -748,7 +765,7 @@ namespace xx {
 				}
 				else {
 					for (size_t i = 0; i < siz; ++i) {
-						Clone2(out[i], in[i]);
+						Clone2(in[i], out[i]);
 					}
 				}
 			}
@@ -756,11 +773,11 @@ namespace xx {
 				static_assert(xx::IsPod_v<T>);
 			}
 			else if constexpr (IsTuple_v<T>) {
-				TupleForeachClone<T, std::tuple_size_v<T>>::Clone2(*this, out, in);
+				TupleForeachClone<T, std::tuple_size_v<T>>::Clone2(*this, in, out);
 			}
 			else if constexpr (IsPair_v<T>) {
-				Clone2(out.first, in.first);
-				Clone2(out.second, in.second);
+				Clone2(in.first, out.first);
+				Clone2(in.second, out.second);
 			}
 			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
 				for (auto&& kv : in) {
@@ -770,8 +787,86 @@ namespace xx {
 				}
 			}
 			else {
-				ObjFuncs<T>::Clone2(*this, out, in);
+				ObjFuncs<T>::Clone2(*this, in, out);
 			}
 		}
-};
+
+
+		// 斩断循环引用的 Shared 以方便顺利释放内存( 入口 )
+		template<typename...Args>
+		XX_FORCEINLINE void RecursiveResetRoot(Args&...args) {
+			static_assert(sizeof...(args) > 0);
+			ptrs.clear();
+			auto sg = MakeScopeGuard([this] {
+				for (auto&& p : ptrs) {
+					*(uint32_t*)p = 0;
+				}
+				});
+
+			(RecursiveReset_(args), ...);
+		}
+
+	protected:
+		template<typename T>
+		XX_FORCEINLINE void RecursiveReset_(T& v) {
+			if constexpr (IsPtrShared_v<T>) {
+				if (v) {
+					auto&& h = PtrHeader::Get(v.pointer);
+					if (!h.offset) {
+						h.offset = 1;
+						ptrs.push_back(&h.offset);
+						RecursiveReset_(*v);
+					}
+					else {
+						//v.Reset();
+						v.pointer = nullptr;
+						--h.refCount;
+					}
+				}
+			}
+			else if constexpr (IsPtrWeak_v<T>) {
+			}
+			else if constexpr (std::is_base_of_v<ObjBase, T>) {
+				v.RecursiveReset(*this);
+			}
+			else if constexpr (IsOptional_v<T>) {
+				if (v.has_value()) {
+					RecursiveReset_(*v);
+				}
+			}
+			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T>) {
+				for (auto& o : v) {
+					RecursiveReset_(o);
+				}
+			}
+			else if constexpr (IsTuple_v<T>) {
+				std::apply([](auto&... args) {
+					(RecursiveReset_(args), ...);
+					}, v);
+			}
+			else if constexpr (IsPair_v<T>) {
+				RecursiveResets(v.first, v.second);
+			}
+			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+				for (auto& kv : v) {
+					RecursiveReset_(kv.second);
+				}
+			}
+			else {
+				ObjFuncs<T>::RecursiveReset(*this, v);
+			}
+		}
+	public:
+
+		// 供类成员函数调用
+		template<typename...Args>
+		XX_FORCEINLINE void RecursiveReset(Args&...args) {
+			static_assert(sizeof...(args) > 0);
+			(RecursiveReset_(args), ...);
+		}
+	};
+
+	//ObjManager& ObjBase::GetObjManager() {
+
+	//}
 }
