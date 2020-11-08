@@ -1,55 +1,6 @@
 #include "xx_ptr_obj.h"
 #include "xx_chrono.h"
-#include <iostream>
-#include <memory>
 
-struct A : xx::ObjBase {
-	xx::Weak<A> parent;
-	std::vector<xx::Shared<A>> children;
-	~A() {
-		
-	}
-
-	inline void Write(xx::ObjManager& o) const override { 
-		o.Write(parent, children);
-	}
-
-	inline int Read(xx::ObjManager& o) override {
-		return o.Read(parent, children); 
-	}
-
-	inline void ToString(xx::ObjManager& o) const override {
-		o.Append("{");
-		this->ToStringCore(o);
-		o.Append("}");
-	}
-
-	inline void ToStringCore(xx::ObjManager& o) const override {
-		o.Append("\"parent\":", parent, ",\"children\":", children);
-	}
-
-	inline void Clone1(xx::ObjManager& o, void* tar) const override {
-		auto&& out = (A*)tar;
-		o.Clone1(this->parent, out->parent);
-		o.Clone1(this->children, out->children);
-	}
-
-	inline void Clone2(xx::ObjManager& o, void* tar) const override {
-		auto&& out = (A*)tar;
-		o.Clone2(this->parent, out->parent);
-		o.Clone2(this->children, out->children);
-	}
-
-	inline void RecursiveReset(xx::ObjManager& o) override {
-		o.RecursiveReset(this->parent, this->children);
-	}
-	// todo: RecursiveReset 遍历所有 Shared 成员, 遇到不空的就改 h.offset 并进入继续遍历其成员. 如果 h.offset 已被改动 那就直接 reset 该 Shared
-};
-
-template<>
-struct xx::TypeId<A> {
-	static const uint16_t value = 1;
-};
 
 //struct Foo {
 //	int n = 1;
@@ -133,9 +84,89 @@ struct xx::TypeId<A> {
 //	xx::CoutN((xx::NowEpochSeconds() - secs), " ", xx::DataView{ buf, len });
 
 
+struct A : xx::ObjBase {
+	int id = 0;
+	xx::Weak<A> parent;
+	std::vector<xx::Shared<A>> children;
+	~A() {
+		std::cout << "~A() id = " << id << std::endl;
+	}
 
+	inline void Write(xx::ObjManager& o) const override {
+		o.Write(id, parent, children);
+	}
+
+	inline int Read(xx::ObjManager& o) override {
+		return o.Read(id, parent, children);
+	}
+
+	inline void ToString(xx::ObjManager& o) const override {
+		o.Append("{");
+		this->ToStringCore(o);
+		o.Append("}");
+	}
+
+	inline void ToStringCore(xx::ObjManager& o) const override {
+		o.Append("\"id\":", id, ",\"parent\":", parent, ",\"children\":", children);
+	}
+
+	inline void Clone1(xx::ObjManager& o, void* tar) const override {
+		auto&& out = (A*)tar;
+		o.Clone1(this->id, out->id);
+		o.Clone1(this->parent, out->parent);
+		o.Clone1(this->children, out->children);
+	}
+
+	inline void Clone2(xx::ObjManager& o, void* tar) const override {
+		auto&& out = (A*)tar;
+		o.Clone2(this->id, out->id);
+		o.Clone2(this->parent, out->parent);
+		o.Clone2(this->children, out->children);
+	}
+
+	inline void RecursiveReset(xx::ObjManager& o) override {
+		o.RecursiveReset(this->id, this->parent, this->children);
+	}
+};
+
+template<>
+struct xx::TypeId<A> {
+	static const uint16_t value = 1;
+};
 
 int main() {
+
+	xx::ObjManager om;
+	om.Register<A>();
+	{
+		int autoId = 0;
+		auto&& a = xx::MakeShared<A>();
+		auto a_sg = xx::MakeScopeGuard([&] { 
+			om.RecursiveResetRoot(a);
+		});
+		a->id = 1;
+		a->parent = a;
+		a->children.emplace_back(a);	// recursive
+		a->children.emplace_back(xx::MakeShared<A>())->parent = a;
+		a->children[1]->id = 2;
+		om.CoutN(a);
+		{
+			auto secs = xx::NowSteadyEpochSeconds();
+			xx::Shared<A> b;
+			auto b_sg = xx::MakeScopeGuard([&] {
+				om.RecursiveResetRoot(b);
+				});
+			for (size_t i = 0; i < 10000000; i++) {
+				om.Clone(a, b);
+			}
+			om.CoutN(xx::NowSteadyEpochSeconds() - secs);
+			b->id = 3;
+			b->children[1]->id = 4;
+			om.CoutN(b);
+		}
+	}
+
+
 	//xx::ObjManager om;
 	//xx::Data d;
 	//d.Reserve(1024);
@@ -216,23 +247,6 @@ int main() {
 
 
 
-	xx::ObjManager om;
-	om.Register<A>();
-
-	auto&& a = xx::MakeShared<A>();
-	a->children.emplace_back(a);	// recursive
-	a->children.emplace_back(xx::MakeShared<A>())->parent = a;
-
-	xx::Shared<A> b;
-	om.Clone(a, b);
-
-	om.CoutN(a);
-	om.CoutN(b);
-
-	om.RecursiveResetRoot(a);
-	om.CoutN(a);
-	om.RecursiveResetRoot(b);
-	om.CoutN(b);
 
 	//xx::Data d;
 

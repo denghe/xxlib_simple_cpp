@@ -14,14 +14,7 @@ namespace xx {
 		uint32_t refCount;      // 弱引用技术
 		uint32_t typeId;        // 序列化 或 类型转换用
 		uint32_t offset;        // 序列化等过程中使用
-
-		// unsafe: 从一个类指针反查引用到内存块头的 PtrHeader 类型
-		[[maybe_unused]] [[nodiscard]] inline static PtrHeader& Get(void* const& o) {
-			return *((PtrHeader*)o - 1);
-		};
 	};
-
-
 
 
 	/************************************************************************************/
@@ -35,65 +28,73 @@ namespace xx {
 		using ElementType = T;
 		T* pointer = nullptr;
 
-		operator T* const& () const noexcept {
+		XX_FORCEINLINE operator T* const& () const noexcept {
 			return pointer;
 		}
-		operator T*& () noexcept {
-			return pointer;
-		}
-
-		T* const& operator->() const noexcept {
+		XX_FORCEINLINE operator T*& () noexcept {
 			return pointer;
 		}
 
-		T const& Value() const noexcept {
+		XX_FORCEINLINE T* const& operator->() const noexcept {
+			return pointer;
+		}
+
+		XX_FORCEINLINE T const& Value() const noexcept {
 			return *pointer;
 		}
-		T& Value() noexcept {
+		XX_FORCEINLINE T& Value() noexcept {
 			return *pointer;
 		}
 
-		[[maybe_unused]] [[nodiscard]] explicit operator bool() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE explicit operator bool() const noexcept {
 			return pointer != nullptr;
 		}
 
-		[[maybe_unused]] [[nodiscard]] bool Empty() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE bool Empty() const noexcept {
 			return pointer == nullptr;
 		}
 
-		[[maybe_unused]] [[nodiscard]] bool HasValue() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE bool HasValue() const noexcept {
 			return pointer != nullptr;
 		}
 
-		[[maybe_unused]] [[nodiscard]] uint32_t useCount() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE uint32_t useCount() const noexcept {
 			if (!pointer) return 0;
-			return PtrHeader::Get(pointer).useCount;
+			return header()->useCount;
 		}
 
-		[[maybe_unused]] [[nodiscard]] uint32_t refCount() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE uint32_t refCount() const noexcept {
 			if (!pointer) return 0;
-			return PtrHeader::Get(pointer).refCount;
+			return header()->refCount;
 		}
 
-		[[maybe_unused]] [[nodiscard]] uint32_t typeId() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE uint32_t typeId() const noexcept {
 			if (!pointer) return 0;
-			assert(PtrHeader::Get(pointer).typeId);
-			return PtrHeader::Get(pointer).typeId;
+			assert(header()->typeId);
+			return header()->typeId;
+		}
+
+		// unsafe
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE PtrHeader* header() const noexcept {
+			return ((PtrHeader*)pointer - 1);
 		}
 
 		void Reset() {
 			if (pointer) {
-				auto&& h = PtrHeader::Get(pointer);
-				assert(h.useCount);
-				--h.useCount;
-				if (h.useCount == 0) {
-					auto needFree = h.refCount == 0;
+				auto h = header();
+				assert(h->useCount);
+				// 不能在这里 -1, 这将导致成员 weak 指向自己时触发 free
+				if (h->useCount == 1) {
 					pointer->~T();
-					if (needFree) {
-						free(&h);
+					pointer = nullptr;
+					if (h->refCount == 0) {
+						free(h);
 					}
 				}
-				pointer = nullptr;
+				else {
+					--h->useCount;
+					pointer = nullptr;
+				}
 			}
 		}
 
@@ -104,92 +105,91 @@ namespace xx {
 			Reset();
 			if (ptr) {
 				pointer = ptr;
-				auto&& h = PtrHeader::Get(pointer);
-				++h.useCount;
+				++((PtrHeader*)ptr - 1)->useCount;
 			}
 		}
 
-		~Shared() {
+		XX_FORCEINLINE ~Shared() {
 			Reset();
 		}
 
 		Shared() = default;
 
 		template<typename U>
-		Shared(U* const& ptr) {
+		XX_FORCEINLINE Shared(U* const& ptr) {
 			static_assert(std::is_base_of_v<T, U>);
 			Reset(ptr);
 		}
-		Shared(T* const& ptr) {
+		XX_FORCEINLINE Shared(T* const& ptr) {
 			Reset(ptr);
 		}
 
 		template<typename U>
-		Shared(Shared<U> const& o) {
+		XX_FORCEINLINE Shared(Shared<U> const& o) {
 			static_assert(std::is_base_of_v<T, U>);
 			Reset(o.pointer);
 		}
-		Shared(Shared const& o) {
+		XX_FORCEINLINE Shared(Shared const& o) {
 			Reset(o.pointer);
 		}
 
 		template<typename U>
-		Shared(Shared<U>&& o) noexcept {
+		XX_FORCEINLINE Shared(Shared<U>&& o) noexcept {
 			static_assert(std::is_base_of_v<T, U>);
 			pointer = o.pointer;
 			o.pointer = nullptr;
 		}
-		Shared(Shared&& o) noexcept {
+		XX_FORCEINLINE Shared(Shared&& o) noexcept {
 			pointer = o.pointer;
 			o.pointer = nullptr;
 		}
 
 		template<typename U>
-		Shared& operator=(U* const& ptr) {
+		XX_FORCEINLINE Shared& operator=(U* const& ptr) {
 			static_assert(std::is_base_of_v<T, U>);
 			Reset(ptr);
 			return *this;
 		}
-		Shared& operator=(T* const& ptr) {
+		XX_FORCEINLINE Shared& operator=(T* const& ptr) {
 			Reset(ptr);
 			return *this;
 		}
 
 		template<typename U>
-		Shared& operator=(Shared<U> const& o) {
+		XX_FORCEINLINE Shared& operator=(Shared<U> const& o) {
 			static_assert(std::is_base_of_v<T, U>);
 			Reset(o.pointer);
 			return *this;
 		}
-		Shared& operator=(Shared const& o) {
+		XX_FORCEINLINE Shared& operator=(Shared const& o) {
 			Reset(o.pointer);
 			return *this;
 		}
 
 		template<typename U>
-		Shared& operator=(Shared<U>&& o) {
+		XX_FORCEINLINE Shared& operator=(Shared<U>&& o) {
 			static_assert(std::is_base_of_v<T, U>);
 			Reset();
 			std::swap(pointer, o.pointer);
 			return *this;
 		}
-		Shared& operator=(Shared&& o) {
+		XX_FORCEINLINE Shared& operator=(Shared&& o) {
 			std::swap(pointer, o.pointer);
 			return *this;
 		}
 
 		template<typename U>
-		bool operator==(Shared<U> const& o) const noexcept {
+		XX_FORCEINLINE bool operator==(Shared<U> const& o) const noexcept {
 			return pointer == o.pointer;
 		}
 
 		template<typename U>
-		bool operator!=(Shared<U> const& o) const noexcept {
+		XX_FORCEINLINE bool operator!=(Shared<U> const& o) const noexcept {
 			return pointer != o.pointer;
 		}
 
 		template<typename U>
-		Shared<U> As() const noexcept {
+		XX_FORCEINLINE Shared<U> As() const noexcept {
 			if constexpr (std::is_same_v<U, T>) {
 				return *this;
 			}
@@ -215,52 +215,53 @@ namespace xx {
 		using ElementType = T;
 		PtrHeader* h = nullptr;
 
-		[[maybe_unused]] [[nodiscard]] uint32_t useCount() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE uint32_t useCount() const noexcept {
 			if (!h) return 0;
 			return h->useCount;
 		}
 
-		[[maybe_unused]] [[nodiscard]] uint32_t refCount() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE uint32_t refCount() const noexcept {
 			if (!h) return 0;
 			return h->refCount;
 		}
 
-		[[maybe_unused]] [[nodiscard]] uint32_t typeId() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE uint32_t typeId() const noexcept {
 			if (!h) return 0;
 			return h->typeId;
 		}
 
-		[[maybe_unused]] [[nodiscard]] explicit operator bool() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE explicit operator bool() const noexcept {
 			return h && h->useCount;
 		}
 
 		// unsafe: 直接计算出指针
-		[[maybe_unused]] [[nodiscard]] T* pointer() const {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE T* pointer() const {
 			return (T*)(h + 1);
 		}
 
-		void Reset() {
+		XX_FORCEINLINE void Reset() {
 			if (h) {
-				assert(h->refCount);
-				--h->refCount;
-				if (h->refCount == 0 && h->useCount == 0) {
+				if (h->refCount == 1 && h->useCount == 0) {
 					free(h);
+				}
+				else {
+					--h->refCount;
 				}
 				h = nullptr;
 			}
 		}
 
 		template<typename U>
-		void Reset(Shared<U> const& s) {
+		XX_FORCEINLINE void Reset(Shared<U> const& s) {
 			static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
 			Reset();
 			if (s.pointer) {
-				h = &PtrHeader::Get(s.pointer);
+				h = ((PtrHeader*)s.pointer - 1);
 				++h->refCount;
 			}
 		}
 		
-		[[maybe_unused]] [[nodiscard]] Shared<T> Lock() const {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE Shared<T> Lock() const {
 			if (h && h->useCount) {
                 auto p = h + 1;
                 return *(Shared<T> *) &p;
@@ -269,72 +270,72 @@ namespace xx {
 		}
 
 		// unsafe 系列: 要安全使用，每次都 if 真 再调用这些函数 1 次。一次 if 多次调用的情景除非很有把握在期间 Shared 不会析构，否则还是 Lock()
-		[[maybe_unused]] [[nodiscard]] ElementType* operator->() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE ElementType* operator->() const noexcept {
 			return (ElementType*)(h + 1);
 		}
-		[[maybe_unused]] [[nodiscard]] ElementType const& Value() const noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE ElementType const& Value() const noexcept {
 			return *(ElementType*)(h + 1);
 		}
-		[[maybe_unused]] [[nodiscard]] ElementType& Value() noexcept {
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE ElementType& Value() noexcept {
 			return *(ElementType*)(h + 1);
 		}
-		operator ElementType* () const noexcept {
+		XX_FORCEINLINE operator ElementType* () const noexcept {
 			return (ElementType*)(h + 1);
 		}
 
 		template<typename U>
-		Weak& operator=(Shared<U> const& o) {
+		XX_FORCEINLINE Weak& operator=(Shared<U> const& o) {
 			static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
 			Reset(o);
 			return *this;
 		}
 
 		template<typename U>
-		Weak(Shared<U> const& o) {
+		XX_FORCEINLINE Weak(Shared<U> const& o) {
 			static_assert(std::is_same_v<T, U> || std::is_base_of_v<T, U>);
 			Reset(o);
 		}
 
 
-		~Weak() {
+		XX_FORCEINLINE ~Weak() {
 			Reset();
 		}
 
 		Weak() = default;
 
-		Weak(Weak const& o) {
+		XX_FORCEINLINE Weak(Weak const& o) {
 			if ((h = o.h)) {
 				++o.h->refCount;
 			}
 		}
 
-		Weak& operator=(Weak const& o) {
+		XX_FORCEINLINE Weak& operator=(Weak const& o) {
 			if (&o != this) {
 				Reset(o.Lock());
 			}
 			return *this;
 		}
 
-		Weak(Weak&& o) noexcept {
+		XX_FORCEINLINE Weak(Weak&& o) noexcept {
 			std::swap(h, o.h);
 		}
 
-		Weak& operator=(Weak&& o) noexcept {
+		XX_FORCEINLINE Weak& operator=(Weak&& o) noexcept {
 			std::swap(h, o.h);
 			return *this;
 		}
 
-		bool operator==(Weak const& o) const noexcept {
+		XX_FORCEINLINE bool operator==(Weak const& o) const noexcept {
 			return h == o.h;
 		}
 
-		bool operator!=(Weak const& o) const noexcept {
+		XX_FORCEINLINE bool operator!=(Weak const& o) const noexcept {
 			return h != o.h;
 		}
 	};
 
 	template<typename T>
-	Weak<T> Shared<T>::ToWeak() const noexcept {
+	XX_FORCEINLINE Weak<T> Shared<T>::ToWeak() const noexcept {
 		if (pointer) {
 			auto h = (PtrHeader*)pointer - 1;
 			return *(Weak<T>*)&h;
@@ -387,7 +388,7 @@ namespace xx {
 	// helpers
 
 	template<typename T, typename...Args>
-	[[maybe_unused]] Shared<T> MakeShared(Args &&...args) {
+	[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE Shared<T> MakeShared(Args &&...args) {
 		auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
 		h->useCount = 0;
 		h->refCount = 0;

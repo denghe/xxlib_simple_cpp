@@ -136,15 +136,15 @@ namespace xx {
 					d.WriteVarIntger(typeId);
 					if (typeId == 0) return;
 
-					auto&& h = PtrHeader::Get(v.pointer);
-					if (h.offset == 0) {
-						ptrs.push_back(&h.offset);
-						h.offset = (uint32_t)ptrs.size();
-						d.WriteVarIntger(h.offset);
+					auto h = ((PtrHeader*)v.pointer - 1);
+					if (h->offset == 0) {
+						ptrs.push_back(&h->offset);
+						h->offset = (uint32_t)ptrs.size();
+						d.WriteVarIntger(h->offset);
 						Write_(*v.pointer);
 					}
 					else {
-						d.WriteVarIntger(h.offset);
+						d.WriteVarIntger(h->offset);
 					}
 				}
 				else {
@@ -181,7 +181,7 @@ namespace xx {
 				else if constexpr (std::is_integral_v<typename T::value_type>) {
 					auto cap = v.size() * (sizeof(T) + 1);
 					if (d.cap < cap) {
-						d.Reserve<false>();
+						d.Reserve<false>(cap);
 					}
 					for (auto&& o : v) {
 						d.WriteVarIntger<false>(o);
@@ -442,14 +442,14 @@ namespace xx {
 				using U = typename T::ElementType;
 				if (v) {
 					if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-						auto&& h = PtrHeader::Get(v.pointer);
-						if (h.offset == 0) {
-							ptrs.push_back(&h.offset);
-							h.offset = (uint32_t)ptrs.size();
+						auto h = ((PtrHeader*)v.pointer - 1);
+						if (h->offset == 0) {
+							ptrs.push_back(&h->offset);
+							h->offset = (uint32_t)ptrs.size();
 							Append_(*v);
 						}
 						else {
-							s.append(std::to_string(h.offset));
+							s.append(std::to_string(h->offset));
 						}
 					}
 					else {
@@ -654,14 +654,14 @@ namespace xx {
 					out.Reset();
 				}
 				else {
-					auto&& h = PtrHeader::Get(in.pointer);
-					if (h.offset == 0) {
-						ptrs.push_back(&h.offset);
-						h.offset = (uint32_t)ptrs.size();
+					auto h = ((PtrHeader*)in.pointer - 1);
+					if (h->offset == 0) {
+						ptrs.push_back(&h->offset);
+						h->offset = (uint32_t)ptrs.size();
 
 						auto inTypeId = in.typeId();
 						if (out.typeId() != inTypeId) {
-							out = Create(inTypeId).As<typename T::ElementType>();
+							out = Create(inTypeId).template As<typename T::ElementType>();
 						}
 						oldNewObjs[in.pointer] = out.pointer;
 						Clone1(*in, *out);
@@ -732,10 +732,10 @@ namespace xx {
 		XX_FORCEINLINE void Clone2(T const& in, T& out) {
 			if constexpr (IsPtrShared_v<T>) {
 				if (in) {
-					auto&& h = PtrHeader::Get(in.pointer);
-					if (h.offset == 0) {
-						ptrs.push_back(&h.offset);
-						h.offset = (uint32_t)ptrs.size();
+					auto h = ((PtrHeader*)in.pointer - 1);
+					if (h->offset == 0) {
+						ptrs.push_back(&h->offset);
+						h->offset = (uint32_t)ptrs.size();
 
 						Clone2(*in.pointer, *out.pointer);
 					}
@@ -811,16 +811,15 @@ namespace xx {
 		XX_FORCEINLINE void RecursiveReset_(T& v) {
 			if constexpr (IsPtrShared_v<T>) {
 				if (v) {
-					auto&& h = PtrHeader::Get(v.pointer);
-					if (!h.offset) {
-						h.offset = 1;
-						ptrs.push_back(&h.offset);
+					auto h = ((PtrHeader*)v.pointer - 1);
+					if (h->offset == 0) {
+						h->offset = 1;
+						ptrs.push_back(&h->offset);
 						RecursiveReset_(*v);
 					}
 					else {
-						//v.Reset();
+						--h->useCount;
 						v.pointer = nullptr;
-						--h.refCount;
 					}
 				}
 			}
@@ -840,7 +839,7 @@ namespace xx {
 				}
 			}
 			else if constexpr (IsTuple_v<T>) {
-				std::apply([](auto&... args) {
+				std::apply([this](auto&... args) {
 					(RecursiveReset_(args), ...);
 					}, v);
 			}
@@ -865,8 +864,4 @@ namespace xx {
 			(RecursiveReset_(args), ...);
 		}
 	};
-
-	//ObjManager& ObjBase::GetObjManager() {
-
-	//}
 }
