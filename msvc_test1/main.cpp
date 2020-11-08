@@ -1,4 +1,4 @@
-#include "xx_ptr_obj.h"
+#include "xx_obj.h"
 #include "xx_chrono.h"
 
 
@@ -111,14 +111,14 @@ struct A : xx::ObjBase {
 		o.Append("\"id\":", id, ",\"parent\":", parent, ",\"children\":", children);
 	}
 
-	inline void Clone1(xx::ObjManager& o, void* tar) const override {
+	inline void Clone1(xx::ObjManager& o, void* const& tar) const override {
 		auto&& out = (A*)tar;
 		o.Clone1(this->id, out->id);
 		o.Clone1(this->parent, out->parent);
 		o.Clone1(this->children, out->children);
 	}
 
-	inline void Clone2(xx::ObjManager& o, void* tar) const override {
+	inline void Clone2(xx::ObjManager& o, void* const& tar) const override {
 		auto&& out = (A*)tar;
 		o.Clone2(this->id, out->id);
 		o.Clone2(this->parent, out->parent);
@@ -190,7 +190,6 @@ int main() {
 	//	xx::CoutN((xx::NowEpochSeconds() - secs), " ", d);
 	//}
 
-
 	//size_t input;
 	//std::cin >> input;
 
@@ -235,9 +234,6 @@ int main() {
 	//	std::cout << (xx::NowEpochSeconds() - secs) << std::endl;
 	//	std::cout << counts0 << "," << counts1 << std::endl;
 	//}
-
-
-
 
 
 	//{
@@ -301,4 +297,3 @@ int main() {
 	//__builtin_trap();
 	return 0;
 }
-

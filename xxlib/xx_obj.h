@@ -4,6 +4,41 @@
 #include "xx_data.h"
 #include "xx_typename_islambda.h"
 
+#define XX_GENCODE_OBJECT_H(T, BT) \
+using BaseType = BT; \
+T() = default; \
+T(T const&) = default; \
+T& operator=(T const&) = default; \
+T(T&& o) noexcept; \
+T& operator=(T&& o) noexcept; \
+void Write(xx::ObjManager& o) const override; \
+int Read(xx::ObjManager& o) override; \
+void ToString(xx::ObjManager& o) const override; \
+void ToStringCore(xx::ObjManager& o) const override; \
+void Clone1(xx::ObjManager& o, void* const& tar) const override; \
+void Clone2(xx::ObjManager& o, void* const& tar) const override; \
+void RecursiveReset(xx::ObjManager& o) override;
+
+#define XX_GENCODE_STRUCT_H(T) \
+T() = default; \
+T(T const&) = default; \
+T& operator=(T const&) = default; \
+T(T&& o) noexcept; \
+T& operator=(T&& o) noexcept;
+
+#define XX_GENCODE_OBJFUNCS_H(U) \
+template<typename T> \
+struct ObjFuncs<T, std::is_same_v<std::decay_t<U>, T>> { \
+	static void Write(ObjManager& om, T const& in); \
+	static int Read(ObjManager& om, T& out); \
+	static void ToString(ObjManager& om, T const& in); \
+	static void ToStringCore(ObjManager& om, T const& in); \
+	static void Clone1(ObjManager& om, T const& in, T& out); \
+	static void Clone2(ObjManager& om, T const& in, T& out); \
+	static void RecursiveReset(ObjManager& om, T& in); \
+};
+
+
 namespace xx {
 
 	struct ObjBase;
@@ -36,45 +71,65 @@ namespace xx {
 
 
 	/************************************************************************************/
-	// ObjBase: 仅用于 Shared<> Weak<> 包裹的类型基类
 	// 方便复制
 	/*
 	inline void Write(xx::ObjManager& o) const override { }
 	inline int Read(xx::ObjManager& o) override { }
 	inline void ToString(xx::ObjManager& o) const override { }
 	inline void ToStringCore(xx::ObjManager& o) const override { }
-	inline void Clone1(xx::ObjManager& o, xx::ObjBase_s const& tar) const override { }
-	inline void Clone2(xx::ObjManager& o, xx::ObjBase_s const& tar) const override { }
+	inline void Clone1(xx::ObjManager& o, void* const& tar) const override { }
+	inline void Clone2(xx::ObjManager& o, void* const& tar) const override { }
+	inline void RecursiveReset(xx::ObjManager& o) override { }
 	*/
 
+	// ObjBase: 仅用于 Shared<> Weak<> 包裹的类型基类
 	struct ObjBase {
+		// 派生类都需要有默认构造。
 		ObjBase() = default;
 
 		virtual ~ObjBase() = default;
 
 		// 序列化
-		virtual void Write(ObjManager& o) const = 0;
+		virtual void Write(ObjManager& om) const = 0;
 
 		// 反序列化
-		virtual int Read(ObjManager& o) = 0;
+		virtual int Read(ObjManager& om) = 0;
 
 		// 输出 json 长相时用于输出外包围 {  } 部分
-		virtual void ToString(ObjManager& o) const = 0;
+		virtual void ToString(ObjManager& om) const = 0;
 
 		// 输出 json 长相时用于输出花括号内部的成员拼接
-		virtual void ToStringCore(ObjManager& o) const = 0;
+		virtual void ToStringCore(ObjManager& om) const = 0;
 
 		// 克隆步骤1: 拷贝普通数据，遇到 Shared 就同型新建, 并保存映射关系
-		virtual void Clone1(ObjManager& o, void* tar) const = 0;
+		virtual void Clone1(ObjManager& om, void* const& tar) const = 0;
 
 		// 克隆步骤2: 只处理成员中的 Weak 类型。根据步骤 1 建立的映射关系来填充
-		virtual void Clone2(ObjManager& o, void* tar) const = 0;
+		virtual void Clone2(ObjManager& om, void* const& tar) const = 0;
 
 		// 向 o 传递所有 Shared<T> member 以斩断循环引用 防止内存泄露
-		virtual void RecursiveReset(ObjManager& o) = 0;
+		virtual void RecursiveReset(ObjManager& om) = 0;
 
-		// 
-		//ObjManager& GetObjManager() const noexcept;
+		// 注意: 下面两个函数, 不可以在析构函数中使用, 构造函数中使用也需要确保构造过程顺利无异常。另外，如果指定 T, 则 unsafe, 需小心确保 this 真的能转为 T。不确定就不传参，用 .As<T>
+		// 得到当前类的强指针
+		template<typename T = ObjBase>
+		XX_FORCEINLINE Shared<T> SharedFromThis() {
+			auto h = (PtrHeader*)this - 1;
+			return (*((Weak<T>*)&h)).Lock();
+		}
+
+		// 得到当前类的弱指针
+		template<typename T = ObjBase>
+		XX_FORCEINLINE Weak<T> WeakFromThis() {
+			auto h = (PtrHeader*)this - 1;
+			return *((Weak<T>*)&h);
+		}
+
+		// 得到当前类的 typeId
+		XX_FORCEINLINE int16_t GetTypeId() {
+			auto h = (PtrHeader*)this - 1;
+			return h->typeId;
+		}
 	};
 
 

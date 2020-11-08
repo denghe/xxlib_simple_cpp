@@ -702,10 +702,10 @@ public static class TypeHelpers {
         else {
             if (t.Namespace == nameof(TemplateLibrary)) {
                 if (t.Name == "Weak`1") {
-                    return "std::weak_ptr<" + _GetTypeDecl_CsharpForDisplayCppType(t.GenericTypeArguments[0]) + ">";
+                    return "xx::Weak<" + _GetTypeDecl_CsharpForDisplayCppType(t.GenericTypeArguments[0]) + ">";
                 }
                 if (t.Name == "Shared`1") {
-                    return "std::shared_ptr<" + _GetTypeDecl_CsharpForDisplayCppType(t.GenericTypeArguments[0]) + ">";
+                    return "xx::Shared<" + _GetTypeDecl_CsharpForDisplayCppType(t.GenericTypeArguments[0]) + ">";
                 }
                 else if (t.Name == "List`1") {
                     return "std::vector<" + _GetTypeDecl_CsharpForDisplayCppType(t.GenericTypeArguments[0]) + ">";
@@ -800,9 +800,9 @@ public static class TypeHelpers {
             if (t.Namespace == nameof(TemplateLibrary)) {
                 switch (t.Name) {
                     case "Weak`1":
-                        return "std::weak_ptr<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
+                        return "xx::Weak<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
                     case "Shared`1":
-                        return "std::shared_ptr<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
+                        return "xx::Shared<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
                     case "Unique`1":
                         return "std::unique_ptr<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
                     case "List`1": {
@@ -824,7 +824,7 @@ public static class TypeHelpers {
             else if (t.Namespace == nameof(System)) {
                 switch (t.Name) {
                     case "Object":
-                        return "::xx::Object";
+                        return "::xx::ObjBase";
                     case "Void":
                         return "void";
                     case "Byte":
