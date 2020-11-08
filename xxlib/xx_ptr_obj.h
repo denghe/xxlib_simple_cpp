@@ -84,9 +84,9 @@ namespace xx {
 	struct ObjManager {
 		// 公共上下文
 		std::vector<void*> ptrs;
+		std::vector<void*> ptrs2;
 		Data* data = nullptr;
 		std::string* str = nullptr;
-		std::unordered_map<void*, void*> oldNewObjs;
 
 		// 类实例 创建函数
 		typedef ObjBase_s(*FT)();
@@ -428,7 +428,6 @@ namespace xx {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
-				ptrs.clear();
 				});
 
 			(Append_(args), ...);
@@ -611,11 +610,11 @@ namespace xx {
 		}
 
 
-		// 向 out 深度复制 in. 会初始化 ptrs, oldNewObjs, 并在写入结束后擦屁股( 主要入口 )
+		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
 		XX_FORCEINLINE void Clone(T const& in, T& out) {
-			oldNewObjs.clear();
 			ptrs.clear();
+			ptrs2.clear();
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
@@ -663,12 +662,11 @@ namespace xx {
 						if (out.typeId() != inTypeId) {
 							out = Create(inTypeId).template As<typename T::ElementType>();
 						}
-						oldNewObjs[in.pointer] = out.pointer;
+						ptrs2.push_back(out.pointer);
 						Clone1(*in, *out);
 					}
 					else {
-						auto&& p = oldNewObjs[(void*)in.pointer];
-						out = *(T*)&p;
+						out = *(T*)&ptrs2[h->offset - 1];
 					}
 				}
 			}
@@ -743,12 +741,11 @@ namespace xx {
 			}
 			else if constexpr (IsPtrWeak_v<T>) {
 				if (!in) return;
-				auto&& iter = oldNewObjs.find((void*)in.pointer());
-				if (iter == oldNewObjs.end()) {
-					out = in;
+				if (in.h->offset) {
+					out = *(Shared<typename T::ElementType>*) & ptrs2[in.h->offset - 1];
 				}
 				else {
-					out = *(Shared<typename T::ElementType>*) & iter->second;
+					out = in;
 				}
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {

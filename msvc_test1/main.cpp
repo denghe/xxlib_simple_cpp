@@ -92,6 +92,7 @@ struct A : xx::ObjBase {
 		std::cout << "~A() id = " << id << std::endl;
 	}
 
+	#pragma region overrides
 	inline void Write(xx::ObjManager& o) const override {
 		o.Write(id, parent, children);
 	}
@@ -127,6 +128,7 @@ struct A : xx::ObjBase {
 	inline void RecursiveReset(xx::ObjManager& o) override {
 		o.RecursiveReset(this->id, this->parent, this->children);
 	}
+	#pragma endregion
 };
 
 template<>
@@ -139,7 +141,6 @@ int main() {
 	xx::ObjManager om;
 	om.Register<A>();
 	{
-		int autoId = 0;
 		auto&& a = xx::MakeShared<A>();
 		auto a_sg = xx::MakeScopeGuard([&] { 
 			om.RecursiveResetRoot(a);
