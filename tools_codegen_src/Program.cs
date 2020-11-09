@@ -20,7 +20,9 @@ public static class Program {
                 , MetadataReference.CreateFromFile(Path.Combine(dllPath, "mscorlib.dll"))
                 , MetadataReference.CreateFromFile(Path.Combine(dllPath, "netstandard.dll"))
                 , MetadataReference.CreateFromFile(Path.Combine(dllPath, "System.Runtime.dll")))
-            .AddSyntaxTrees(from fn in fileNames select CSharpSyntaxTree.ParseText(File.ReadAllText(fn)));
+            .AddSyntaxTrees(from fn in fileNames select CSharpSyntaxTree.ParseText(@"
+#pragma warning disable 0169, 0414
+" + File.ReadAllText(fn)));
 
         foreach (var d in compilation.GetDiagnostics()) {
             Console.WriteLine(d);

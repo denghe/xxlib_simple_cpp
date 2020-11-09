@@ -2,8 +2,19 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="FF_class_lite.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="code.bak" />
+    <None Include="FF_class_lite.cpp.inc" />
+    <None Include="FF_class_lite.h.inc" />
+    <None Include="FF_class_lite_.h.inc" />
+    <None Include="classes.bat" />
+    <None Include="classes.cs" />
+    <None Include="FF_A.inc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="FF_class_lite.h" />
+    <ClInclude Include="FF_class_lite.ajson.h" />
   </ItemGroup>
 </Project>

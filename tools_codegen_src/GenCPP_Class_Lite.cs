@@ -13,6 +13,8 @@ using System.Collections.Generic;
 public static class GenCPP_Class_Lite {
     // 存放标记了 [TypeId(xxx)] 的 id, type 映射
     static Dictionary<ushort, Type> typeIdMappings = new Dictionary<ushort, Type>();
+    static List<string> createEmptyFiles = new List<string>();
+
 
     static void GenH_Head(this StringBuilder sb, string templateName) {
         sb.Append(@"#pragma once
@@ -26,6 +28,7 @@ namespace " + templateName + @" {
         static void RegisterTo(xx::ObjManager& om);
     };
 ");
+        createEmptyFiles.Add(templateName + "_class_lite.h.inc");
     }
 
 
@@ -159,6 +162,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         if (c._Has<TemplateLibrary.Include>()) {
             sb.Append(@"
 #include """ + c._GetTypeDecl_Lua(templateName) + @".inc""");
+            createEmptyFiles.Add(c._GetTypeDecl_Lua(templateName) + ".inc");
         }
 
         sb.Append(@"
@@ -197,7 +201,16 @@ namespace xx {");
             if (!c._IsUserStruct()) continue;
             var ctn = c._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
-	XX_GENCODE_OBJFUNCS_H(" + ctn + @")");
+	template<>
+	struct ObjFuncs<" + ctn + @", void> {
+		static void Write(ObjManager& om, " + ctn + @" const& in);
+		static int Read(ObjManager& om, " + ctn + @"& out);
+		static void ToString(ObjManager& om, " + ctn + @" const& in);
+		static void ToStringCore(ObjManager& om, " + ctn + @" const& in);
+		static void Clone1(ObjManager& om, " + ctn + @" const& in, " + ctn + @"& out);
+		static void Clone2(ObjManager& om, " + ctn + @" const& in, " + ctn + @"& out);
+		static void RecursiveReset(ObjManager& om, " + ctn + @"& in);
+	};");
         }
         sb.Append(@"
 }");
@@ -208,6 +221,7 @@ namespace xx {");
         sb.Append(@"
 #include """ + templateName + @"_class_lite_.h.inc""  // user create it for extend include files at the end
 ");
+        createEmptyFiles.Add(templateName + "_class_lite_.h.inc");
     }
 
 
@@ -280,7 +294,7 @@ namespace xx {");
             var ctn = c._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
     void " + c.Name + @"::ToString(xx::ObjManager& om) const {
-        om.Append(""{\""__typeId__\"":"", GetTypeId());");
+        om.Append(""{\""__typeId__\"":"", this->ObjBase::GetTypeId());");
             if (c._HasBaseType()) {
                 sb.Append(@"
         this->BaseType::ToStringCore(om);");
@@ -314,7 +328,7 @@ namespace xx {");
         this->BaseType::Clone1(om, tar);");
             }
             sb.Append(@"
-        auto&& out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
+        auto out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
             foreach (var f in fs) {
                 var ft = f.FieldType;
                 if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
@@ -337,7 +351,7 @@ namespace xx {");
         this->BaseType::Clone2(om, tar);");
             }
             sb.Append(@"
-        auto&& out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
+        auto out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
 
             foreach (var f in fs) {
                 var ft = f.FieldType;
@@ -382,103 +396,47 @@ namespace xx {");
 
 
 
-    static void GenCPP_Serialize(this StringBuilder sb, string templateName, Type c) {
-        if (c._IsUserStruct()) {
-            var ctn = c._GetTypeDecl_Cpp(templateName);
-            var fs = c._GetFields();
-
-            sb.Append(@"
-    void CloneFuncs<" + ctn + @">::Clone1(xx::ObjManager &om, " + ctn + @" const& in, " + ctn + @" &out) {");
-            if (c._HasBaseType()) {
-                var bt = c.BaseType;
-                var btn = bt._GetTypeDecl_Cpp(templateName);
-                sb.Append(@"
-        CloneFuncs<" + btn + ">::Clone1(om, in, out);");
-            }
-            foreach (var f in fs) {
-                var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-                if (f._Has<TemplateLibrary.Custom>()) {
-                    // todo: call custom func
-                    throw new NotImplementedException();
-                }
-                else {
-                    sb.Append(@"
-        CloneFuncs<" + ft._GetTypeDecl_Cpp(templateName) + @">::Clone1(om, in." + f.Name + ", out." + f.Name + ");");
-                }
-            }
-            sb.Append(@"
-    }");
-            sb.Append(@"
-    void CloneFuncs<" + ctn + @">::Clone2(xx::ObjManager &om, " + ctn + @" const& in, " + ctn + @" &out) {");
-            if (c._HasBaseType()) {
-                var bt = c.BaseType;
-                var btn = bt._GetTypeDecl_Cpp(templateName);
-                sb.Append(@"
-        CloneFuncs<" + btn + ">::Clone2(om, in, out);");
-            }
-            foreach (var f in fs) {
-                var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-                if (f._Has<TemplateLibrary.Custom>()) {
-                    // todo: call custom func
-                    throw new NotImplementedException();
-                }
-                else {
-                    sb.Append(@"
-        CloneFuncs<" + ft._GetTypeDecl_Cpp(templateName) + @">::Clone2(om, in." + f.Name + ", out." + f.Name + ");");
-                }
-            }
-            sb.Append(@"
-    }");
-
-
-            sb.Append(@"
-	void DataFuncsEx<" + ctn + @", void>::Write(DataWriterEx& dw, " + ctn + @" const& in) {");
-
-            if (c._HasBaseType()) {
-                var bt = c.BaseType;
-                var btn = bt._GetTypeDecl_Cpp(templateName);
-                sb.Append(@"
-        DataFuncsEx<" + btn + ">::Write(dw, in);");
-            }
-
-            foreach (var f in fs) {
-                var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-                if (f._Has<TemplateLibrary.Custom>()) {
-                    // todo
-                    throw new NotImplementedException();
-                }
-                else {
-                    sb.Append(@"
-        dw.Write(in." + f.Name + ");");
-                }
-            }
-
-            sb.Append(@"
-    }");
-        }
-        else {
-            // todo object funcs
-        }
-    }
-
-    static void GenCPP_Deserialize(this StringBuilder sb, string templateName, Type c) {
+    static void GenCPP_Template(this StringBuilder sb, string templateName, Type c) {
         if (!c._IsUserStruct()) return;
         var ctn = c._GetTypeDecl_Cpp(templateName);
+        var fs = c._GetFields();
         sb.Append(@"
-	int DataFuncsEx<" + ctn + @", void>::Read(DataReaderEx& d, " + ctn + @"& out) {");
+	void ObjFuncs<" + ctn + @", void>::Write(DataWriterEx& dw, " + ctn + @" const& in) {");
+
+        if (c._HasBaseType()) {
+            var bt = c.BaseType;
+            var btn = bt._GetTypeDecl_Cpp(templateName);
+            sb.Append(@"
+        ObjFuncs<" + btn + ">::Write(dw, in);");
+        }
+
+        foreach (var f in fs) {
+            var ft = f.FieldType;
+            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
+            if (f._Has<TemplateLibrary.Custom>()) {
+                // todo
+                throw new NotImplementedException();
+            }
+            else {
+                sb.Append(@"
+        dw.Write(in." + f.Name + ");");
+            }
+        }
+
+        sb.Append(@"
+    }");
+
+        sb.Append(@"
+	int ObjFuncs<" + ctn + @", void>::Read(DataReaderEx& d, " + ctn + @"& out) {");
 
         if (c._HasBaseType()) {
             var bt = c.BaseType;
             var btn = bt._GetTypeDecl_Cpp(templateName);
 
             sb.Append(@"
-        if (int r = DataFuncsEx<" + btn + ">::Read(d, out)) return r;");
+        if (int r = ObjFuncs<" + btn + ">::Read(d, out)) return r;");
         }
 
-        var fs = c._GetFields();
         foreach (var f in fs) {
             if (f.FieldType._IsExternal() && !f.FieldType._GetExternalSerializable()) continue;
             sb.Append(@"
@@ -488,27 +446,22 @@ namespace xx {");
         sb.Append(@"
         return 0;
     }");
-    }
 
-    static void GenCPP_ToString(this StringBuilder sb, string templateName, Type c) {
-        if (!c._IsUserStruct()) return;
-        var ctn = c._GetTypeDecl_Cpp(templateName);
         sb.Append(@"
-	void StringFuncsEx<" + ctn + @", void>::Append(ObjManager &om, " + ctn + @" const& in) {
+	void ObjFuncs<" + ctn + @", void>::Append(ObjManager &om, " + ctn + @" const& in) {
         om.s.push_back('{');
         AppendCore(om, in);
         om.s.push_back('}');
     }
-	void StringFuncsEx<" + ctn + @", void>::AppendCore(ObjManager &om, " + ctn + @" const& in) {
+	void ObjFuncs<" + ctn + @", void>::AppendCore(ObjManager &om, " + ctn + @" const& in) {
         auto sizeBak = om.s.size();");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
             var btn = bt._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
-        StringFuncsEx<" + btn + ">::AppendCore(om, in);");
+        ObjFuncs<" + btn + ">::AppendCore(om, in);");
         }
 
-        var fs = c._GetFields();
         foreach (var f in fs) {
             var ft = f.FieldType;
             if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
@@ -526,6 +479,64 @@ namespace xx {");
         }
         sb.Append(@"
     }");
+
+        sb.Append(@"
+    void ObjFuncs<" + ctn + @">::Clone1(xx::ObjManager &om, " + ctn + @" const& in, " + ctn + @" &out) {");
+        if (c._HasBaseType()) {
+            var bt = c.BaseType;
+            var btn = bt._GetTypeDecl_Cpp(templateName);
+            sb.Append(@"
+        ObjFuncs<" + btn + ">::Clone1(om, in, out);");
+        }
+        foreach (var f in fs) {
+            var ft = f.FieldType;
+            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
+            else {
+                sb.Append(@"
+        ObjFuncs<" + ft._GetTypeDecl_Cpp(templateName) + @">::Clone1(om, in." + f.Name + ", out." + f.Name + ");");
+            }
+        }
+        sb.Append(@"
+    }");
+
+        sb.Append(@"
+    void ObjFuncs<" + ctn + @">::Clone2(xx::ObjManager &om, " + ctn + @" const& in, " + ctn + @" &out) {");
+        if (c._HasBaseType()) {
+            var bt = c.BaseType;
+            var btn = bt._GetTypeDecl_Cpp(templateName);
+            sb.Append(@"
+        ObjFuncs<" + btn + ">::Clone2(om, in, out);");
+        }
+        foreach (var f in fs) {
+            var ft = f.FieldType;
+            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
+            else {
+                sb.Append(@"
+        ObjFuncs<" + ft._GetTypeDecl_Cpp(templateName) + @">::Clone2(om, in." + f.Name + ", out." + f.Name + ");");
+            }
+        }
+        sb.Append(@"
+    }");
+
+        sb.Append(@"
+    void ObjFuncs<" + ctn + @">::RecursiveReset(xx::ObjManager &om, T& in) {");
+        if (c._HasBaseType()) {
+            var bt = c.BaseType;
+            var btn = bt._GetTypeDecl_Cpp(templateName);
+            sb.Append(@"
+        ObjFuncs<" + btn + ">::RecursiveReset(om, in);");
+        }
+        foreach (var f in fs) {
+            var ft = f.FieldType;
+            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
+            else {
+                sb.Append(@"
+        ObjFuncs<" + ft._GetTypeDecl_Cpp(templateName) + @">::RecursiveReset(om, in);");
+            }
+        }
+        sb.Append(@"
+    }");
+
     }
 
     static void GenCPP_TypeId(this StringBuilder sb, string templateName, Type c) {
@@ -558,6 +569,7 @@ namespace " + templateName + @" {
     static void GenCPP_Includes(this StringBuilder sb, string templateName) {
         sb.Append("#include \"" + templateName + @"_class_lite.h""
 #include """ + templateName + @"_class_lite.cpp.inc""");
+        createEmptyFiles.Add(templateName + "_class_lite.cpp.inc");
     }
 
     static void GenCPP_FuncImpls(this StringBuilder sb, string templateName, List<Type> cs) {
@@ -566,9 +578,7 @@ namespace " + templateName + @" {
         sb.Append(@"
 namespace xx {");
         foreach (var c in cs) {
-            sb.GenCPP_Serialize(templateName, c);
-            sb.GenCPP_Deserialize(templateName, c);
-            sb.GenCPP_ToString(templateName, c);
+            sb.GenCPP_Template(templateName, c);
         }
         sb.Append(@"
 }");
@@ -615,7 +625,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 
     static void GenH_AJSON(this StringBuilder sb, string templateName, List<Type> cs) {
         sb.Append(@"#pragma once
-#include """ + templateName + @"_class_lite.h.inc""
+#include """ + templateName + @"_class_lite.h""
 #include ""ajson.hpp""");
         foreach (var c in cs) {
             if (!c._IsUserStruct()) continue;
@@ -629,6 +639,7 @@ AJSON(" + templateName + "::" + c.Name);
     }
 
     public static void Gen(Assembly asm, string outDir, string templateName) {
+        createEmptyFiles.Clear();
         var ts = asm._GetTypes();
 
         // 填充 typeId for class
@@ -666,5 +677,17 @@ AJSON(" + templateName + "::" + c.Name);
         sb.Clear();
         sb.GenH_AJSON(templateName, cs);
         sb._WriteToFile(Path.Combine(outDir, templateName + "_class_lite.ajson.h"));
+
+        sb.Clear();
+        foreach (var fn in createEmptyFiles) {
+            var path = Path.Combine(outDir, fn);
+            if (File.Exists(path)) {
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                Console.WriteLine("已跳过 " + fn);
+                Console.ResetColor();
+                continue;
+            }
+            sb._WriteToFile(path);
+        }
     }
 }

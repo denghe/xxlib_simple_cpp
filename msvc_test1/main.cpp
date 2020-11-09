@@ -83,77 +83,79 @@
 //	}
 //	xx::CoutN((xx::NowEpochSeconds() - secs), " ", xx::DataView{ buf, len });
 
+//
+//struct A : xx::ObjBase {
+//	int id = 0;
+//	xx::Weak<A> parent;
+//	std::vector<xx::Shared<A>> children;
+//	~A() {
+//		std::cout << "~A() id = " << id << std::endl;
+//	}
+//
+//	#pragma region overrides
+//	inline void Write(xx::ObjManager& o) const override {
+//		o.Write(id, parent, children);
+//	}
+//
+//	inline int Read(xx::ObjManager& o) override {
+//		return o.Read(id, parent, children);
+//	}
+//
+//	inline void ToString(xx::ObjManager& o) const override {
+//		o.Append("{");
+//		this->ToStringCore(o);
+//		o.Append("}");
+//	}
+//
+//	inline void ToStringCore(xx::ObjManager& o) const override {
+//		o.Append("\"id\":", id, ",\"parent\":", parent, ",\"children\":", children);
+//	}
+//
+//	inline void Clone1(xx::ObjManager& o, void* const& tar) const override {
+//		auto&& out = (A*)tar;
+//		o.Clone1(this->id, out->id);
+//		o.Clone1(this->parent, out->parent);
+//		o.Clone1(this->children, out->children);
+//	}
+//
+//	inline void Clone2(xx::ObjManager& o, void* const& tar) const override {
+//		auto&& out = (A*)tar;
+//		o.Clone2(this->id, out->id);
+//		o.Clone2(this->parent, out->parent);
+//		o.Clone2(this->children, out->children);
+//	}
+//
+//	inline void RecursiveReset(xx::ObjManager& o) override {
+//		o.RecursiveReset(this->id, this->parent, this->children);
+//	}
+//	#pragma endregion
+//};
 
-struct A : xx::ObjBase {
-	int id = 0;
-	xx::Weak<A> parent;
-	std::vector<xx::Shared<A>> children;
-	~A() {
-		std::cout << "~A() id = " << id << std::endl;
-	}
+//template<>
+//struct xx::TypeId<A> {
+//	static const uint16_t value = 1;
+//};
 
-	#pragma region overrides
-	inline void Write(xx::ObjManager& o) const override {
-		o.Write(id, parent, children);
-	}
-
-	inline int Read(xx::ObjManager& o) override {
-		return o.Read(id, parent, children);
-	}
-
-	inline void ToString(xx::ObjManager& o) const override {
-		o.Append("{");
-		this->ToStringCore(o);
-		o.Append("}");
-	}
-
-	inline void ToStringCore(xx::ObjManager& o) const override {
-		o.Append("\"id\":", id, ",\"parent\":", parent, ",\"children\":", children);
-	}
-
-	inline void Clone1(xx::ObjManager& o, void* const& tar) const override {
-		auto&& out = (A*)tar;
-		o.Clone1(this->id, out->id);
-		o.Clone1(this->parent, out->parent);
-		o.Clone1(this->children, out->children);
-	}
-
-	inline void Clone2(xx::ObjManager& o, void* const& tar) const override {
-		auto&& out = (A*)tar;
-		o.Clone2(this->id, out->id);
-		o.Clone2(this->parent, out->parent);
-		o.Clone2(this->children, out->children);
-	}
-
-	inline void RecursiveReset(xx::ObjManager& o) override {
-		o.RecursiveReset(this->id, this->parent, this->children);
-	}
-	#pragma endregion
-};
-
-template<>
-struct xx::TypeId<A> {
-	static const uint16_t value = 1;
-};
+#include "FF_class_lite.h"
 
 int main() {
 
 	xx::ObjManager om;
-	om.Register<A>();
+	FF::PkgGenTypes::RegisterTo(om);
 	{
-		auto&& a = xx::MakeShared<A>();
+		auto&& a = xx::MakeShared<FF::A>();
 		auto a_sg = xx::MakeScopeGuard([&] { 
 			om.RecursiveResetRoot(a);
 		});
 		a->id = 1;
 		a->parent = a;
 		a->children.emplace_back(a);	// recursive
-		a->children.emplace_back(xx::MakeShared<A>())->parent = a;
+		a->children.emplace_back(xx::MakeShared<FF::A>())->parent = a;
 		a->children[1]->id = 2;
 		om.CoutN(a);
 		{
 			auto secs = xx::NowSteadyEpochSeconds();
-			xx::Shared<A> b;
+			xx::Shared<FF::A> b;
 			auto b_sg = xx::MakeScopeGuard([&] {
 				om.RecursiveResetRoot(b);
 				});
@@ -164,6 +166,21 @@ int main() {
 			b->id = 3;
 			b->children[1]->id = 4;
 			om.CoutN(b);
+		}
+		{
+			xx::Data d;
+			om.WriteTo(d, a);
+			om.CoutN(d);
+			xx::Shared<FF::A> b;
+			auto b_sg = xx::MakeScopeGuard([&] {
+				om.RecursiveResetRoot(b);
+				});
+			if (int r = om.ReadFrom(d, b)) {
+				om.CoutN("read from error. r = ", r);
+			}
+			else {
+				om.CoutN(b);
+			}
 		}
 	}
 

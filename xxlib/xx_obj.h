@@ -26,19 +26,6 @@ T& operator=(T const&) = default; \
 T(T&& o) noexcept; \
 T& operator=(T&& o) noexcept;
 
-#define XX_GENCODE_OBJFUNCS_H(U) \
-template<typename T> \
-struct ObjFuncs<T, std::is_same_v<std::decay_t<U>, T>> { \
-	static void Write(ObjManager& om, T const& in); \
-	static int Read(ObjManager& om, T& out); \
-	static void ToString(ObjManager& om, T const& in); \
-	static void ToStringCore(ObjManager& om, T const& in); \
-	static void Clone1(ObjManager& om, T const& in, T& out); \
-	static void Clone2(ObjManager& om, T const& in, T& out); \
-	static void RecursiveReset(ObjManager& om, T& in); \
-};
-
-
 namespace xx {
 
 	struct ObjBase;
@@ -113,22 +100,22 @@ namespace xx {
 		// 注意: 下面两个函数, 不可以在析构函数中使用, 构造函数中使用也需要确保构造过程顺利无异常。另外，如果指定 T, 则 unsafe, 需小心确保 this 真的能转为 T。不确定就不传参，用 .As<T>
 		// 得到当前类的强指针
 		template<typename T = ObjBase>
-		XX_FORCEINLINE Shared<T> SharedFromThis() {
+		XX_FORCEINLINE Shared<T> SharedFromThis() const {
 			auto h = (PtrHeader*)this - 1;
 			return (*((Weak<T>*)&h)).Lock();
 		}
 
 		// 得到当前类的弱指针
 		template<typename T = ObjBase>
-		XX_FORCEINLINE Weak<T> WeakFromThis() {
+		XX_FORCEINLINE Weak<T> WeakFromThis() const {
 			auto h = (PtrHeader*)this - 1;
 			return *((Weak<T>*)&h);
 		}
 
 		// 得到当前类的 typeId
-		XX_FORCEINLINE int16_t GetTypeId() {
+		XX_FORCEINLINE int16_t GetTypeId() const {
 			auto h = (PtrHeader*)this - 1;
-			return h->typeId;
+			return (int16_t)h->typeId;
 		}
 	};
 
