@@ -309,7 +309,7 @@ namespace xx {
 				ptrs.clear();
 				for (auto& p : ptrs2) {
 					if (((PtrHeader*)p - 1)->useCount == 0) {
-						((ObjBase_s*)p)->~ObjBase_s();
+						((ObjBase*)p)->~ObjBase();
 					}
 				}
 				ptrs2.clear();
