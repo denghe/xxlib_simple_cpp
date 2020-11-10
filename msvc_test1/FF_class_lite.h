@@ -3,7 +3,7 @@
 #include "FF_class_lite.h.inc"  // user create it for extend include files
 namespace FF {
 	struct PkgGenMd5 {
-		inline static const ::std::string value = "#*MD5<37a1f5920f143a77c45a4c824ac40c46>*#";
+		inline static const ::std::string value = "#*MD5<52784e4f39db46d57696969c07cc75bf>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(::xx::ObjManager& om);
@@ -22,7 +22,7 @@ namespace FF {
         XX_GENCODE_STRUCT_H(C)
         float x = 0;
         float y = 0;
-        ::xx::Weak<::FF::A> target;
+        ::std::vector<::xx::Weak<::FF::A>> targets;
     };
     struct A : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(A, ::xx::ObjBase)
@@ -37,6 +37,7 @@ namespace FF {
         ::xx::Data data;
         ::FF::C c;
         ::std::optional<::FF::C> c2;
+        ::std::vector<::std::vector<::std::optional<::FF::C>>> c3;
 #include "FF_B.inc"
     };
 }

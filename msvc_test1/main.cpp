@@ -1,5 +1,79 @@
-#include "xx_obj.h"
-#include "xx_chrono.h"
+#include "FF_class_lite.h"
+
+int main() {
+	xx::ObjManager om;
+	FF::PkgGenTypes::RegisterTo(om);
+
+	{
+		auto&& a = xx::MakeShared<FF::A>();
+		auto a_sg = xx::MakeScopeGuard([&] {
+			om.RecursiveResetRoot(a);
+			});
+		{
+			a->id = 1;
+			a->parent = a;
+			a->children.emplace_back(a);	// recursive
+
+			auto b = xx::MakeShared<FF::B>();
+			a->children.emplace_back(b);
+			b->children.emplace_back(b);	// recursive
+			{
+				b->id = 2;
+				b->parent = b;
+				b->data.WriteBuf("abcd1234", 8);
+				b->c.x = 2.1f;
+				b->c.y = 3.2f;
+				b->c.targets.emplace_back(a);
+			}
+			{
+				auto&& c = b->c2.emplace();
+				c.x = 4.1f;
+				c.y = 5.2f;
+				c.targets.emplace_back(a);
+			}
+			{
+				auto&& c = b->c3.emplace_back().emplace_back().emplace();
+				c.x = 6.1f;
+				c.y = 7.2f;
+				c.targets.emplace_back(a);
+			}
+		}
+		om.CoutN(a);
+		{
+			xx::Shared<FF::A> b;
+			auto b_sg = xx::MakeScopeGuard([&] {
+				om.RecursiveResetRoot(b);
+				});
+			om.Clone(a, b);
+			b->id = 3;
+			b->children[1]->id = 4;
+			om.CoutN(b);
+		}
+		{
+			xx::Data d;
+			om.WriteTo(d, a);
+			om.CoutN(d);
+			xx::Shared<FF::A> b;
+			auto b_sg = xx::MakeScopeGuard([&] {
+				om.RecursiveResetRoot(b);
+				});
+			if (int r = om.ReadFrom(d, b)) {
+				om.CoutN("read from error. r = ", r);
+			}
+			else {
+				om.CoutN(b);
+			}
+		}
+	}
+
+	return 0;
+}
+
+
+
+
+//#include "xx_obj.h"
+//#include "xx_chrono.h"
 
 
 //struct Foo {
@@ -136,58 +210,7 @@
 //	static const uint16_t value = 1;
 //};
 
-#include "FF_class_lite.h"
-
-int main() {
-
-	xx::ObjManager om;
-	FF::PkgGenTypes::RegisterTo(om);
-	{
-		auto&& a = xx::MakeShared<FF::A>();
-		auto a_sg = xx::MakeScopeGuard([&] { 
-			om.RecursiveResetRoot(a);
-		});
-		{
-			a->id = 1;
-			a->parent = a;
-			a->children.emplace_back(a);	// recursive
-			auto b = xx::MakeShared<FF::B>();
-			//b->data
-			//a->children[1]->id = 2;
-			//a->children.emplace_back()->parent = a;
-		}
-		om.CoutN(a);
-		{
-			auto secs = xx::NowSteadyEpochSeconds();
-			xx::Shared<FF::A> b;
-			auto b_sg = xx::MakeScopeGuard([&] {
-				om.RecursiveResetRoot(b);
-				});
-			for (size_t i = 0; i < 10000000; i++) {
-				om.Clone(a, b);
-			}
-			om.CoutN(xx::NowSteadyEpochSeconds() - secs);
-			b->id = 3;
-			b->children[1]->id = 4;
-			om.CoutN(b);
-		}
-		{
-			xx::Data d;
-			om.WriteTo(d, a);
-			om.CoutN(d);
-			xx::Shared<FF::A> b;
-			auto b_sg = xx::MakeScopeGuard([&] {
-				om.RecursiveResetRoot(b);
-				});
-			if (int r = om.ReadFrom(d, b)) {
-				om.CoutN("read from error. r = ", r);
-			}
-			else {
-				om.CoutN(b);
-			}
-		}
-	}
-
+//int main() {
 
 	//xx::ObjManager om;
 	//xx::Data d;
@@ -316,5 +339,5 @@ int main() {
 
 
 	//__builtin_trap();
-	return 0;
-}
+//	return 0;
+//}

@@ -317,7 +317,12 @@ namespace xx {
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 					uint16_t typeId;
 					if (int r = Read_(typeId)) return r;
-					if (!typeId) return 0;
+					if (!typeId) {
+						if (v) {
+							v.Reset();
+						}
+						return 0;
+					}
 
 					auto len = (uint32_t)ptrs.size();
 					uint32_t offs;

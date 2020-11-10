@@ -2,8 +2,8 @@
 #include "FF_class_lite.cpp.inc"
 namespace FF {
 	void PkgGenTypes::RegisterTo(::xx::ObjManager& om) {
-	    om.Register<::FF::A>();
 	    om.Register<::FF::B>();
+	    om.Register<::FF::A>();
 	}
 }
 
@@ -11,12 +11,12 @@ namespace xx {
 	void ObjFuncs<::FF::C, void>::Write(::xx::ObjManager& om, ::FF::C const& in) {
         om.Write(in.x);
         om.Write(in.y);
-        om.Write(in.target);
+        om.Write(in.targets);
     }
 	int ObjFuncs<::FF::C, void>::Read(::xx::ObjManager& om, ::FF::C& out) {
         if (int r = om.Read(out.x)) return r;
         if (int r = om.Read(out.y)) return r;
-        if (int r = om.Read(out.target)) return r;
+        if (int r = om.Read(out.targets)) return r;
         return 0;
     }
 	void ObjFuncs<::FF::C, void>::ToString(ObjManager &om, ::FF::C const& in) {
@@ -31,22 +31,22 @@ namespace xx {
         }
         om.Append("\"x\":", in.x); 
         om.Append(",\"y\":", in.y);
-        om.Append(",\"target\":", in.target);
+        om.Append(",\"targets\":", in.targets);
     }
     void ObjFuncs<::FF::C>::Clone1(::xx::ObjManager& om, ::FF::C const& in, ::FF::C &out) {
         om.Clone1(in.x, out.x);
         om.Clone1(in.y, out.y);
-        om.Clone1(in.target, out.target);
+        om.Clone1(in.targets, out.targets);
     }
     void ObjFuncs<::FF::C>::Clone2(::xx::ObjManager& om, ::FF::C const& in, ::FF::C &out) {
         om.Clone2(in.x, out.x);
         om.Clone2(in.y, out.y);
-        om.Clone2(in.target, out.target);
+        om.Clone2(in.targets, out.targets);
     }
     void ObjFuncs<::FF::C>::RecursiveReset(::xx::ObjManager& om, ::FF::C& in) {
         om.RecursiveReset(in.x);
         om.RecursiveReset(in.y);
-        om.RecursiveReset(in.target);
+        om.RecursiveReset(in.targets);
     }
 }
 namespace FF {
@@ -110,7 +110,7 @@ namespace FF {
     C& C::operator=(C&& o) noexcept {
         std::swap(this->x, o.x);
         std::swap(this->y, o.y);
-        std::swap(this->target, o.target);
+        std::swap(this->targets, o.targets);
         return *this;
     }
     B::B(B&& o) noexcept {
@@ -121,6 +121,7 @@ namespace FF {
         std::swap(this->data, o.data);
         std::swap(this->c, o.c);
         std::swap(this->c2, o.c2);
+        std::swap(this->c3, o.c3);
         return *this;
     }
     void B::Write(::xx::ObjManager& om) const {
@@ -128,12 +129,14 @@ namespace FF {
         om.Write(this->data);
         om.Write(this->c);
         om.Write(this->c2);
+        om.Write(this->c3);
     }
     int B::Read(::xx::ObjManager& om) {
         if (int r = this->BaseType::Read(om)) return r;
         if (int r = om.Read(this->data)) return r;
         if (int r = om.Read(this->c)) return r;
         if (int r = om.Read(this->c2)) return r;
+        if (int r = om.Read(this->c3)) return r;
         return 0;
     }
     void B::ToString(::xx::ObjManager& om) const {
@@ -147,6 +150,7 @@ namespace FF {
         om.Append(",\"data\":", this->data);
         om.Append(",\"c\":", this->c);
         om.Append(",\"c2\":", this->c2);
+        om.Append(",\"c3\":", this->c3);
     }
     void B::Clone1(::xx::ObjManager& om, void* const &tar) const {
         this->BaseType::Clone1(om, tar);
@@ -154,6 +158,7 @@ namespace FF {
         om.Clone1(this->data, out->data);
         om.Clone1(this->c, out->c);
         om.Clone1(this->c2, out->c2);
+        om.Clone1(this->c3, out->c3);
     }
     void B::Clone2(::xx::ObjManager& om, void* const &tar) const {
         this->BaseType::Clone2(om, tar);
@@ -161,11 +166,13 @@ namespace FF {
         om.Clone2(this->data, out->data);
         om.Clone2(this->c, out->c);
         om.Clone2(this->c2, out->c2);
+        om.Clone2(this->c3, out->c3);
     }
     void B::RecursiveReset(::xx::ObjManager& om) {
         this->BaseType::RecursiveReset(om);
         om.RecursiveReset(this->data);
         om.RecursiveReset(this->c);
         om.RecursiveReset(this->c2);
+        om.RecursiveReset(this->c3);
     }
 }
