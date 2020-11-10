@@ -12,6 +12,7 @@ int main() {
 			});
 		{
 			a->id = 1;
+			a->nick = "aaa";
 			a->parent = a;
 			a->children.emplace_back(a);	// recursive
 

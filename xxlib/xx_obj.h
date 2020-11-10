@@ -308,7 +308,7 @@ namespace xx {
 			auto sg = MakeScopeGuard([this] {
 				ptrs.clear();
 				for (auto& p : ptrs2) {
-					if (((PtrHeader*)p - 1)->useCount == 0) {
+					if (--((PtrHeader*)p - 1)->useCount == 0) {
 						((ObjBase*)p)->~ObjBase();
 					}
 				}
@@ -386,8 +386,9 @@ namespace xx {
 				if (int r = Read_(o)) return r;
 				if (o.pointer) {
 					ptrs2.emplace_back(o.pointer);
+					++o.header()->useCount;
 				}
-				v = std::move(o);
+				v = o;
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				return v.Read(*this);
