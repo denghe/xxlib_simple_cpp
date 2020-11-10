@@ -303,6 +303,11 @@ namespace xx {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
 			ptrs.clear();
+			auto sg = MakeScopeGuard([this] {
+				for (auto&& p : ptrs) {
+					--((PtrHeader*)p - 1)->useCount;
+				}
+				});
 			return Read_(args...);
 		}
 
@@ -347,6 +352,7 @@ namespace xx {
 							if (!v) return __LINE__;
 						}
 						ptrs.emplace_back(v.pointer);
+						++v.header()->useCount;
 						if (int r = Read_(*v)) return r;
 					}
 					else {
@@ -373,7 +379,7 @@ namespace xx {
 			else if constexpr (IsPtrWeak_v<T>) {
 				Shared<typename T::ElementType> o;
 				if (int r = Read_(o)) return r;
-				v = o;
+				v = std::move(o);
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				return v.Read(*this);
