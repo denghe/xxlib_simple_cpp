@@ -3,27 +3,53 @@
 #include "FF_class_lite.h.inc"  // user create it for extend include files
 namespace FF {
 	struct PkgGenMd5 {
-		inline static const std::string value = "#*MD5<d0f87e82bdf16cd45af24d55acf51709>*#";
+		inline static const ::std::string value = "#*MD5<37a1f5920f143a77c45a4c824ac40c46>*#";
     };
 	struct PkgGenTypes {
-        static void RegisterTo(xx::ObjManager& om);
+        static void RegisterTo(::xx::ObjManager& om);
     };
 
     struct A;
+    struct B;
 }
 namespace xx {
-    template<> struct TypeId<FF::A> { static const uint16_t value = 1; };
+    template<> struct TypeId<::FF::A> { static const uint16_t value = 1; };
+    template<> struct TypeId<::FF::B> { static const uint16_t value = 2; };
 }
 namespace FF {
 
-    struct A : xx::ObjBase {
-        XX_GENCODE_OBJECT_H(A, xx::ObjBase)
+    struct C {
+        XX_GENCODE_STRUCT_H(C)
+        float x = 0;
+        float y = 0;
+        ::xx::Weak<::FF::A> target;
+    };
+    struct A : ::xx::ObjBase {
+        XX_GENCODE_OBJECT_H(A, ::xx::ObjBase)
         int32_t id = 0;
-        xx::Weak<FF::A> parent;
-        std::vector<xx::Shared<FF::A>> children;
+        ::std::optional<::std::string> nick;
+        ::xx::Weak<::FF::A> parent;
+        ::std::vector<::xx::Shared<::FF::A>> children;
 #include "FF_A.inc"
+    };
+    struct B : ::FF::A {
+        XX_GENCODE_OBJECT_H(B, ::FF::A)
+        ::xx::Data data;
+        ::FF::C c;
+        ::std::optional<::FF::C> c2;
+#include "FF_B.inc"
     };
 }
 namespace xx {
+	template<>
+	struct ObjFuncs<::FF::C, void> {
+		static void Write(ObjManager& om, ::FF::C const& in);
+		static int Read(ObjManager& om, ::FF::C& out);
+		static void ToString(ObjManager& om, ::FF::C const& in);
+		static void ToStringCore(ObjManager& om, ::FF::C const& in);
+		static void Clone1(ObjManager& om, ::FF::C const& in, ::FF::C& out);
+		static void Clone2(ObjManager& om, ::FF::C const& in, ::FF::C& out);
+		static void RecursiveReset(ObjManager& om, ::FF::C& in);
+	};
 }
 #include "FF_class_lite_.h.inc"  // user create it for extend include files at the end

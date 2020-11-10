@@ -147,11 +147,15 @@ int main() {
 		auto a_sg = xx::MakeScopeGuard([&] { 
 			om.RecursiveResetRoot(a);
 		});
-		a->id = 1;
-		a->parent = a;
-		a->children.emplace_back(a);	// recursive
-		a->children.emplace_back(xx::MakeShared<FF::A>())->parent = a;
-		a->children[1]->id = 2;
+		{
+			a->id = 1;
+			a->parent = a;
+			a->children.emplace_back(a);	// recursive
+			auto b = xx::MakeShared<FF::B>();
+			//b->data
+			//a->children[1]->id = 2;
+			//a->children.emplace_back()->parent = a;
+		}
 		om.CoutN(a);
 		{
 			auto secs = xx::NowSteadyEpochSeconds();

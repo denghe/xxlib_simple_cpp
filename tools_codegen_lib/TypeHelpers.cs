@@ -776,13 +776,13 @@ public static class TypeHelpers {
     /// </summary>
     public static string _GetTypeDecl_Cpp(this Type t, string templateName) {
         if (t._IsNullable()) {
-            return "std::optional<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ">";
+            return "::std::optional<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ">";
         }
         if (t._IsData()) {
-            return "xx::Data";
+            return "::xx::Data";
         }
         else if (t._IsTuple()) {
-            string rtv = "std::tuple<";
+            string rtv = "::std::tuple<";
             for (int i = 0; i < t.GenericTypeArguments.Length; ++i) {
                 if (i > 0) {
                     rtv += ", ";
@@ -800,23 +800,23 @@ public static class TypeHelpers {
             if (t.Namespace == nameof(TemplateLibrary)) {
                 switch (t.Name) {
                     case "Weak`1":
-                        return "xx::Weak<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
+                        return "::xx::Weak<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
                     case "Shared`1":
-                        return "xx::Shared<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
+                        return "::xx::Shared<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
                     case "Unique`1":
-                        return "std::unique_ptr<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
+                        return "::std::unique_ptr<" + _GetTypeDecl_Cpp(t.GenericTypeArguments[0], templateName) + ">";
                     case "List`1": {
                             var ct = t.GenericTypeArguments[0];
-                            return "std::vector" + @"<" + ct._GetTypeDecl_Cpp(templateName) + ">";
+                            return "::std::vector" + @"<" + ct._GetTypeDecl_Cpp(templateName) + ">";
                         }
                     case "Dict`2": {
-                            return "std::map" + @"<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ", " + t.GenericTypeArguments[1]._GetTypeDecl_Cpp(templateName) + ">";
+                            return "::std::map" + @"<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ", " + t.GenericTypeArguments[1]._GetTypeDecl_Cpp(templateName) + ">";
                         }
                     case "Pair`2": {
-                            return "std::pair" + @"<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ", " + t.GenericTypeArguments[1]._GetTypeDecl_Cpp(templateName) + ">";
+                            return "::std::pair" + @"<" + t.GenericTypeArguments[0]._GetTypeDecl_Cpp(templateName) + ", " + t.GenericTypeArguments[1]._GetTypeDecl_Cpp(templateName) + ">";
                         }
                     case "Data":
-                        return "xx::Data";
+                        return "::xx::Data";
                     default:
                         throw new NotImplementedException();
                 }
@@ -858,10 +858,10 @@ public static class TypeHelpers {
                     case "Bool":
                         return "bool";
                     case "String":
-                        return "std::string";
+                        return "::std::string";
                 }
             }
-            return (t._IsExternal() ? "" : templateName) + "::" + t.FullName.Replace(".", "::");
+            return "::" + (t._IsExternal() ? "" : templateName) + "::" + t.FullName.Replace(".", "::");
             //return (t._IsExternal() ? "" : ("::" + templateName)) + "::" + t.FullName.Replace(".", "::") + (t.IsValueType ? "" : ((t._IsExternal() && !t._GetExternalSerializable()) ? "" : suffix));
         }
     }
