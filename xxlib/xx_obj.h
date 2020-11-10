@@ -127,7 +127,6 @@ namespace xx {
 		// 公共上下文
 		std::vector<void*> ptrs;
 		std::vector<void*> ptrs2;
-		std::vector<ObjBase_s> objs;
 		Data* data = nullptr;
 		std::string* str = nullptr;
 
@@ -305,8 +304,16 @@ namespace xx {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
 			//ptrs.clear();
-			//objs.clear();
-			auto sg = MakeScopeGuard([this] { ptrs.clear(); objs.clear(); });
+			//ptrs2.clear();
+			auto sg = MakeScopeGuard([this] {
+				ptrs.clear();
+				for (auto& p : ptrs2) {
+					if (((PtrHeader*)p - 1)->useCount == 0) {
+						((ObjBase_s*)p)->~ObjBase_s();
+					}
+				}
+				ptrs2.clear();
+				});
 			return Read_(args...);
 		}
 
@@ -377,8 +384,8 @@ namespace xx {
 			else if constexpr (IsPtrWeak_v<T>) {
 				Shared<typename T::ElementType> o;
 				if (int r = Read_(o)) return r;
-				if (o) {
-					objs.emplace_back(o);
+				if (o.pointer) {
+					ptrs2.emplace_back(o.pointer);
 				}
 				v = std::move(o);
 			}
@@ -652,7 +659,7 @@ namespace xx {
 			else {
 				ObjFuncs<T>::ToString(*this, v);
 			}
-			}
+		}
 
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
@@ -936,5 +943,5 @@ namespace xx {
 			static_assert(sizeof...(args) > 0);
 			(RecursiveReset_(args), ...);
 		}
-		};
-	}
+	};
+}
