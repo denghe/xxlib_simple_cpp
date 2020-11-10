@@ -102,14 +102,14 @@ namespace xx {
 		template<typename T = ObjBase>
 		XX_FORCEINLINE Shared<T> SharedFromThis() const {
 			auto h = (PtrHeader*)this - 1;
-			return (*((Weak<T>*)&h)).Lock();
+			return (*((Weak<T>*) & h)).Lock();
 		}
 
 		// 得到当前类的弱指针
 		template<typename T = ObjBase>
 		XX_FORCEINLINE Weak<T> WeakFromThis() const {
 			auto h = (PtrHeader*)this - 1;
-			return *((Weak<T>*)&h);
+			return *((Weak<T>*) & h);
 		}
 
 		// 得到当前类的 typeId
@@ -127,6 +127,7 @@ namespace xx {
 		// 公共上下文
 		std::vector<void*> ptrs;
 		std::vector<void*> ptrs2;
+		std::vector<ObjBase_s> objs;
 		Data* data = nullptr;
 		std::string* str = nullptr;
 
@@ -161,6 +162,7 @@ namespace xx {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
+				ptrs.clear();
 				});
 
 			(Write_(args), ...);
@@ -302,12 +304,8 @@ namespace xx {
 		XX_FORCEINLINE int ReadFrom(Data& d, Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
-			ptrs.clear();
-			auto sg = MakeScopeGuard([this] {
-				for (auto&& p : ptrs) {
-					--((PtrHeader*)p - 1)->useCount;
-				}
-				});
+			objs.clear();
+			auto sg = MakeScopeGuard([this] { objs.clear(); });
 			return Read_(args...);
 		}
 
@@ -339,7 +337,7 @@ namespace xx {
 						return 0;
 					}
 
-					auto len = (uint32_t)ptrs.size();
+					auto len = (uint32_t)objs.size();
 					uint32_t offs;
 					if (int r = Read_(offs)) return r;
 					if (!offs) return __LINE__;
@@ -351,13 +349,12 @@ namespace xx {
 							v = o.As<U>();
 							if (!v) return __LINE__;
 						}
-						ptrs.emplace_back(v.pointer);
-						++v.header()->useCount;
+						objs.emplace_back(v);
 						if (int r = Read_(*v)) return r;
 					}
 					else {
 						if (offs > len) return __LINE__;
-						auto& o = *(ObjBase_s*)&ptrs[offs - 1];
+						auto& o = objs[offs - 1];
 						if (o.typeId() != typeId) return __LINE__;
 						v = o.As<U>();
 						if (!v) return __LINE__;
@@ -500,6 +497,7 @@ namespace xx {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
+				ptrs.clear();
 				});
 
 			(Append_(args), ...);
@@ -650,7 +648,7 @@ namespace xx {
 			else {
 				ObjFuncs<T>::ToString(*this, v);
 			}
-		}
+			}
 
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
@@ -686,15 +684,16 @@ namespace xx {
 		template<typename T>
 		XX_FORCEINLINE void Clone(T const& in, T& out) {
 			ptrs.clear();
-			ptrs2.clear();
-			auto sg = MakeScopeGuard([this] {
+			auto sg1 = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
 				ptrs.clear();
 				});
+			ptrs2.clear();
+			auto sg2 = MakeScopeGuard([this] { ptrs2.clear(); });
 			Clone1(in, out);
-			sg.f();
+			sg1();
 			Clone2(in, out);
 		}
 
@@ -870,6 +869,7 @@ namespace xx {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
+				ptrs.clear();
 				});
 
 			(RecursiveReset_(args), ...);
@@ -932,5 +932,5 @@ namespace xx {
 			static_assert(sizeof...(args) > 0);
 			(RecursiveReset_(args), ...);
 		}
-	};
-}
+		};
+	}

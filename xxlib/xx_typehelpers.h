@@ -577,6 +577,11 @@ namespace xx {
             ~ScopeGuard() noexcept { if (!cancel) { f(); }}
 
             inline void Cancel() noexcept { cancel = true; }
+
+            inline void operator()(bool cancel = false) {
+                f();
+                this->cancel = cancel;
+            }
         };
         return ScopeGuard(std::forward<F>(f));
     }
