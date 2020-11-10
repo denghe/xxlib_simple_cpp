@@ -38,12 +38,14 @@ namespace xx {
 	struct ObjFuncs {
 		static inline void Write(ObjManager& om, T const& in) {
 			std::string s(xx::TypeName_v<T>);
+			assert(false);
 		}
 		static inline int Read(ObjManager& om, T& out) {
 			return 0;
 		}
 		static inline void ToString(ObjManager& om, T const& in) {
 			std::string s(xx::TypeName_v<T>);
+			assert(false);
 		}
 		static inline void ToStringCore(ObjManager& om, T const& in) {
 		}
@@ -100,7 +102,7 @@ namespace xx {
 		// 向 o 传递所有 Shared<T> member 以斩断循环引用 防止内存泄露
 		virtual void RecursiveReset(ObjManager& om) = 0;
 
-		// 注意: 下面两个函数, 不可以在析构函数中使用, 构造函数中使用也需要确保构造过程顺利无异常。另外，如果指定 T, 则 unsafe, 需小心确保 this 真的能转为 T。不确定就不传参，用 .As<T>
+		// 注意: 下面两个函数, 不可以在析构函数中使用, 构造函数中使用也需要确保构造过程顺利无异常。另外，如果指定 T, 则 unsafe, 需小心确保 this 真的能转为 T
 		// 得到当前类的强指针
 		template<typename T = ObjBase>
 		XX_FORCEINLINE Shared<T> SharedFromThis() const {
@@ -137,6 +139,7 @@ namespace xx {
 		std::vector<void*> ptrs2;
 		Data* data = nullptr;
 		std::string* str = nullptr;
+		ObjBase_s null;
 
 		// 类实例 创建函数
 		typedef ObjBase_s(*FT)();
@@ -148,7 +151,7 @@ namespace xx {
 		std::array<uint16_t, std::numeric_limits<uint16_t>::max()> pids{};
 
 		// 根据 typeid 判断父子关系
-		XX_FORCEINLINE bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) {
+		XX_FORCEINLINE bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) const noexcept {
 			for (; typeId != baseTypeId; typeId = pids[typeId]) {
 				if (!typeId || typeId == pids[typeId]) return false;
 			}
@@ -157,14 +160,33 @@ namespace xx {
 
 		// 根据 类型 判断父子关系
 		template<typename BT>
-		XX_FORCEINLINE bool IsBaseOf(uint32_t const& typeId) {
+		XX_FORCEINLINE bool IsBaseOf(uint32_t const& typeId) const noexcept {
+			static_assert(std::is_base_of_v<ObjBase, BT>);
 			return IsBaseOf(TypeId_v<BT>, typeId);
 		}
 
 		// 根据 类型 判断父子关系
 		template<typename BT, typename T>
-		XX_FORCEINLINE bool IsBaseOf() {
+		XX_FORCEINLINE bool IsBaseOf() const noexcept {
+			static_assert(std::is_base_of_v<ObjBase, T>);
+			static_assert(std::is_base_of_v<ObjBase, BT>);
 			return IsBaseOf(TypeId_v<BT>, TypeId_v<T>);
+		}
+
+		// 避开 dynamic_case 的快速实现
+		template<typename T, typename U>
+		XX_FORCEINLINE Shared<T>& As(Shared<U> const& v) const noexcept {
+			static_assert(std::is_base_of_v<ObjBase, T>);
+			static_assert(std::is_base_of_v<ObjBase, U>);
+			if constexpr (std::is_same_v<U, T> || std::is_base_of_v<U, T>) {
+				return v.ReinterpretCast<T>();
+			}
+			else {
+				if (!v || !IsBaseOf<T>(v.header()->typeId)) {
+					return null.ReinterpretCast<T>();
+				}
+				return v.ReinterpretCast<T>();
+			}
 		}
 
 		// 注册类型 & ptrTypeId. 将创建函数塞入容器
@@ -176,7 +198,7 @@ namespace xx {
 		}
 
 		// 根据 typeId 来创建对象. 失败返回空
-		XX_FORCEINLINE ObjBase_s Create(uint16_t const& typeId) {
+		XX_FORCEINLINE ObjBase_s Create(uint16_t const& typeId) const {
 			if (!typeId || !fs[typeId]) return nullptr;
 			return fs[typeId]();
 		}
@@ -566,7 +588,7 @@ namespace xx {
 						}
 					}
 					else {
-						ObjFuncs<U>::ToString(*this, *v);
+						Append_(*v);
 					}
 				}
 				else {
@@ -775,7 +797,7 @@ namespace xx {
 
 						auto inTypeId = in.typeId();
 						if (out.typeId() != inTypeId) {
-							out = Create(inTypeId).template As<typename T::ElementType>();
+							out = std::move(Create(inTypeId).ReinterpretCast<typename T::ElementType>());
 						}
 						ptrs2.push_back(out.pointer);
 						Clone1(*in, *out);

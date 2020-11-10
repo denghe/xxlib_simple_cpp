@@ -188,6 +188,7 @@ namespace xx {
 			return pointer != o.pointer;
 		}
 
+		// 有条件的话尽量使用 ObjManager 的 As, 避免发生 dynamic_cast
 		template<typename U>
 		XX_FORCEINLINE Shared<U> As() const noexcept {
 			if constexpr (std::is_same_v<U, T>) {
@@ -402,4 +403,21 @@ namespace xx {
 		h->offset = 0;
 		return new(h + 1) T(std::forward<Args>(args)...);
 	}
+}
+
+// 令 Shared Weak 支持放入 hash 容器
+namespace std {
+	template <typename T>
+	struct hash<xx::Shared<T>> {
+		size_t operator()(xx::Shared<T> const& v) const {
+			return (size_t)v.pointer;
+		}
+	};
+
+	template <typename T>
+	struct hash<xx::Weak<T>> {
+		size_t operator()(xx::Weak<T> const& v) const {
+			return (size_t)v.h;
+		}
+	};
 }

@@ -5,6 +5,13 @@ int main() {
 	xx::ObjManager om;
 	FF::PkgGenTypes::RegisterTo(om);
 
+	// todo: ÏêÏ¸²âÊÔ typeid IsBaseOf É¶µÄ
+
+	std::unordered_map<xx::Shared<int>, int> sints;
+	sints.emplace(xx::MakeShared<int>(1), 1);
+	sints.emplace(xx::MakeShared<int>(2), 2);
+	om.CoutN(sints);
+
 	{
 		auto&& a = xx::MakeShared<FF::A>();
 		auto a_sg = xx::MakeScopeGuard([&] { om.RecursiveResetRoot(a); });
@@ -45,8 +52,11 @@ int main() {
 			auto a2_sg = xx::MakeScopeGuard([&] {
 				om.RecursiveResetRoot(a2);
 				});
-			om.Clone(a, a2);
-			om.CoutN(a2);
+			auto secs = xx::NowEpochSeconds();
+			for (size_t i = 0; i < 10000000; i++) {
+				om.Clone(a, a2);
+			}
+			om.CoutN((xx::NowEpochSeconds() - secs), "\n", a2);
 		}
 		{
 			xx::Data d;
@@ -56,7 +66,7 @@ int main() {
 					d.Clear();
 					om.WriteTo(d, a);
 				}
-				om.CoutN((xx::NowEpochSeconds() - secs), " ", d);
+				om.CoutN((xx::NowEpochSeconds() - secs), "\n", d);
 				d.Clear();
 			}
 			om.WriteTo(d, a);
@@ -73,7 +83,7 @@ int main() {
 						om.CoutN("read from error. r = ", r);
 					}
 				}
-				om.CoutN((xx::NowEpochSeconds() - secs), " ", d);
+				om.CoutN((xx::NowEpochSeconds() - secs), "\n", d);
 				d.Clear();
 			}
 			om.CoutN(a2);
