@@ -40,28 +40,26 @@ int main() {
 		}
 		om.CoutN(a);
 		{
-			xx::Shared<FF::A> b;
-			auto b_sg = xx::MakeScopeGuard([&] {
-				om.RecursiveResetRoot(b);
+			xx::Shared<FF::A> a2;
+			auto a2_sg = xx::MakeScopeGuard([&] {
+				om.RecursiveResetRoot(a2);
 				});
-			om.Clone(a, b);
-			b->id = 3;
-			b->children[1]->id = 4;
-			om.CoutN(b);
+			om.Clone(a, a2);
+			om.CoutN(a2);
 		}
 		{
 			xx::Data d;
 			om.WriteTo(d, a);
 			om.CoutN(d);
-			xx::Shared<FF::A> b;
+			xx::Shared<FF::A> a2;
 			auto b_sg = xx::MakeScopeGuard([&] {
-				om.RecursiveResetRoot(b);
+				om.RecursiveResetRoot(a2);
 				});
-			if (int r = om.ReadFrom(d, b)) {
+			if (int r = om.ReadFrom(d, a2)) {
 				om.CoutN("read from error. r = ", r);
 			}
 			else {
-				om.CoutN(b);
+				om.CoutN(a2);
 			}
 		}
 	}

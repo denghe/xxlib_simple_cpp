@@ -155,7 +155,6 @@ namespace xx {
 					}
 				}
 				buf[len++] = *(char*)&v;
-				len += 1;
 			}
 			else {
 				WriteBuf<needReserve>(&v, sizeof(T));

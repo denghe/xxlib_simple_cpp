@@ -200,7 +200,13 @@ namespace xx {
 				}
 			}
 			else if constexpr (IsPtrWeak_v<T>) {
-				Write_(v.Lock());
+				if (v.h) {
+					auto p = v.h + 1;
+					Write_(*(Shared<typename T::ElementType>*) & p);
+				}
+				else {
+					d.WriteFixed((uint8_t)0);
+				}
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				v.Write(*this);
@@ -244,6 +250,10 @@ namespace xx {
 			else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
 				d.WriteVarIntger(v.size());
 				d.WriteBuf(v.data(), v.size());
+			}
+			else if constexpr (std::is_same_v<T, xx::Data> || std::is_same_v<T, xx::DataView>) {
+				d.WriteVarIntger(v.len);
+				d.WriteBuf(v.buf, v.len);
 			}
 			else if constexpr (std::is_integral_v<T>) {
 				if constexpr (sizeof(T) == 1) {
@@ -327,6 +337,7 @@ namespace xx {
 					auto len = (uint32_t)ptrs.size();
 					uint32_t offs;
 					if (int r = Read_(offs)) return r;
+					if (!offs) return __LINE__;
 
 					if (offs == len + 1) {
 						if (!v || v.typeId() != typeId) {
@@ -339,7 +350,7 @@ namespace xx {
 						if (int r = Read_(*v)) return r;
 					}
 					else {
-						if (offs > len)return __LINE__;
+						if (offs > len) return __LINE__;
 						auto& o = *(ObjBase_s*)&ptrs[offs - 1];
 						if (o.typeId() != typeId) return __LINE__;
 						v = o.As<U>();
@@ -411,6 +422,14 @@ namespace xx {
 				if (int r = Read_(siz)) return r;
 				if (d.offset + siz > d.len) return __LINE__;
 				v.assign((char*)d.buf + d.offset, siz);
+				d.offset += siz;
+			}
+			else if constexpr (std::is_same_v<T, xx::Data>) {
+				size_t siz;
+				if (int r = Read_(siz)) return r;
+				if (d.offset + siz > d.len) return __LINE__;
+				v.Clear();
+				v.WriteBuf(d.buf + d.offset, siz);
 				d.offset += siz;
 			}
 			else if constexpr (std::is_integral_v<T>) {
