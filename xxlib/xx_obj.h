@@ -69,8 +69,11 @@ namespace xx {
 	inline void RecursiveReset(xx::ObjManager& o) override { }
 	*/
 
-	// ObjBase: 仅用于 Shared<> Weak<> 包裹的类型基类
+	// ObjBase: 仅用于 Shared<> Weak<> 包裹的类型基类. 只能单继承. 否则影响父子判断
 	struct ObjBase {
+		// 派生类须加这个声明以便于 Register 时探索父子关系
+		using BaseType = void;
+
 		// 派生类都需要有默认构造。
 		ObjBase() = default;
 
@@ -123,6 +126,11 @@ namespace xx {
 	/************************************************************************************/
 	// ObjBase 相关操作类. 注册 typeId 与 关联 Create 函数
 
+	template<>
+	struct TypeId<ObjBase> {
+		static const uint16_t value = 0;
+	};
+
 	struct ObjManager {
 		// 公共上下文
 		std::vector<void*> ptrs;
@@ -136,18 +144,40 @@ namespace xx {
 		// typeId : 类实例 创建函数 映射容器
 		std::array<FT, std::numeric_limits<uint16_t>::max()> fs{};
 
+		// 存储 typeId 的 父typeId 的下标. 为便于判断，约定 ObjBase's typeId == 0
+		std::array<uint16_t, std::numeric_limits<uint16_t>::max()> pids{};
+
+		// 根据 typeid 判断父子关系
+		XX_FORCEINLINE bool IsBaseOf(uint32_t const& baseTypeId, uint32_t typeId) {
+			for (; typeId != baseTypeId; typeId = pids[typeId]) {
+				if (!typeId || typeId == pids[typeId]) return false;
+			}
+			return true;
+		}
+
+		// 根据 类型 判断父子关系
+		template<typename BT>
+		XX_FORCEINLINE bool IsBaseOf(uint32_t const& typeId) {
+			return IsBaseOf(TypeId_v<BT>, typeId);
+		}
+
+		// 根据 类型 判断父子关系
+		template<typename BT, typename T>
+		XX_FORCEINLINE bool IsBaseOf() {
+			return IsBaseOf(TypeId_v<BT>, TypeId_v<T>);
+		}
+
 		// 注册类型 & ptrTypeId. 将创建函数塞入容器
 		template<typename T>
-		void Register(uint16_t const& typeId = TypeId_v<T>) {
+		XX_FORCEINLINE void Register(uint16_t const& typeId = TypeId_v<T>) {
 			static_assert(std::is_base_of_v<ObjBase, T>);
+			pids[TypeId<T>::value] = TypeId_v<typename T::BaseType>;
 			fs[typeId] = []() -> ObjBase_s { return MakeShared<T>(); };
 		}
 
 		// 根据 typeId 来创建对象. 失败返回空
-		template<typename T = ObjBase>
-		XX_FORCEINLINE Shared<T> Create(uint16_t const& typeId) {
-			static_assert(std::is_base_of_v<ObjBase, T>);
-			if (!fs[typeId]) return nullptr;
+		XX_FORCEINLINE ObjBase_s Create(uint16_t const& typeId) {
+			if (!typeId || !fs[typeId]) return nullptr;
 			return fs[typeId]();
 		}
 
@@ -344,6 +374,7 @@ namespace xx {
 						}
 						return 0;
 					}
+					if (!IsBaseOf<U>(typeId)) return __LINE__;
 
 					auto len = (uint32_t)ptrs.size();
 					uint32_t offs;
@@ -352,10 +383,9 @@ namespace xx {
 
 					if (offs == len + 1) {
 						if (!v || v.typeId() != typeId) {
-							auto&& o = Create(typeId);
-							// Register 时如果要求传入 BaseType 则能避免 dynamic_cast, 实现快速转换. 理论上讲两种方案可并行
-							v = o.As<U>();
-							if (!v) return __LINE__;
+							v = std::move(Create(typeId).ReinterpretCast<U>());
+							//v = .As<U>();
+							//if (!v) return __LINE__;
 						}
 						ptrs.emplace_back(v.pointer);
 						if (int r = Read_(*v)) return r;
@@ -364,8 +394,10 @@ namespace xx {
 						if (offs > len) return __LINE__;
 						auto& o = *(ObjBase_s*)&ptrs[offs - 1];
 						if (o.typeId() != typeId) return __LINE__;
-						v = o.As<U>();
-						if (!v) return __LINE__;
+						if (!IsBaseOf<U>(typeId)) return __LINE__;
+						v = o.ReinterpretCast<U>();
+						//v = o.As<U>();
+						//if (!v) return __LINE__;
 					}
 				}
 				else {

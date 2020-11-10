@@ -7,9 +7,7 @@ int main() {
 
 	{
 		auto&& a = xx::MakeShared<FF::A>();
-		auto a_sg = xx::MakeScopeGuard([&] {
-			om.RecursiveResetRoot(a);
-			});
+		auto a_sg = xx::MakeScopeGuard([&] { om.RecursiveResetRoot(a); });
 		{
 			a->id = 1;
 			a->nick = "aaa";
@@ -38,6 +36,7 @@ int main() {
 				c.x = 6.1f;
 				c.y = 7.2f;
 				c.targets.emplace_back(a);
+				c.targets.emplace_back(b);
 			}
 		}
 		om.CoutN(a);

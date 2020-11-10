@@ -201,6 +201,12 @@ namespace xx {
 			}
 		}
 
+		// unsafe: 直接硬转返回. 使用前通常会根据 typeId 进行合法性检测
+		template<typename U>
+		XX_FORCEINLINE Shared<U>& ReinterpretCast() const noexcept {
+			return *(Shared<U>*)this;
+		}
+
 		struct Weak<T> ToWeak() const noexcept;
 	};
 
