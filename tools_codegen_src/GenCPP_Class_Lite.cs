@@ -466,10 +466,13 @@ namespace xx {");
             var ft = f.FieldType;
             if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
             if (f == fs[0]) {
-                sb.Append(@"
-        if (sizeBak == om.str->size()) {
+                if (c._HasBaseType()) {
+                    sb.Append(@"
+        if (sizeBak < om.str->size()) {
             om.str->push_back(',');
-        }
+        }");
+                }
+                sb.Append(@"
         om.Append(""\""" + f.Name + @"\"":"", in." + f.Name + @"); ");
             }
             else {

@@ -26,9 +26,6 @@ namespace xx {
     }
 	void ObjFuncs<::FF::C, void>::ToStringCore(ObjManager &om, ::FF::C const& in) {
         auto sizeBak = om.str->size();
-        if (sizeBak == om.str->size()) {
-            om.str->push_back(',');
-        }
         om.Append("\"x\":", in.x); 
         om.Append(",\"y\":", in.y);
         om.Append(",\"targets\":", in.targets);
