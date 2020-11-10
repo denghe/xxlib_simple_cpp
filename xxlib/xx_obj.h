@@ -169,10 +169,10 @@ namespace xx {
 
 		// 注册类型 & ptrTypeId. 将创建函数塞入容器
 		template<typename T>
-		XX_FORCEINLINE void Register(uint16_t const& typeId = TypeId_v<T>) {
+		XX_FORCEINLINE void Register() {
 			static_assert(std::is_base_of_v<ObjBase, T>);
-			pids[TypeId<T>::value] = TypeId_v<typename T::BaseType>;
-			fs[typeId] = []() -> ObjBase_s { return MakeShared<T>(); };
+			pids[TypeId_v<T>] = TypeId_v<typename T::BaseType>;
+			fs[TypeId_v<T>] = []() -> ObjBase_s { return MakeShared<T>(); };
 		}
 
 		// 根据 typeId 来创建对象. 失败返回空
