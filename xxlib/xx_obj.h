@@ -157,7 +157,7 @@ namespace xx {
 		XX_FORCEINLINE void WriteTo(Data& d, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
-			ptrs.clear();
+			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
@@ -304,8 +304,9 @@ namespace xx {
 		XX_FORCEINLINE int ReadFrom(Data& d, Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			data = &d;
-			objs.clear();
-			auto sg = MakeScopeGuard([this] { objs.clear(); });
+			//ptrs.clear();
+			//objs.clear();
+			auto sg = MakeScopeGuard([this] { ptrs.clear(); objs.clear(); });
 			return Read_(args...);
 		}
 
@@ -337,7 +338,7 @@ namespace xx {
 						return 0;
 					}
 
-					auto len = (uint32_t)objs.size();
+					auto len = (uint32_t)ptrs.size();
 					uint32_t offs;
 					if (int r = Read_(offs)) return r;
 					if (!offs) return __LINE__;
@@ -349,12 +350,12 @@ namespace xx {
 							v = o.As<U>();
 							if (!v) return __LINE__;
 						}
-						objs.emplace_back(v);
+						ptrs.emplace_back(v.pointer);
 						if (int r = Read_(*v)) return r;
 					}
 					else {
 						if (offs > len) return __LINE__;
-						auto& o = objs[offs - 1];
+						auto& o = *(ObjBase_s*)&ptrs[offs - 1];
 						if (o.typeId() != typeId) return __LINE__;
 						v = o.As<U>();
 						if (!v) return __LINE__;
@@ -376,6 +377,9 @@ namespace xx {
 			else if constexpr (IsPtrWeak_v<T>) {
 				Shared<typename T::ElementType> o;
 				if (int r = Read_(o)) return r;
+				if (o) {
+					objs.emplace_back(o);
+				}
 				v = std::move(o);
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
@@ -492,7 +496,7 @@ namespace xx {
 		XX_FORCEINLINE void AppendTo(std::string& s, Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			str = &s;
-			ptrs.clear();
+			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
@@ -683,14 +687,14 @@ namespace xx {
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
 		XX_FORCEINLINE void Clone(T const& in, T& out) {
-			ptrs.clear();
+			//ptrs.clear();
 			auto sg1 = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;
 				}
 				ptrs.clear();
 				});
-			ptrs2.clear();
+			//ptrs2.clear();
 			auto sg2 = MakeScopeGuard([this] { ptrs2.clear(); });
 			Clone1(in, out);
 			sg1();
@@ -864,7 +868,7 @@ namespace xx {
 		template<typename...Args>
 		XX_FORCEINLINE void RecursiveResetRoot(Args&...args) {
 			static_assert(sizeof...(args) > 0);
-			ptrs.clear();
+			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
 					*(uint32_t*)p = 0;

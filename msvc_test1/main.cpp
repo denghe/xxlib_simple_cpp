@@ -1,4 +1,5 @@
 #include "FF_class_lite.h"
+#include "xx_chrono.h"
 
 int main() {
 	xx::ObjManager om;
@@ -49,18 +50,33 @@ int main() {
 		}
 		{
 			xx::Data d;
+			{
+				auto secs = xx::NowEpochSeconds();
+				for (size_t i = 0; i < 10000000; i++) {
+					d.Clear();
+					om.WriteTo(d, a);
+				}
+				om.CoutN((xx::NowEpochSeconds() - secs), " ", d);
+				d.Clear();
+			}
 			om.WriteTo(d, a);
 			om.CoutN(d);
 			xx::Shared<FF::A> a2;
 			auto b_sg = xx::MakeScopeGuard([&] {
 				om.RecursiveResetRoot(a2);
 				});
-			if (int r = om.ReadFrom(d, a2)) {
-				om.CoutN("read from error. r = ", r);
+			{
+				auto secs = xx::NowEpochSeconds();
+				for (size_t i = 0; i < 10000000; i++) {
+					d.offset = 0;
+					if (int r = om.ReadFrom(d, a2)) {
+						om.CoutN("read from error. r = ", r);
+					}
+				}
+				om.CoutN((xx::NowEpochSeconds() - secs), " ", d);
+				d.Clear();
 			}
-			else {
-				om.CoutN(a2);
-			}
+			om.CoutN(a2);
 		}
 	}
 
