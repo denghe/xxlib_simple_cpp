@@ -178,8 +178,8 @@ namespace xx {
 		XX_FORCEINLINE Shared<T>& As(Shared<U> const& v) const noexcept {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			static_assert(std::is_base_of_v<ObjBase, U>);
-			if constexpr (std::is_same_v<U, T> || std::is_base_of_v<U, T>) {
-				return v.ReinterpretCast<T>();
+			if constexpr (std::is_same_v<U, T> || std::is_base_of_v<T, U>) {
+				return v.ReinterpretCast<T>();	
 			}
 			else {
 				if (!v || !IsBaseOf<T>(v.header()->typeId)) {
@@ -927,6 +927,7 @@ namespace xx {
 
 
 		// 斩断循环引用的 Shared 以方便顺利释放内存( 入口 )
+		// 并不直接清空 args
 		template<typename...Args>
 		XX_FORCEINLINE void RecursiveResetRoot(Args&...args) {
 			static_assert(sizeof...(args) > 0);

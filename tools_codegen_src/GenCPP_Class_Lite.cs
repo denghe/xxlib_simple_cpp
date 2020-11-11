@@ -44,7 +44,6 @@ namespace " + templateName + @" {
 namespace " + c.Namespace.Replace(".", "::") + @" {");
             }
 
-            if (c._IsUserStruct()) continue;
             sb.Append(@"
     struct " + c.Name + ";");
 

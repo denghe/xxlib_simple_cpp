@@ -209,6 +209,10 @@ namespace xx {
 		}
 
 		struct Weak<T> ToWeak() const noexcept;
+
+		// 填充式 make
+		template<typename...Args>
+		Shared& Emplace(Args&&...args);
 	};
 
 
@@ -350,7 +354,18 @@ namespace xx {
 		return {};
 	}
 
-
+	template<typename T>
+	template<typename...Args>
+	XX_FORCEINLINE Shared<T>& Shared<T>::Emplace(Args&&...args) {
+		Reset();
+		auto h = (PtrHeader*)malloc(sizeof(PtrHeader) + sizeof(T));
+		h->useCount = 1;
+		h->refCount = 0;
+		h->typeId = TypeId_v<T>;
+		h->offset = 0;
+		pointer = new(h + 1) T(std::forward<Args>(args)...);
+		return *this;
+	}
 
 
 	/************************************************************************************/
@@ -403,6 +418,8 @@ namespace xx {
 		h->offset = 0;
 		return new(h + 1) T(std::forward<Args>(args)...);
 	}
+
+
 }
 
 // 令 Shared Weak 支持放入 hash 容器

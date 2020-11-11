@@ -2,19 +2,90 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="FF_class_lite.cpp" />
+    <ClCompile Include="FF_class_lite.cpp">
+      <Filter>FF</Filter>
+    </ClCompile>
+    <ClCompile Include="FF_Pathway.cpp">
+      <Filter>FF</Filter>
+    </ClCompile>
+    <ClCompile Include="FF_PathwayMaker.cpp">
+      <Filter>FF</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="code.bak" />
-    <None Include="FF_class_lite.cpp.inc" />
-    <None Include="FF_class_lite.h.inc" />
-    <None Include="FF_class_lite_.h.inc" />
-    <None Include="classes.bat" />
-    <None Include="classes.cs" />
-    <None Include="FF_A.inc" />
+    <None Include="ff.bat">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="ff.cs">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_Cannon.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_CDCircle.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_class_lite.cpp.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_class_lite.h.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_class_lite_.h.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_CurvePoint.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_Fish.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_Pathway.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_PathwayPoint.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_Player.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_Point.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_Root.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_SimpleBullet.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_Stuff.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_TrackBullet.inc">
+      <Filter>FF</Filter>
+    </None>
+    <None Include="FF_Bullet.inc">
+      <Filter>FF</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FF_class_lite.h" />
-    <ClInclude Include="FF_class_lite.ajson.h" />
+    <Filter Include="FF">
+      <UniqueIdentifier>{e896de02-66bb-4501-8ead-27ef0f165d95}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="FF_class_lite.ajson.h">
+      <Filter>FF</Filter>
+    </ClInclude>
+    <ClInclude Include="FF_class_lite.h">
+      <Filter>FF</Filter>
+    </ClInclude>
+    <ClInclude Include="FF_PathwayMaker.h">
+      <Filter>FF</Filter>
+    </ClInclude>
+    <ClInclude Include="FF_Math.h">
+      <Filter>FF</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

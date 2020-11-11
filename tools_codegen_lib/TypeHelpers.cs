@@ -813,7 +813,7 @@ public static class TypeHelpers {
         }
         else if (t.IsEnum)  // enum & struct
         {
-            return (t._IsExternal() ? "" : templateName) + "::" + t.FullName.Replace(".", "::");
+            return "::" + (t._IsExternal() ? "" : (templateName + "::")) + t.FullName.Replace(".", "::");
         }
         else {
             if (t.Namespace == nameof(TemplateLibrary)) {
@@ -880,7 +880,7 @@ public static class TypeHelpers {
                         return "::std::string";
                 }
             }
-            return "::" + (t._IsExternal() ? "" : templateName) + "::" + t.FullName.Replace(".", "::");
+            return "::" + (t._IsExternal() ? "" : (templateName + "::")) + t.FullName.Replace(".", "::");
             //return (t._IsExternal() ? "" : ("::" + templateName)) + "::" + t.FullName.Replace(".", "::") + (t.IsValueType ? "" : ((t._IsExternal() && !t._GetExternalSerializable()) ? "" : suffix));
         }
     }
