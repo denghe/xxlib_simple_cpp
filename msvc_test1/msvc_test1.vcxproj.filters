@@ -13,7 +13,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="code.bak" />
     <None Include="ff.bat">
       <Filter>FF</Filter>
     </None>

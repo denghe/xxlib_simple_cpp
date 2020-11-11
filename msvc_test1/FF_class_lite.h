@@ -3,44 +3,47 @@
 #include "FF_class_lite.h.inc"  // user create it for extend include files
 namespace FF {
 	struct PkgGenMd5 {
-		inline static const ::std::string value = "#*MD5<aa44f8392b489159eb374e794d6ce3a9>*#";
+		inline static const ::std::string value = "#*MD5<a64d975bfdaf6e4041f5e09fa2512c35>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(::xx::ObjManager& om);
     };
 
     struct Point;
-    struct LockPoint;
     struct CDCircle;
-    struct TimePoint_LockPoints;
-    struct TimePoint_CDCircles;
+    struct LockPoint;
     struct TimePoint_Speed;
+    struct TimePoint_CDCircles;
+    struct TimePoint_LockPoints;
     struct Bullet;
     struct PathwayPoint;
     struct Action_AnimExt;
-    struct Pathway;
     struct File_AnimExt;
+    struct Pathway;
     struct Cannon;
-    struct Fish;
     struct TimePoint_Frame;
     struct Stuff;
-    struct Action_Frames;
-    struct Player;
+    struct Fish;
     struct CurvePoint;
     struct SimpleBullet;
+    struct Player;
+    struct Action_Frames;
     struct Root;
+    struct Foo;
     struct File_Frames;
     struct File_pathway;
     struct TrackBullet;
 }
 namespace xx {
     template<> struct TypeId<::FF::Bullet> { static const uint16_t value = 103; };
+    template<> struct TypeId<::FF::Pathway> { static const uint16_t value = 66; };
     template<> struct TypeId<::FF::Cannon> { static const uint16_t value = 102; };
-    template<> struct TypeId<::FF::Fish> { static const uint16_t value = 100; };
     template<> struct TypeId<::FF::Stuff> { static const uint16_t value = 104; };
-    template<> struct TypeId<::FF::Player> { static const uint16_t value = 101; };
+    template<> struct TypeId<::FF::Fish> { static const uint16_t value = 100; };
     template<> struct TypeId<::FF::SimpleBullet> { static const uint16_t value = 300; };
+    template<> struct TypeId<::FF::Player> { static const uint16_t value = 101; };
     template<> struct TypeId<::FF::Root> { static const uint16_t value = 105; };
+    template<> struct TypeId<::FF::Foo> { static const uint16_t value = 12; };
     template<> struct TypeId<::FF::TrackBullet> { static const uint16_t value = 301; };
 }
 namespace FF {
@@ -52,12 +55,6 @@ namespace FF {
         float y = 0;
 #include "FF_Point.inc"
     };
-    // 锁定点
-    struct LockPoint {
-        XX_GENCODE_STRUCT_H(LockPoint)
-        float x = 0;
-        float y = 0;
-    };
     // 碰撞圆
     struct CDCircle {
         XX_GENCODE_STRUCT_H(CDCircle)
@@ -66,15 +63,19 @@ namespace FF {
         float r = 0;
 #include "FF_CDCircle.inc"
     };
-    // 时间点--锁定点线
-    struct TimePoint_LockPoints {
-        XX_GENCODE_STRUCT_H(TimePoint_LockPoints)
+    // 锁定点
+    struct LockPoint {
+        XX_GENCODE_STRUCT_H(LockPoint)
+        float x = 0;
+        float y = 0;
+    };
+    // 时间点--移动速度
+    struct TimePoint_Speed {
+        XX_GENCODE_STRUCT_H(TimePoint_Speed)
         // 起始时间( 秒 )
         float time = 0;
-        // 主锁定点。如果出屏幕，则锁定 锁定线与屏幕边缘形成的 交点
-        ::FF::LockPoint mainLockPoint;
-        // 锁定线
-        ::std::vector<::FF::LockPoint> lockPoints;
+        // 每秒移动距离(米)
+        float speed = 0;
     };
     // 时间点--碰撞圆集合
     struct TimePoint_CDCircles {
@@ -86,13 +87,15 @@ namespace FF {
         // 具体碰撞圆列表，用于碰撞检测遍历细判
         ::std::vector<::FF::CDCircle> cdCircles;
     };
-    // 时间点--移动速度
-    struct TimePoint_Speed {
-        XX_GENCODE_STRUCT_H(TimePoint_Speed)
+    // 时间点--锁定点线
+    struct TimePoint_LockPoints {
+        XX_GENCODE_STRUCT_H(TimePoint_LockPoints)
         // 起始时间( 秒 )
         float time = 0;
-        // 每秒移动距离(米)
-        float speed = 0;
+        // 主锁定点。如果出屏幕，则锁定 锁定线与屏幕边缘形成的 交点
+        ::FF::LockPoint mainLockPoint;
+        // 锁定线
+        ::std::vector<::FF::LockPoint> lockPoints;
     };
     // 移动路线 -- 点
     struct PathwayPoint {
@@ -119,15 +122,6 @@ namespace FF {
         // 时间点--移动速度 集合
         ::std::vector<::FF::TimePoint_Speed> ss;
     };
-    // 移动路线
-    struct Pathway {
-        XX_GENCODE_STRUCT_H(Pathway)
-        // 是否闭合( 是 则 最后一个点 的下一个指向 第一个点 )
-        bool isLoop = false;
-        // 点集合
-        ::std::vector<::FF::PathwayPoint> points;
-#include "FF_Pathway.inc"
-    };
     // 针对动画的扩展信息 存盘文件( *.frames.ext, *.atlas.ext, *.c3b.ext 
     struct File_AnimExt {
         XX_GENCODE_STRUCT_H(File_AnimExt)
@@ -145,16 +139,6 @@ namespace FF {
         // 精灵帧名称
         ::std::string picName;
     };
-    // 精灵帧动画--动作( 兼容 spine, c3b, frames )
-    struct Action_Frames {
-        XX_GENCODE_STRUCT_H(Action_Frames)
-        // 动作名
-        ::std::string name;
-        // 总时长( 秒 )
-        float totalSeconds = 0;
-        // 时间点--精灵帧 集合
-        ::std::vector<::FF::TimePoint_Frame> frames;
-    };
     // 曲线途经点
     struct CurvePoint {
         XX_GENCODE_STRUCT_H(CurvePoint)
@@ -165,6 +149,16 @@ namespace FF {
         // 切片数
         int32_t numSegments = 0;
 #include "FF_CurvePoint.inc"
+    };
+    // 精灵帧动画--动作( 兼容 spine, c3b, frames )
+    struct Action_Frames {
+        XX_GENCODE_STRUCT_H(Action_Frames)
+        // 动作名
+        ::std::string name;
+        // 总时长( 秒 )
+        float totalSeconds = 0;
+        // 时间点--精灵帧 集合
+        ::std::vector<::FF::TimePoint_Frame> frames;
     };
     // 精灵帧动画 存盘文件
     struct File_Frames {
@@ -188,12 +182,29 @@ namespace FF {
         int64_t coin = 0;
 #include "FF_Bullet.inc"
     };
+    // 移动路线
+    struct Pathway : ::xx::ObjBase {
+        XX_GENCODE_OBJECT_H(Pathway, ::xx::ObjBase)
+        // 是否闭合( 是 则 最后一个点 的下一个指向 第一个点 )
+        bool isLoop = false;
+        // 点集合
+        ::std::vector<::FF::PathwayPoint> points;
+#include "FF_Pathway.inc"
+    };
     struct Cannon : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Cannon, ::xx::ObjBase)
         int32_t id = 0;
         int32_t typeId = 0;
         ::std::vector<::xx::Shared<::FF::Bullet>> bullets;
 #include "FF_Cannon.inc"
+    };
+    struct Stuff : ::xx::ObjBase {
+        XX_GENCODE_OBJECT_H(Stuff, ::xx::ObjBase)
+        int32_t id = 0;
+        int32_t typeId = 0;
+        ::FF::Point pos;
+        double effectiveTime = 0;
+#include "FF_Stuff.inc"
     };
     struct Fish : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Fish, ::xx::ObjBase)
@@ -227,13 +238,11 @@ namespace FF {
         ::FF::File_AnimExt file;
 #include "FF_Fish.inc"
     };
-    struct Stuff : ::xx::ObjBase {
-        XX_GENCODE_OBJECT_H(Stuff, ::xx::ObjBase)
-        int32_t id = 0;
-        int32_t typeId = 0;
+    struct SimpleBullet : ::FF::Bullet {
+        XX_GENCODE_OBJECT_H(SimpleBullet, ::FF::Bullet)
+        int32_t angle = 0;
         ::FF::Point pos;
-        double effectiveTime = 0;
-#include "FF_Stuff.inc"
+#include "FF_SimpleBullet.inc"
     };
     struct Player : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Player, ::xx::ObjBase)
@@ -250,12 +259,6 @@ namespace FF {
         ::xx::Weak<::FF::Fish> aimFish;
 #include "FF_Player.inc"
     };
-    struct SimpleBullet : ::FF::Bullet {
-        XX_GENCODE_OBJECT_H(SimpleBullet, ::FF::Bullet)
-        int32_t angle = 0;
-        ::FF::Point pos;
-#include "FF_SimpleBullet.inc"
-    };
     struct Root : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Root, ::xx::ObjBase)
         float dtPool = 0;
@@ -263,6 +266,10 @@ namespace FF {
         ::std::vector<::xx::Shared<::FF::Player>> players;
         ::std::vector<::xx::Shared<::FF::Fish>> fishs;
 #include "FF_Root.inc"
+    };
+    struct Foo : ::xx::ObjBase {
+        XX_GENCODE_OBJECT_H(Foo, ::xx::ObjBase)
+        ::std::vector<::xx::Shared<::FF::Foo>> children;
     };
     struct TrackBullet : ::FF::SimpleBullet {
         XX_GENCODE_OBJECT_H(TrackBullet, ::FF::SimpleBullet)
@@ -281,16 +288,6 @@ namespace xx {
 		static void RecursiveReset(ObjManager& om, ::FF::Point& in);
 	};
 	template<>
-	struct ObjFuncs<::FF::LockPoint, void> {
-		static void Write(ObjManager& om, ::FF::LockPoint const& in);
-		static int Read(ObjManager& om, ::FF::LockPoint& out);
-		static void ToString(ObjManager& om, ::FF::LockPoint const& in);
-		static void ToStringCore(ObjManager& om, ::FF::LockPoint const& in);
-		static void Clone1(ObjManager& om, ::FF::LockPoint const& in, ::FF::LockPoint& out);
-		static void Clone2(ObjManager& om, ::FF::LockPoint const& in, ::FF::LockPoint& out);
-		static void RecursiveReset(ObjManager& om, ::FF::LockPoint& in);
-	};
-	template<>
 	struct ObjFuncs<::FF::CDCircle, void> {
 		static void Write(ObjManager& om, ::FF::CDCircle const& in);
 		static int Read(ObjManager& om, ::FF::CDCircle& out);
@@ -301,14 +298,24 @@ namespace xx {
 		static void RecursiveReset(ObjManager& om, ::FF::CDCircle& in);
 	};
 	template<>
-	struct ObjFuncs<::FF::TimePoint_LockPoints, void> {
-		static void Write(ObjManager& om, ::FF::TimePoint_LockPoints const& in);
-		static int Read(ObjManager& om, ::FF::TimePoint_LockPoints& out);
-		static void ToString(ObjManager& om, ::FF::TimePoint_LockPoints const& in);
-		static void ToStringCore(ObjManager& om, ::FF::TimePoint_LockPoints const& in);
-		static void Clone1(ObjManager& om, ::FF::TimePoint_LockPoints const& in, ::FF::TimePoint_LockPoints& out);
-		static void Clone2(ObjManager& om, ::FF::TimePoint_LockPoints const& in, ::FF::TimePoint_LockPoints& out);
-		static void RecursiveReset(ObjManager& om, ::FF::TimePoint_LockPoints& in);
+	struct ObjFuncs<::FF::LockPoint, void> {
+		static void Write(ObjManager& om, ::FF::LockPoint const& in);
+		static int Read(ObjManager& om, ::FF::LockPoint& out);
+		static void ToString(ObjManager& om, ::FF::LockPoint const& in);
+		static void ToStringCore(ObjManager& om, ::FF::LockPoint const& in);
+		static void Clone1(ObjManager& om, ::FF::LockPoint const& in, ::FF::LockPoint& out);
+		static void Clone2(ObjManager& om, ::FF::LockPoint const& in, ::FF::LockPoint& out);
+		static void RecursiveReset(ObjManager& om, ::FF::LockPoint& in);
+	};
+	template<>
+	struct ObjFuncs<::FF::TimePoint_Speed, void> {
+		static void Write(ObjManager& om, ::FF::TimePoint_Speed const& in);
+		static int Read(ObjManager& om, ::FF::TimePoint_Speed& out);
+		static void ToString(ObjManager& om, ::FF::TimePoint_Speed const& in);
+		static void ToStringCore(ObjManager& om, ::FF::TimePoint_Speed const& in);
+		static void Clone1(ObjManager& om, ::FF::TimePoint_Speed const& in, ::FF::TimePoint_Speed& out);
+		static void Clone2(ObjManager& om, ::FF::TimePoint_Speed const& in, ::FF::TimePoint_Speed& out);
+		static void RecursiveReset(ObjManager& om, ::FF::TimePoint_Speed& in);
 	};
 	template<>
 	struct ObjFuncs<::FF::TimePoint_CDCircles, void> {
@@ -321,14 +328,14 @@ namespace xx {
 		static void RecursiveReset(ObjManager& om, ::FF::TimePoint_CDCircles& in);
 	};
 	template<>
-	struct ObjFuncs<::FF::TimePoint_Speed, void> {
-		static void Write(ObjManager& om, ::FF::TimePoint_Speed const& in);
-		static int Read(ObjManager& om, ::FF::TimePoint_Speed& out);
-		static void ToString(ObjManager& om, ::FF::TimePoint_Speed const& in);
-		static void ToStringCore(ObjManager& om, ::FF::TimePoint_Speed const& in);
-		static void Clone1(ObjManager& om, ::FF::TimePoint_Speed const& in, ::FF::TimePoint_Speed& out);
-		static void Clone2(ObjManager& om, ::FF::TimePoint_Speed const& in, ::FF::TimePoint_Speed& out);
-		static void RecursiveReset(ObjManager& om, ::FF::TimePoint_Speed& in);
+	struct ObjFuncs<::FF::TimePoint_LockPoints, void> {
+		static void Write(ObjManager& om, ::FF::TimePoint_LockPoints const& in);
+		static int Read(ObjManager& om, ::FF::TimePoint_LockPoints& out);
+		static void ToString(ObjManager& om, ::FF::TimePoint_LockPoints const& in);
+		static void ToStringCore(ObjManager& om, ::FF::TimePoint_LockPoints const& in);
+		static void Clone1(ObjManager& om, ::FF::TimePoint_LockPoints const& in, ::FF::TimePoint_LockPoints& out);
+		static void Clone2(ObjManager& om, ::FF::TimePoint_LockPoints const& in, ::FF::TimePoint_LockPoints& out);
+		static void RecursiveReset(ObjManager& om, ::FF::TimePoint_LockPoints& in);
 	};
 	template<>
 	struct ObjFuncs<::FF::PathwayPoint, void> {
@@ -351,16 +358,6 @@ namespace xx {
 		static void RecursiveReset(ObjManager& om, ::FF::Action_AnimExt& in);
 	};
 	template<>
-	struct ObjFuncs<::FF::Pathway, void> {
-		static void Write(ObjManager& om, ::FF::Pathway const& in);
-		static int Read(ObjManager& om, ::FF::Pathway& out);
-		static void ToString(ObjManager& om, ::FF::Pathway const& in);
-		static void ToStringCore(ObjManager& om, ::FF::Pathway const& in);
-		static void Clone1(ObjManager& om, ::FF::Pathway const& in, ::FF::Pathway& out);
-		static void Clone2(ObjManager& om, ::FF::Pathway const& in, ::FF::Pathway& out);
-		static void RecursiveReset(ObjManager& om, ::FF::Pathway& in);
-	};
-	template<>
 	struct ObjFuncs<::FF::File_AnimExt, void> {
 		static void Write(ObjManager& om, ::FF::File_AnimExt const& in);
 		static int Read(ObjManager& om, ::FF::File_AnimExt& out);
@@ -381,16 +378,6 @@ namespace xx {
 		static void RecursiveReset(ObjManager& om, ::FF::TimePoint_Frame& in);
 	};
 	template<>
-	struct ObjFuncs<::FF::Action_Frames, void> {
-		static void Write(ObjManager& om, ::FF::Action_Frames const& in);
-		static int Read(ObjManager& om, ::FF::Action_Frames& out);
-		static void ToString(ObjManager& om, ::FF::Action_Frames const& in);
-		static void ToStringCore(ObjManager& om, ::FF::Action_Frames const& in);
-		static void Clone1(ObjManager& om, ::FF::Action_Frames const& in, ::FF::Action_Frames& out);
-		static void Clone2(ObjManager& om, ::FF::Action_Frames const& in, ::FF::Action_Frames& out);
-		static void RecursiveReset(ObjManager& om, ::FF::Action_Frames& in);
-	};
-	template<>
 	struct ObjFuncs<::FF::CurvePoint, void> {
 		static void Write(ObjManager& om, ::FF::CurvePoint const& in);
 		static int Read(ObjManager& om, ::FF::CurvePoint& out);
@@ -399,6 +386,16 @@ namespace xx {
 		static void Clone1(ObjManager& om, ::FF::CurvePoint const& in, ::FF::CurvePoint& out);
 		static void Clone2(ObjManager& om, ::FF::CurvePoint const& in, ::FF::CurvePoint& out);
 		static void RecursiveReset(ObjManager& om, ::FF::CurvePoint& in);
+	};
+	template<>
+	struct ObjFuncs<::FF::Action_Frames, void> {
+		static void Write(ObjManager& om, ::FF::Action_Frames const& in);
+		static int Read(ObjManager& om, ::FF::Action_Frames& out);
+		static void ToString(ObjManager& om, ::FF::Action_Frames const& in);
+		static void ToStringCore(ObjManager& om, ::FF::Action_Frames const& in);
+		static void Clone1(ObjManager& om, ::FF::Action_Frames const& in, ::FF::Action_Frames& out);
+		static void Clone2(ObjManager& om, ::FF::Action_Frames const& in, ::FF::Action_Frames& out);
+		static void RecursiveReset(ObjManager& om, ::FF::Action_Frames& in);
 	};
 	template<>
 	struct ObjFuncs<::FF::File_Frames, void> {

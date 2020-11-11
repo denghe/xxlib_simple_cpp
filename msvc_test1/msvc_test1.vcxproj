@@ -97,7 +97,6 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="code.bak" />
     <None Include="ff.bat" />
     <None Include="ff.cs" />
     <None Include="FF_Bullet.inc" />

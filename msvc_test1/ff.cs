@@ -1,5 +1,4 @@
-﻿#pragma warning disable 0169, 0414
-using TemplateLibrary;
+﻿using TemplateLibrary;
 
 /*
 帧动画( frames )数据结构：带总时长的时间轴。到达某个时间，就切换成某张图
@@ -23,6 +22,11 @@ using TemplateLibrary;
 2. 承担部分业务逻辑的移动对象：组合 动画播放器，能加载 ext 附加数据并提供相关功能，能绑移动路径，能在路径上快进/前进/后退/停止. 可设置相对坐标，角度，缩放，有移动结束事件
 
 */
+
+[TypeId(12)]
+class Foo {
+    List<Shared<Foo>> children;
+}
 
 
 
