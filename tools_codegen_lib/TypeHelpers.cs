@@ -274,6 +274,25 @@ public static class TypeHelpers {
         return t.Namespace == nameof(TemplateLibrary) && t.Name == "DateTime";
     }
 
+    /// <summary>
+    /// 递归判断如果有任意成员或泛型是 class 类型也跳过
+    /// </summary>
+    public static bool _HasClassMember(this Type t) {
+        if (t._IsUserClass()) return true;
+        if (t._IsUserStruct()) {
+            foreach (var m in t._GetFields()) {
+                if (m.FieldType._HasClassMember()) return true;
+            }
+            return true;
+        }
+        if (t.IsGenericType) {
+            foreach (var ct in t.GenericTypeArguments) {
+                if (ct._HasClassMember()) return true;
+            }
+        }
+        return false;
+    }
+
 
     /// <summary>
     /// 返回 t 是否为 数字类型( byte ~ int64, float, double )

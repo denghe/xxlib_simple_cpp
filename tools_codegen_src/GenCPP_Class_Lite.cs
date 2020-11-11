@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 
 // 基于 xx_obj.h
 // 针对 Shared<T>, 生成 xx::Shared<T>. 要求每个用于智能指针的类 标注 [TypeId]. 检查到漏标就报错
@@ -616,6 +617,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 
 
 
+
     static void GenH_AJSON(this StringBuilder sb, Type c) {
         if (c._HasBaseType()) {
             GenH_AJSON(sb, c.BaseType);
@@ -631,7 +633,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 #include """ + templateName + @"_class_lite.h""
 #include ""ajson.hpp""");
         foreach (var c in cs) {
-            if (!c._IsUserStruct()) continue;
+            if (!c._IsUserStruct() || c._HasClassMember()) continue;
             sb.Append(@"
 AJSON(" + templateName + "::" + c.Name);
             GenH_AJSON(sb, c);
