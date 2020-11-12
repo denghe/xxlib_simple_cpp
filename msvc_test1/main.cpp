@@ -27,14 +27,15 @@ int main() {
 	{
 		xx::Shared<FF::Foo> a;
 		a.Emplace();
-		//a->children.emplace_back().Emplace();
+		a->children.emplace_back().Emplace();
 		om.CoutN(a);
 
 		xx::Data d;
 		om.WriteTo(d, a);
 		om.CoutN(d);
 
-		d[4] = 1;
+		d[3] = 1;
+		d.len -= 2;
 		om.CoutN(d);
 		xx::Shared<FF::Foo> b;
 		auto b_ = xx::MakeScopeGuard([&] { om.RecursiveResetRoot(b); });

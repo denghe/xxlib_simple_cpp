@@ -179,7 +179,7 @@ namespace xx {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			static_assert(std::is_base_of_v<ObjBase, U>);
 			if constexpr (std::is_same_v<U, T> || std::is_base_of_v<T, U>) {
-				return v.ReinterpretCast<T>();	
+				return v.ReinterpretCast<T>();
 			}
 			else {
 				if (!v || !IsBaseOf<T>(v.header()->typeId)) {
@@ -227,19 +227,23 @@ namespace xx {
 			if constexpr (IsPtrShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-					auto typeId = v.typeId();
-					d.WriteVarIntger(typeId);
-					if (typeId == 0) return;
-
-					auto h = ((PtrHeader*)v.pointer - 1);
-					if (h->offset == 0) {
-						ptrs.push_back(&h->offset);
-						h->offset = (uint32_t)ptrs.size();
-						d.WriteVarIntger(h->offset);
-						Write_(*v.pointer);
+					if (!v) {
+						// 如果是 空指针， offset 值写 0
+						d.WriteFixed((uint8_t)0);
 					}
 					else {
-						d.WriteVarIntger(h->offset);
+						// 写入格式： offset + typeId + content
+						auto h = ((PtrHeader*)v.pointer - 1);
+						if (h->offset == 0) {
+							ptrs.push_back(&h->offset);
+							h->offset = (uint32_t)ptrs.size();
+							d.WriteVarIntger(h->offset);
+							d.WriteVarIntger(h->typeId);
+							Write_(*v.pointer);
+						}
+						else {
+							d.WriteVarIntger(h->offset);
+						}
 					}
 				}
 				else {
@@ -388,26 +392,22 @@ namespace xx {
 			if constexpr (IsPtrShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
-					uint16_t typeId;
-					if (int r = Read_(typeId)) return r;
-					if (!typeId) {
-						if (v) {
-							v.Reset();
-						}
-						return 0;
-					}
-					if (!IsBaseOf<U>(typeId)) return __LINE__;
-
-					auto len = (uint32_t)ptrs.size();
 					uint32_t offs;
 					if (int r = Read_(offs)) return r;
-					if (!offs) return __LINE__;
+					if (!offs) {
+						v.Reset();
+						return 0;
+					}
 
+					auto len = (uint32_t)ptrs.size();
 					if (offs == len + 1) {
+						uint16_t typeId;
+						if (int r = Read_(typeId)) return r;
+						if (!typeId) return __LINE__;
+						if (!IsBaseOf<U>(typeId)) return __LINE__;
+
 						if (!v || v.typeId() != typeId) {
 							v = std::move(Create(typeId).ReinterpretCast<U>());
-							//v = .As<U>();
-							//if (!v) return __LINE__;
 						}
 						ptrs.emplace_back(v.pointer);
 						if (int r = Read_(*v)) return r;
@@ -415,11 +415,8 @@ namespace xx {
 					else {
 						if (offs > len) return __LINE__;
 						auto& o = *(ObjBase_s*)&ptrs[offs - 1];
-						if (o.typeId() != typeId) return __LINE__;
-						if (!IsBaseOf<U>(typeId)) return __LINE__;
+						if (!IsBaseOf<U>(o.typeId())) return __LINE__;
 						v = o.ReinterpretCast<U>();
-						//v = o.As<U>();
-						//if (!v) return __LINE__;
 					}
 				}
 				else {
