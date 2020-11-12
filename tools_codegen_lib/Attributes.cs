@@ -11,12 +11,6 @@ namespace TemplateLibrary {
     public class List<T> { }
 
     /// <summary>
-    /// 标记一个类不继承自 xx::Object
-    /// </summary>
-    [System.AttributeUsage(System.AttributeTargets.Class)]
-    public class Struct : System.Attribute { }
-
-    /// <summary>
     /// 对应 c++ std::weak_ptr, c# Weak/Property, lua ???
     /// </summary>
     public class Weak<T> { }
@@ -36,7 +30,32 @@ namespace TemplateLibrary {
     /// </summary>
     public class Pair<K, V> { }
 
-    // todo: tuple ?
+    /// <summary>
+    /// 对应 c++ std::tuple, c# 暂定对应 Dict( 应该对应有序版字典 ). lua table ???
+    /// </summary>
+    public class Tuple<T1> { }
+    public class Tuple<T1, T2> { }
+    public class Tuple<T1, T2, T3> { }
+    public class Tuple<T1, T2, T3, T4> { }
+    public class Tuple<T1, T2, T3, T4, T5> { }
+    public class Tuple<T1, T2, T3, T4, T5, T6> { }
+    public class Tuple<T1, T2, T3, T4, T5, T6, T7> { }
+
+
+    /// <summary>
+    /// 标记一个类能简单向下兼容( 不可修改顺序和数据类型和默认值, 变量名可改, 不可删除，只能在最后追加 )
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct)]
+    public class Compatible : System.Attribute { 
+        // todo: 多套向下兼容方案?
+    }
+
+
+    /// <summary>
+    /// 标记一个类不继承自 xx::Object
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Class)]
+    public class Struct : System.Attribute { }
 
 
     /// <summary>
@@ -263,15 +282,7 @@ namespace TemplateLibrary {
     public class Literal : System.Attribute {
     }
 
-    /// <summary>
-    /// 对应一次返回多个 SELECT 的查询结果
-    /// </summary>
-    public class Tuple<T1, T2> { }
-    public class Tuple<T1, T2, T3> { }
-    public class Tuple<T1, T2, T3, T4> { }
-    public class Tuple<T1, T2, T3, T4, T5> { }
-    public class Tuple<T1, T2, T3, T4, T5, T6> { }
-    public class Tuple<T1, T2, T3, T4, T5, T6, T7> { }
+
 
 }
 

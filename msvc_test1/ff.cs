@@ -23,9 +23,15 @@
 
 */
 
-[TypeId(12)]
+[TypeId(12), Compatible]
 class Foo {
     List<Shared<Foo>> children;
+    int a = 1;
+    float b = 2.3f;
+    string c = "asdf";
+    Shared<Foo> d;
+    Weak<Foo> e;
+    Nullable<int> f;
 }
 
 

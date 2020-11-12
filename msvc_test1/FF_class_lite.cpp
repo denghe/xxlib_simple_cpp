@@ -1245,13 +1245,47 @@ namespace FF {
     }
     Foo& Foo::operator=(Foo&& o) noexcept {
         std::swap(this->children, o.children);
+        std::swap(this->a, o.a);
+        std::swap(this->b, o.b);
+        std::swap(this->c, o.c);
+        std::swap(this->d, o.d);
+        std::swap(this->e, o.e);
+        std::swap(this->f, o.f);
         return *this;
     }
     void Foo::Write(::xx::ObjManager& om) const {
+        auto bak = om.data->WriteJump(sizeof(uint32_t));
         om.Write(this->children);
+        om.Write(this->a);
+        om.Write(this->b);
+        om.Write(this->c);
+        om.Write(this->d);
+        om.Write(this->e);
+        om.Write(this->f);
+        om.data->WriteFixedAt(bak, (uint32_t)(om.data->len - bak));
     }
     int Foo::Read(::xx::ObjManager& om) {
-        if (int r = om.Read(this->children)) return r;
+        uint32_t siz;
+        if (int r = om.data->ReadFixed(siz)) return r;
+        auto endOffset = om.data->offset + siz;
+
+        if (om.data->offset >= endOffset) this->children.clear();
+        else if (int r = om.Read(this->children)) return r;
+        if (om.data->offset >= endOffset) this->a = 1;
+        else if (int r = om.Read(this->a)) return r;
+        if (om.data->offset >= endOffset) this->b = 2.3f;
+        else if (int r = om.Read(this->b)) return r;
+        if (om.data->offset >= endOffset) this->c = "asdf";
+        else if (int r = om.Read(this->c)) return r;
+        if (om.data->offset >= endOffset) this->d.Reset();
+        else if (int r = om.Read(this->d)) return r;
+        if (om.data->offset >= endOffset) this->e.Reset();
+        else if (int r = om.Read(this->e)) return r;
+        if (om.data->offset >= endOffset) this->f.reset();
+        else if (int r = om.Read(this->f)) return r;
+
+        if (om.data->offset > endOffset) return __LINE__;
+        else om.data->offset = endOffset;
         return 0;
     }
     void Foo::ToString(::xx::ObjManager& om) const {
@@ -1261,17 +1295,41 @@ namespace FF {
     }
     void Foo::ToStringCore(::xx::ObjManager& om) const {
         om.Append(",\"children\":", this->children);
+        om.Append(",\"a\":", this->a);
+        om.Append(",\"b\":", this->b);
+        om.Append(",\"c\":", this->c);
+        om.Append(",\"d\":", this->d);
+        om.Append(",\"e\":", this->e);
+        om.Append(",\"f\":", this->f);
     }
     void Foo::Clone1(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::FF::Foo*)tar;
         om.Clone1(this->children, out->children);
+        om.Clone1(this->a, out->a);
+        om.Clone1(this->b, out->b);
+        om.Clone1(this->c, out->c);
+        om.Clone1(this->d, out->d);
+        om.Clone1(this->e, out->e);
+        om.Clone1(this->f, out->f);
     }
     void Foo::Clone2(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::FF::Foo*)tar;
         om.Clone2(this->children, out->children);
+        om.Clone2(this->a, out->a);
+        om.Clone2(this->b, out->b);
+        om.Clone2(this->c, out->c);
+        om.Clone2(this->d, out->d);
+        om.Clone2(this->e, out->e);
+        om.Clone2(this->f, out->f);
     }
     void Foo::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->children);
+        om.RecursiveReset(this->a);
+        om.RecursiveReset(this->b);
+        om.RecursiveReset(this->c);
+        om.RecursiveReset(this->d);
+        om.RecursiveReset(this->e);
+        om.RecursiveReset(this->f);
     }
     File_Frames::File_Frames(File_Frames&& o) noexcept {
         this->operator=(std::move(o));

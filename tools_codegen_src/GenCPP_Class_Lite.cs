@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Collections.Generic;
-using System.Reflection.Metadata.Ecma335;
 
 // 基于 xx_obj.h
 // 针对 Shared<T>, 生成 xx::Shared<T>. 要求每个用于智能指针的类 标注 [TypeId]. 检查到漏标就报错
@@ -15,9 +14,13 @@ public static class GenCPP_Class_Lite {
     // 存放标记了 [TypeId(xxx)] 的 id, type 映射
     static Dictionary<ushort, Type> typeIdMappings = new Dictionary<ushort, Type>();
     static List<string> createEmptyFiles = new List<string>();
+    static Assembly asm = null;
+    static string templateName = null;
+    static List<Type> cs = null;
+    static List<Type> ts = null;
 
 
-    static void GenH_Head(this StringBuilder sb, string templateName) {
+    static void GenH_Head(this StringBuilder sb) {
         sb.Append(@"#pragma once
 #include ""xx_obj.h""
 #include """ + templateName + @"_class_lite.h.inc""  // user create it for extend include files
@@ -33,7 +36,7 @@ namespace " + templateName + @" {
     }
 
 
-    static void GenH_ClassPredefine(this StringBuilder sb, List<Type> cs, string templateName, Assembly asm) {
+    static void GenH_ClassPredefine(this StringBuilder sb) {
         for (int i = 0; i < cs.Count; ++i) {
             var c = cs[i];
             var o = asm.CreateInstance(c.FullName);
@@ -57,7 +60,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 }
 namespace xx {");
         foreach (var c in cs) {
-            sb.GenCPP_TypeId(templateName, c);
+            sb.GenCPP_TypeId(c);
         }
         sb.Append(@"
 }
@@ -67,7 +70,7 @@ namespace " + templateName + @" {
     }
 
 
-    static void GenH_Enums(this StringBuilder sb, List<Type> ts) {
+    static void GenH_Enums(this StringBuilder sb) {
         var es = ts._GetEnums();
         for (int i = 0; i < es.Count; ++i) {
             var e = es[i];
@@ -97,7 +100,7 @@ namespace " + e.Namespace.Replace(".", "::") + @" {");
     }
 
 
-    static void GenH_Structs(this StringBuilder sb, List<Type> cs, string templateName, Assembly asm) {
+    static void GenH_Structs(this StringBuilder sb) {
         for (int i = 0; i < cs.Count; ++i) {
             var c = cs[i];
             if (!c._IsUserStruct()) continue;
@@ -109,7 +112,7 @@ namespace " + e.Namespace.Replace(".", "::") + @" {");
 namespace " + c.Namespace.Replace(".", "::") + @" {");
             }
 
-            sb.GenH_Struct(c, templateName, o);
+            sb.GenH_Struct(c, o);
 
             if (c.Namespace != null && ((i < cs.Count - 1 && cs[i + 1].Namespace != c.Namespace) || i == cs.Count - 1)) {
                 sb.Append(@"
@@ -118,7 +121,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         }
     }
 
-    static void GenH_Classs(this StringBuilder sb, List<Type> cs, string templateName, Assembly asm) {
+    static void GenH_Classs(this StringBuilder sb) {
         for (int i = 0; i < cs.Count; ++i) {
             var c = cs[i];
             if (c._IsUserStruct()) continue;
@@ -130,7 +133,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 namespace " + c.Namespace.Replace(".", "::") + @" {");
             }
 
-            sb.GenH_Struct(c, templateName, o);
+            sb.GenH_Struct(c, o);
 
             if (c.Namespace != null && ((i < cs.Count - 1 && cs[i + 1].Namespace != c.Namespace) || i == cs.Count - 1)) {
                 sb.Append(@"
@@ -139,7 +142,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         }
     }
 
-    static void GenH_Struct(this StringBuilder sb, Type c, string templateName, object o) {
+    static void GenH_Struct(this StringBuilder sb, Type c, object o) {
         // 定位到基类
         var bt = c.BaseType;
 
@@ -157,7 +160,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         XX_GENCODE_OBJECT_H(" + c.Name + @", " + btn + @")");
         }
 
-        sb.GenH_Struct_Fields(c, templateName, o);
+        sb.GenH_Struct_Fields(c, o);
 
         if (c._Has<TemplateLibrary.Include>()) {
             sb.Append(@"
@@ -169,7 +172,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
     };");
     }
 
-    static void GenH_Struct_Fields(this StringBuilder sb, Type c, string templateName, object o) {
+    static void GenH_Struct_Fields(this StringBuilder sb, Type c, object o) {
         var fs = c._GetFieldsConsts();
         foreach (var f in fs) {
             var ft = f.FieldType;
@@ -193,7 +196,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         }
     }
 
-    static void GenH_StructTemplates(this StringBuilder sb, List<Type> cs, string templateName) {
+    static void GenH_StructTemplates(this StringBuilder sb) {
         sb.Append(@"
 }
 namespace xx {");
@@ -217,7 +220,7 @@ namespace xx {");
     }
 
 
-    static void GenH_Tail(this StringBuilder sb, string templateName) {
+    static void GenH_Tail(this StringBuilder sb) {
         sb.Append(@"
 #include """ + templateName + @"_class_lite_.h.inc""  // user create it for extend include files at the end
 ");
@@ -225,7 +228,9 @@ namespace xx {");
     }
 
 
-    static void GenCPP_Struct_CopyAssign(this StringBuilder sb, string templateName, Type c) {
+    static void GenCPP_Struct_CopyAssign(this StringBuilder sb, Type c) {
+        var o = asm.CreateInstance(c.FullName);
+
         sb.Append(@"
     " + c.Name + @"::" + c.Name + @"(" + c.Name + @"&& o) noexcept {
         this->operator=(std::move(o));
@@ -258,6 +263,11 @@ namespace xx {");
         this->BaseType::Write(om);");
             }
 
+            if (c._Has<TemplateLibrary.Compatible>()) {
+                sb.Append(@"
+        auto bak = om.data->WriteJump(sizeof(uint32_t));");
+            }
+
             foreach (var f in fs) {
                 var ft = f.FieldType;
                 if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
@@ -271,6 +281,11 @@ namespace xx {");
                 }
             }
 
+            if (c._Has<TemplateLibrary.Compatible>()) {
+                sb.Append(@"
+        om.data->WriteFixedAt(bak, (uint32_t)(om.data->len - bak));");
+            }
+
             sb.Append(@"
     }");
 
@@ -282,10 +297,55 @@ namespace xx {");
         if (int r = this->BaseType::Read(om)) return r;");
             }
 
-            foreach (var f in fs) {
-                if (f.FieldType._IsExternal() && !f.FieldType._GetExternalSerializable()) continue;
+            if (c._Has<TemplateLibrary.Compatible>()) {
                 sb.Append(@"
+        uint32_t siz;
+        if (int r = om.data->ReadFixed(siz)) return r;
+        auto endOffset = om.data->offset + siz;
+");
+                foreach (var f in fs) {
+                    var ft = f.FieldType;
+                    if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
+
+                    string dv = "";
+                    if (ft._IsExternal() && ft._GetExternalSerializable() && !string.IsNullOrEmpty(ft._GetExternalCppDefaultValue())) {
+                        dv = ft._GetExternalCppDefaultValue();
+                    }
+                    else {
+                        var v = f.GetValue(f.IsStatic ? null : o);
+                        dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+                        if (dv != "") {
+                            dv = " = " + dv;
+                        }
+                        else {
+                            if (ft._IsString() || ft._IsList()) {   // todo: more type support
+                                dv = ".clear()";
+                            }
+                            else if(ft._IsNullable()) {
+                                dv = ".reset()";
+                            }
+                            else if (ft._IsShared() || ft._IsWeak()) {
+                                dv = ".Reset()";
+                            }
+                        }
+                    }
+
+                    sb.Append(@"
+        if (om.data->offset >= endOffset) this->" + f.Name + dv + @";
+        else if (int r = om.Read(this->" + f.Name + @")) return r;");
+                }
+
+                sb.Append(@"
+
+        if (om.data->offset > endOffset) return __LINE__;
+        else om.data->offset = endOffset;");
+            }
+            else {
+                foreach (var f in fs) {
+                    if (f.FieldType._IsExternal() && !f.FieldType._GetExternalSerializable()) continue;
+                    sb.Append(@"
         if (int r = om.Read(this->" + f.Name + @")) return r;");
+                }
             }
 
             sb.Append(@"
@@ -396,8 +456,10 @@ namespace xx {");
 
 
 
-    static void GenCPP_Template(this StringBuilder sb, string templateName, Type c) {
+    static void GenCPP_Template(this StringBuilder sb, Type c) {
         if (!c._IsUserStruct()) return;
+        var o = asm.CreateInstance(c.FullName);
+
         var ctn = c._GetTypeDecl_Cpp(templateName);
         var fs = c._GetFields();
         sb.Append(@"
@@ -408,6 +470,11 @@ namespace xx {");
             var btn = bt._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
         ObjFuncs<" + btn + ">::Write(om, in);");
+        }
+
+        if (c._Has<TemplateLibrary.Compatible>()) {
+            sb.Append(@"
+        auto bak = om.data->WriteJump(sizeof(uint32_t));");
         }
 
         foreach (var f in fs) {
@@ -421,6 +488,11 @@ namespace xx {");
                 sb.Append(@"
         om.Write(in." + f.Name + ");");
             }
+        }
+
+        if (c._Has<TemplateLibrary.Compatible>()) {
+            sb.Append(@"
+        om.data->WriteFixedAt(bak, (uint32_t)(om.data->len - bak));");
         }
 
         sb.Append(@"
@@ -437,10 +509,51 @@ namespace xx {");
         if (int r = ObjFuncs<" + btn + ">::Read(om, out)) return r;");
         }
 
-        foreach (var f in fs) {
-            if (f.FieldType._IsExternal() && !f.FieldType._GetExternalSerializable()) continue;
+        if (c._Has<TemplateLibrary.Compatible>()) {
             sb.Append(@"
+        uint32_t siz;
+        if (int r = om.data->ReadFixed(siz)) return r;
+        auto endOffset = om.data->offset + siz;
+");
+            foreach (var f in fs) {
+                var ft = f.FieldType;
+                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
+
+                string dv = "";
+                if (ft._IsExternal() && ft._GetExternalSerializable() && !string.IsNullOrEmpty(ft._GetExternalCppDefaultValue())) {
+                    dv = ft._GetExternalCppDefaultValue();
+                }
+                else {
+                    var v = f.GetValue(f.IsStatic ? null : o);
+                    dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+                    if (dv != "") {
+                        dv = " = " + dv;
+                    }
+                    else {
+                        if (ft._IsString() || ft._IsList()) {   // todo: more type support
+                            dv = ".clear()";
+                        }
+                        else if (ft._IsNullable()) {
+                            dv = ".reset()";
+                        }
+                        else if (ft._IsShared() || ft._IsWeak()) {
+                            dv = ".Reset()";
+                        }
+                    }
+                }
+
+                // todo: set default value
+                sb.Append(@"
+        if (om.data->offset >= endOffset) this->" + f.Name + dv + @";
+        else if (int r = om.Read(this->" + f.Name + @")) return r;");
+            }
+        }
+        else {
+            foreach (var f in fs) {
+                if (f.FieldType._IsExternal() && !f.FieldType._GetExternalSerializable()) continue;
+                sb.Append(@"
         if (int r = om.Read(out." + f.Name + @")) return r;");
+            }
         }
 
         sb.Append(@"
@@ -542,7 +655,7 @@ namespace xx {");
 
     }
 
-    static void GenCPP_TypeId(this StringBuilder sb, string templateName, Type c) {
+    static void GenCPP_TypeId(this StringBuilder sb, Type c) {
         if (c._IsUserStruct()) return;
         var ctn = c._GetTypeDecl_Cpp(templateName);
         var typeId = c._GetTypeId();
@@ -552,7 +665,7 @@ namespace xx {");
         }
     }
 
-    static void GenCPP_Register(this StringBuilder sb, string templateName) {
+    static void GenCPP_Register(this StringBuilder sb) {
         sb.Append(@"
 namespace " + templateName + @" {
 	void PkgGenTypes::RegisterTo(::xx::ObjManager& om) {");
@@ -569,19 +682,19 @@ namespace " + templateName + @" {
 ");
     }
 
-    static void GenCPP_Includes(this StringBuilder sb, string templateName) {
+    static void GenCPP_Includes(this StringBuilder sb) {
         sb.Append("#include \"" + templateName + @"_class_lite.h""
 #include """ + templateName + @"_class_lite.cpp.inc""");
         createEmptyFiles.Add(templateName + "_class_lite.cpp.inc");
     }
 
-    static void GenCPP_FuncImpls(this StringBuilder sb, string templateName, List<Type> cs) {
-        GenCPP_Register(sb, templateName);
+    static void GenCPP_FuncImpls(this StringBuilder sb) {
+        GenCPP_Register(sb);
 
         sb.Append(@"
 namespace xx {");
         foreach (var c in cs) {
-            sb.GenCPP_Template(templateName, c);
+            sb.GenCPP_Template(c);
         }
         sb.Append(@"
 }");
@@ -599,7 +712,7 @@ namespace " + templateName + @" {");
 namespace " + c.Namespace.Replace(".", "::") + @" {");
             }
 
-            sb.GenCPP_Struct_CopyAssign(templateName, c);
+            sb.GenCPP_Struct_CopyAssign(c);
 
             // namespace }
             if (c.Namespace != null && ((i < cs.Count - 1 && cs[i + 1].Namespace != c.Namespace) || i == cs.Count - 1)) {
@@ -610,7 +723,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 
         sb.Append(@"
 }
-");    // namespace templateName
+");    // namespace _templateName
 
     }
 
@@ -627,7 +740,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         }
     }
 
-    static void GenH_AJSON(this StringBuilder sb, string templateName, List<Type> cs) {
+    static void GenH_AJSON(this StringBuilder sb) {
         sb.Append(@"#pragma once
 #include """ + templateName + @"_class_lite.h""
 #include ""ajson.hpp""");
@@ -642,9 +755,11 @@ AJSON(" + templateName + "::" + c.Name);
 ");
     }
 
-    public static void Gen(Assembly asm, string outDir, string templateName) {
+    public static void Gen(Assembly asm_, string outDir, string templateName_) {
         createEmptyFiles.Clear();
-        var ts = asm._GetTypes();
+        asm = asm_;
+        templateName = templateName_;
+        ts = asm_._GetTypes();
 
         // 填充 typeId for class
         foreach (var c in ts._GetClasss().Where(o => !o._Has<TemplateLibrary.Struct>())) {
@@ -660,26 +775,26 @@ AJSON(" + templateName + "::" + c.Name);
             }
         }
 
-        var sb = new StringBuilder();
-        var cs = ts._GetClasssStructs();
+        cs = ts._GetClasssStructs();
         cs._SortByInheritRelation();
         // todo: 要将 class 的 members 引用到的 struct 排到前面去
 
+        var sb = new StringBuilder();
         // 生成 .h
-        sb.GenH_Head(templateName);
-        sb.GenH_ClassPredefine(cs, templateName, asm);
-        sb.GenH_Enums(ts);
-        sb.GenH_Structs(cs, templateName, asm);
-        sb.GenH_Classs(cs, templateName, asm);
-        sb.GenH_StructTemplates(cs, templateName);
-        sb.GenH_Tail(templateName);
+        sb.GenH_Head();
+        sb.GenH_ClassPredefine();
+        sb.GenH_Enums();
+        sb.GenH_Structs();
+        sb.GenH_Classs();
+        sb.GenH_StructTemplates();
+        sb.GenH_Tail();
         sb._WriteToFile(Path.Combine(outDir, templateName + "_class_lite.h"));
         sb.Clear();
-        sb.GenCPP_Includes(templateName);
-        sb.GenCPP_FuncImpls(templateName, cs);
+        sb.GenCPP_Includes();
+        sb.GenCPP_FuncImpls();
         sb._WriteToFile(Path.Combine(outDir, templateName + "_class_lite.cpp"));
         sb.Clear();
-        sb.GenH_AJSON(templateName, cs);
+        sb.GenH_AJSON();
         sb._WriteToFile(Path.Combine(outDir, templateName + "_class_lite.ajson.h"));
 
         sb.Clear();

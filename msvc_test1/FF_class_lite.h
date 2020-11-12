@@ -3,7 +3,7 @@
 #include "FF_class_lite.h.inc"  // user create it for extend include files
 namespace FF {
 	struct PkgGenMd5 {
-		inline static const ::std::string value = "#*MD5<a64d975bfdaf6e4041f5e09fa2512c35>*#";
+		inline static const ::std::string value = "#*MD5<f21f0b41aff0385c0550c883519db31d>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(::xx::ObjManager& om);
@@ -51,37 +51,37 @@ namespace FF {
     // 坐标
     struct Point {
         XX_GENCODE_STRUCT_H(Point)
-        float x = 0;
-        float y = 0;
+        float x = 0.0f;
+        float y = 0.0f;
 #include "FF_Point.inc"
     };
     // 碰撞圆
     struct CDCircle {
         XX_GENCODE_STRUCT_H(CDCircle)
-        float x = 0;
-        float y = 0;
-        float r = 0;
+        float x = 0.0f;
+        float y = 0.0f;
+        float r = 0.0f;
 #include "FF_CDCircle.inc"
     };
     // 锁定点
     struct LockPoint {
         XX_GENCODE_STRUCT_H(LockPoint)
-        float x = 0;
-        float y = 0;
+        float x = 0.0f;
+        float y = 0.0f;
     };
     // 时间点--移动速度
     struct TimePoint_Speed {
         XX_GENCODE_STRUCT_H(TimePoint_Speed)
         // 起始时间( 秒 )
-        float time = 0;
+        float time = 0.0f;
         // 每秒移动距离(米)
-        float speed = 0;
+        float speed = 0.0f;
     };
     // 时间点--碰撞圆集合
     struct TimePoint_CDCircles {
         XX_GENCODE_STRUCT_H(TimePoint_CDCircles)
         // 起始时间( 秒 )
-        float time = 0;
+        float time = 0.0f;
         // 最大碰撞圆范围（外包围圆），用于碰撞检测粗判
         ::FF::CDCircle maxCDCircle;
         // 具体碰撞圆列表，用于碰撞检测遍历细判
@@ -91,7 +91,7 @@ namespace FF {
     struct TimePoint_LockPoints {
         XX_GENCODE_STRUCT_H(TimePoint_LockPoints)
         // 起始时间( 秒 )
-        float time = 0;
+        float time = 0.0f;
         // 主锁定点。如果出屏幕，则锁定 锁定线与屏幕边缘形成的 交点
         ::FF::LockPoint mainLockPoint;
         // 锁定线
@@ -103,9 +103,9 @@ namespace FF {
         // 坐标
         ::FF::Point pos;
         // 角度
-        float a = 0;
+        float a = 0.0f;
         // 距离
-        float d = 0;
+        float d = 0.0f;
 #include "FF_PathwayPoint.inc"
     };
     // 针对 atlas/spine, c3b, frames 等动画文件, 附加 移动 & 碰撞 & 锁定 等数据
@@ -114,7 +114,7 @@ namespace FF {
         // 动作名
         ::std::string name;
         // 总时长( 秒 )
-        float totalSeconds = 0;
+        float totalSeconds = 0.0f;
         // 时间点--锁定点线 集合
         ::std::vector<::FF::TimePoint_LockPoints> lps;
         // 时间点--碰撞圆 集合
@@ -127,25 +127,25 @@ namespace FF {
         XX_GENCODE_STRUCT_H(File_AnimExt)
         // 动作集合
         ::std::vector<::FF::Action_AnimExt> actions;
-        float shadowX = 0;
-        float shadowY = 0;
-        float shadowScale = 0;
+        float shadowX = 0.0f;
+        float shadowY = 0.0f;
+        float shadowScale = 0.0f;
     };
     // 时间点--精灵帧
     struct TimePoint_Frame {
         XX_GENCODE_STRUCT_H(TimePoint_Frame)
         // 起始时间( 秒 )
-        float time = 0;
+        float time = 0.0f;
         // 精灵帧名称
         ::std::string picName;
     };
     // 曲线途经点
     struct CurvePoint {
         XX_GENCODE_STRUCT_H(CurvePoint)
-        float x = 0;
-        float y = 0;
+        float x = 0.0f;
+        float y = 0.0f;
         // 张力
-        float tension = 0;
+        float tension = 0.0f;
         // 切片数
         int32_t numSegments = 0;
 #include "FF_CurvePoint.inc"
@@ -156,7 +156,7 @@ namespace FF {
         // 动作名
         ::std::string name;
         // 总时长( 秒 )
-        float totalSeconds = 0;
+        float totalSeconds = 0.0f;
         // 时间点--精灵帧 集合
         ::std::vector<::FF::TimePoint_Frame> frames;
     };
@@ -209,19 +209,19 @@ namespace FF {
     struct Fish : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Fish, ::xx::ObjBase)
         ::FF::Point pos;
-        float angle = 0;
-        float scaleX = 1;
-        float scaleY = 1;
-        float animElapsedSeconds = 0;
-        float totalElapsedSeconds = 0;
+        float angle = 0.0f;
+        float scaleX = 1.0f;
+        float scaleY = 1.0f;
+        float animElapsedSeconds = 0.0f;
+        float totalElapsedSeconds = 0.0f;
         uint32_t pathwayI = 0;
-        float pathwayD = 0;
-        float speedScale = 1;
-        float timeScale = 1;
+        float pathwayD = 0.0f;
+        float speedScale = 1.0f;
+        float timeScale = 1.0f;
         uint32_t lpsCursor = 0;
         uint32_t cdsCursor = 0;
         uint32_t ssCursor = 0;
-        float speed = 0;
+        float speed = 0.0f;
         bool loop = true;
         int32_t id = 0;
         int32_t indexAtContainer = 0;
@@ -261,7 +261,7 @@ namespace FF {
     };
     struct Root : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Root, ::xx::ObjBase)
-        float dtPool = 0;
+        float dtPool = 0.0f;
         int32_t frame = 0;
         ::std::vector<::xx::Shared<::FF::Player>> players;
         ::std::vector<::xx::Shared<::FF::Fish>> fishs;
@@ -270,6 +270,12 @@ namespace FF {
     struct Foo : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Foo, ::xx::ObjBase)
         ::std::vector<::xx::Shared<::FF::Foo>> children;
+        int32_t a = 1;
+        float b = 2.3f;
+        ::std::string c = "asdf";
+        ::xx::Shared<::FF::Foo> d;
+        ::xx::Weak<::FF::Foo> e;
+        ::std::optional<int32_t> f;
     };
     struct TrackBullet : ::FF::SimpleBullet {
         XX_GENCODE_OBJECT_H(TrackBullet, ::FF::SimpleBullet)

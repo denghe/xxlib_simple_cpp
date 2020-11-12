@@ -310,7 +310,6 @@ public static class TypeHelpers {
                 t.Name == "Int32" ||
                 t.Name == "Int64" ||
                 t.Name == "Double" ||
-                t.Name == "Float" ||
                 t.Name == "Single" ||
                 t.Name == "Boolean" ||
                 t.Name == "Bool"
@@ -454,7 +453,7 @@ public static class TypeHelpers {
             return "";
         }
         if (t._IsString()) {
-            return v == null ? "" : ("@\"" + ((string)v).Replace("\"", "\"\"") + "\"");
+            return v == null ? "" : ("\"" + ((string)v).Replace("\"", "\"\"") + "\"");
         }
         if (t.IsValueType) {
             if (t.IsEnum) {
@@ -469,7 +468,15 @@ public static class TypeHelpers {
                     return "(" + _GetTypeDecl_Cpp(t, templateName) + ")" + v._ToEnumInteger(t);
                 }
             }
-            if (t._IsNumeric()) return v.ToString().ToLower();   // lower for Ture, False bool
+            if (t._IsNumeric()) {
+                if (t.Name == "Single") {
+                    var s = v.ToString().ToLower();
+                    if (s.Contains(".")) return s + "f";
+                    return s + ".0f";
+                }
+                else
+                    return v.ToString().ToLower();   // lower for Ture, False bool
+            }
             else return "";
         }
         // class?
@@ -1252,7 +1259,8 @@ public static class TypeHelpers {
     /// 判断目标上是否有附加某个类型的 Attribute
     /// </summary>
     public static bool _Has<T>(this ICustomAttributeProvider f) {
-        return f.GetCustomAttributes(false).Any(a => a is T);
+        var cas = f.GetCustomAttributes(false).ToList();
+        return cas.Any(a => a is T);
     }
 
     /// <summary>

@@ -10,7 +10,7 @@ namespace xx {
 		size_t				len = 0;
 		size_t				cap = 0;
 		size_t				offset = 0;
-        char*				buf = nullptr;
+		char* buf = nullptr;
 
 		// buf 头部预留空间大小. 至少需要装得下 sizeof(size_t)
 		static const size_t	recvLen = 16;
@@ -33,7 +33,7 @@ namespace xx {
 		}
 
 		// 通过 初始化列表 来构造
-		Data(std::initializer_list<uint8_t> bytes)	: Data( (char*)bytes.begin(), bytes.size() ){}
+		Data(std::initializer_list<uint8_t> bytes) : Data((char*)bytes.begin(), bytes.size()) {}
 
 		// 复制构造
 		Data(Data const& o) {
@@ -45,7 +45,7 @@ namespace xx {
 				len = o.len;
 				cap = o.cap;
 				offset = o.offset;
-                buf = o.buf;
+				buf = o.buf;
 				++Refs();
 			}
 			else {
@@ -64,7 +64,7 @@ namespace xx {
 			std::swap(len, o.len);
 			std::swap(cap, o.cap);
 			std::swap(offset, o.offset);
-            std::swap(buf, o.buf);
+			std::swap(buf, o.buf);
 			return *this;
 		}
 
@@ -161,6 +161,15 @@ namespace xx {
 			}
 		}
 
+		// 在指定 idx 写入定长数据
+		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
+		XX_FORCEINLINE void WriteFixedAt(size_t const& idx, T const& v) {
+			if (idx + sizeof(T) > len) {
+				Resize(sizeof(T) + idx);
+			}
+			memcpy(buf + idx, &v, sizeof(T));
+		}
+
 		// 追加写入整数( 7bit 变长格式 )
 		template<typename T, bool needReserve = true, typename ENABLED = std::enable_if_t<std::is_integral_v<T>>>
 		XX_FORCEINLINE void WriteVarIntger(T const& v) {
@@ -170,15 +179,29 @@ namespace xx {
 				u = ZigZagEncode(v);
 			}
 			if constexpr (needReserve) {
-			    if (len + sizeof(T) + 1 > cap) {
-                    Reserve<false>(len + sizeof(T) + 1);
-                }
+				if (len + sizeof(T) + 1 > cap) {
+					Reserve<false>(len + sizeof(T) + 1);
+				}
 			}
 			while (u >= 1 << 7) {
 				buf[len++] = char((u & 0x7fu) | 0x80u);
 				u = UT(u >> 7);
 			};
 			buf[len++] = char(u);
+		}
+
+		// 跳过指定长度字节数不写。返回起始 len
+		template<bool needReserve = true>
+		XX_FORCEINLINE size_t WriteJump(size_t const& siz) {
+			assert(cap != _1);
+			auto bak = len;
+			if constexpr (needReserve) {
+				if (len + siz > cap) {
+					Reserve<false>(len + siz);
+				}
+			}
+			len += siz;
+			return bak;
 		}
 
 
@@ -275,8 +298,8 @@ namespace xx {
 
 
 
-    struct DataView {
-        char const* const& buf;
-        size_t const& len;
-    };
+	struct DataView {
+		char const* const& buf;
+		size_t const& len;
+	};
 }
