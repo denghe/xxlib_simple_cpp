@@ -24,6 +24,8 @@
 int main() {
 	xx::ObjManager om;
 	FF::PkgGenTypes::RegisterTo(om);
+	xx::Data d;
+	d.Reserve(1024);
 
 	{
 		xx::Shared<FF::Foo> a;
@@ -31,7 +33,7 @@ int main() {
 		a->children.emplace_back().Emplace();
 		//om.CoutN(a);
 
-		xx::Data d;
+		d.Clear();
 		om.WriteTo(d, a);
 		//om.CoutN(d);
 
@@ -57,7 +59,7 @@ int main() {
 		a->children.emplace_back().Emplace();
 		//om.CoutN(a);
 
-		xx::Data d;
+		d.Clear();
 		om.WriteTo(d, a);
 		//om.CoutN(d);
 

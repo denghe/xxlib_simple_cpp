@@ -229,6 +229,19 @@ namespace xx {
 			}
 		}
 
+		// 从指定下标定长读. 不改变 offset. 返回非 0 则读取失败
+		template<typename T, typename ENABLED = std::enable_if_t<IsPod_v<T>>>
+		XX_FORCEINLINE int ReadFixedAt(size_t const& idx, T& v) {
+			if (idx + sizeof(T) >= len) return __LINE__;
+			if constexpr (sizeof(T) == 1) {
+				v = *(T*)(buf + idx);
+			}
+			else {
+				memcpy(&v, buf + idx, sizeof(T));
+			}
+			return 0;
+		}
+
 		// 变长读. 返回非 0 则读取失败
 		// 用之前需要自己初始化 offset
 		template<typename T>

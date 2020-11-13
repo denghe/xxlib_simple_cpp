@@ -1292,7 +1292,7 @@ namespace FF {
     int Foo::Read(::xx::ObjManager& om) {
         uint32_t siz;
         if (int r = om.data->ReadFixed(siz)) return r;
-        auto endOffset = om.data->offset + siz;
+        auto endOffset = om.data->offset - sizeof(siz) + siz;
 
         if (om.data->offset >= endOffset) this->children.clear();
         else if (int r = om.Read(this->children)) return r;

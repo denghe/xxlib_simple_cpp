@@ -301,7 +301,7 @@ namespace xx {");
                 sb.Append(@"
         uint32_t siz;
         if (int r = om.data->ReadFixed(siz)) return r;
-        auto endOffset = om.data->offset + siz;
+        auto endOffset = om.data->offset - sizeof(siz) + siz;
 ");
                 foreach (var f in fs) {
                     var ft = f.FieldType;
