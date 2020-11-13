@@ -1,7 +1,6 @@
 ﻿#pragma once
 
-#include "xx_data_rw.h"
-#include "xx_string.h"
+#include "xx_obj.h"
 #include <chrono>
 #include <random>
 
@@ -17,202 +16,227 @@ inline double NextDouble() { \
 
 // todo: more Next funcs?
 
+
 namespace xx {
 
-    struct Random1 {
-        int seed = 123456789;
-        static const int m = 1 << 31, a = 1103515245, c = 12345;
+	struct Random1 {
+		int seed;
+		static const int m = 1 << 31, a = 1103515245, c = 12345;
 
-        Random1() = default;
+		inline void Reset() { seed = 123456789; }
 
-        explicit Random1(int const &seed) : seed(seed) {}
+		Random1(int const& seed = 123456789) : seed(seed) {}
 
-        Random1(Random1 const &) = default;
+		Random1(Random1 const&) = default;
 
-        Random1 &operator=(Random1 const &) = default;
+		Random1& operator=(Random1 const&) = default;
 
-        Random1(Random1 &&o) noexcept {
-            std::swap(seed, o.seed);
-        }
+		Random1(Random1&& o) noexcept {
+			std::swap(seed, o.seed);
+		}
 
-        Random1 &operator=(Random1 &&o) noexcept {
-            std::swap(seed, o.seed);
-            return *this;
-        }
+		Random1& operator=(Random1&& o) noexcept {
+			std::swap(seed, o.seed);
+			return *this;
+		}
 
-        inline uint32_t Next() {
-            seed = (a * seed + c) % m;
-            return (uint32_t)seed;
-        }
+		inline uint32_t Next() {
+			seed = (a * seed + c) % m;
+			return (uint32_t)seed;
+		}
 
-        RANDOM_CALC_FUNCS
-    };
+		RANDOM_CALC_FUNCS
+	};
 
-    struct Random2 {
-        uint64_t x = 0, w = 0;
-        static const uint64_t s = 0xb5ad4eceda1ce2a9;
+	struct Random2 {
+		uint64_t x, w;
+		static const uint64_t s = 0xb5ad4eceda1ce2a9;
 
-        Random2() = default;
+		inline void Reset() { x = w = 0; }
 
-        explicit Random2(uint64_t const &x, uint64_t const &w) : x(x), w(w) {}
+		Random2(uint64_t const& x = 0, uint64_t const& w = 0) : x(x), w(w) {}
 
-        Random2(Random2 const &) = default;
+		Random2(Random2 const&) = default;
 
-        Random2 &operator=(Random2 const &) = default;
+		Random2& operator=(Random2 const&) = default;
 
-        Random2(Random2 &&o) noexcept {
-            std::swap(x, o.x);
-            std::swap(w, o.w);
-        }
+		Random2(Random2&& o) noexcept {
+			std::swap(x, o.x);
+			std::swap(w, o.w);
+		}
 
-        Random2 &operator=(Random2 &&o) noexcept {
-            std::swap(x, o.x);
-            std::swap(w, o.w);
-            return *this;
-        }
+		Random2& operator=(Random2&& o) noexcept {
+			std::swap(x, o.x);
+			std::swap(w, o.w);
+			return *this;
+		}
 
-        inline uint32_t Next() {
-            x *= x;
-            x += (w += s);
-            return x = (x >> 32) | (x << 32);
-        }
+		inline uint32_t Next() {
+			x *= x;
+			x += (w += s);
+			return (uint32_t)(x = (x >> 32) | (x << 32));
+		}
 
-        RANDOM_CALC_FUNCS
-    };
+		RANDOM_CALC_FUNCS
+	};
 
-    struct Random3 {
-        uint64_t seed = 123456789123456789;
+	struct Random3 {
+		uint64_t seed;
 
-        Random3() = default;
+		inline void Reset() { seed = 1234567891234567890; }
 
-        explicit Random3(uint64_t const &seed) : seed(seed) {}
+		Random3() = default;
 
-        Random3(Random3 const &) = default;
+		explicit Random3(uint64_t const& seed = 1234567891234567890) : seed(seed) {}
 
-        Random3 &operator=(Random3 const &) = default;
+		Random3(Random3 const&) = default;
 
-        Random3(Random3 &&o) noexcept {
-            std::swap(seed, o.seed);
-        }
+		Random3& operator=(Random3 const&) = default;
 
-        Random3 &operator=(Random3 &&o) noexcept {
-            std::swap(seed, o.seed);
-            return *this;
-        }
+		Random3(Random3&& o) noexcept {
+			std::swap(seed, o.seed);
+		}
 
-        inline uint32_t Next() {
-            seed ^= (seed << 21u);
-            seed ^= (seed >> 35u);
-            seed ^= (seed << 4u);
-            return (uint32_t)seed;
-        }
+		Random3& operator=(Random3&& o) noexcept {
+			std::swap(seed, o.seed);
+			return *this;
+		}
 
-        RANDOM_CALC_FUNCS
-    };
+		inline uint32_t Next() {
+			seed ^= (seed << 21u);
+			seed ^= (seed >> 35u);
+			seed ^= (seed << 4u);
+			return (uint32_t)seed;
+		}
 
-    // deserialize maybe slow: rand.discard(count);
-    struct Random4 {
-        using SeedType = typename std::mt19937::result_type;
-        uint64_t count;
-        SeedType seed;
-        std::mt19937 rand;
+		RANDOM_CALC_FUNCS
+	};
 
-        explicit Random4(SeedType const &seed = std::random_device{}()) : count(0), seed(seed), rand(seed) {
-            if (count) {
-                rand.discard(count);
-            }
-        }
+	// deserialize maybe slow: rand.discard(count);
+	struct Random4 {
+		using SeedType = typename std::mt19937::result_type;
+		uint64_t count;
+		SeedType seed;
+		std::mt19937 rand;
 
-        Random4(Random4 const &) = default;
+		inline void Reset() {
+			seed = 1234567890;
+			count = 0;
+			rand.seed(seed);
+		}
 
-        Random4 &operator=(Random4 const &) = default;
+		// seed = std::random_device{}()
+		Random4(SeedType const& seed = 1234567890, uint64_t const& count = 0)
+			: count(count)
+			, seed(seed)
+			, rand(seed) {
+			if (count) {
+				rand.discard(count);
+			}
+		}
 
-        Random4(Random4 &&o) noexcept {
-            std::swap(rand, o.rand);
-        }
+		Random4(Random4 const&) = default;
 
-        Random4 &operator=(Random4 &&o) noexcept {
-            std::swap(rand, o.rand);
-            return *this;
-        }
+		Random4& operator=(Random4 const&) = default;
 
-        // for DataReader
-        inline void InitBySeedCount() {
-            rand.seed(seed);
-            rand.discard(count);
-        }
+		Random4(Random4&& o) noexcept {
+			std::swap(rand, o.rand);
+		}
 
-        inline uint32_t Next() {
-            ++count;
-            return (uint32_t)rand();
-        }
+		Random4& operator=(Random4&& o) noexcept {
+			std::swap(rand, o.rand);
+			return *this;
+		}
 
-        RANDOM_CALC_FUNCS
-    };
+		// for DataReader
+		inline void InitBySeedCount() {
+			rand.seed(seed);
+			rand.discard(count);
+		}
+
+		inline uint32_t Next() {
+			++count;
+			return (uint32_t)rand();
+		}
+
+		RANDOM_CALC_FUNCS
+	};
 
 
-    template<typename T>
-    struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Random1>
-                                         || std::is_same_v<std::decay_t<T>, Random2>
-                                         || std::is_same_v<std::decay_t<T>, Random3>
-    >> {
-        static inline void Write(DataWriter &dw, T const &in) {
-            dw.WriteFixed(in);
-        }
 
-        static inline int Read(DataReader &dr, T &out) {
-            return dr.ReadFixed(out);
-        }
-    };
+	template<typename T>
+	struct IsPod<T, std::enable_if_t<
+		std::is_same_v<std::decay_t<T>, Random1>
+		|| std::is_same_v<std::decay_t<T>, Random2>
+		|| std::is_same_v<std::decay_t<T>, Random3>
+		//|| std::is_same_v<std::decay_t<T>, Random4>
+		>> : std::true_type {
+	};
 
-    template<typename T>
-    struct DataFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Random4>
-    >> {
-        static inline void Write(DataWriter &dw, T const &in) {
-            dw.WriteFixed(in.count);
-            dw.WriteFixed(in.seed);
-        }
 
-        static inline int Read(DataReader &dr, T &out) {
-            if (int r = dr.ReadFixed(out.count)) return r;
-            if (int r = dr.ReadFixed(out.seed)) return r;
-            out.InitBySeedCount();
-            return 0;
-        }
-    };
 
-    template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Random1>
-                                           || std::is_same_v<std::decay_t<T>, Random3>
-    >> {
-        static inline void Append(std::string &s, T const &in) {
-            s.append("{\"seed\":");
-            s += std::to_string(in.seed);
-            s.push_back('}');
-        }
-    };
-
-    template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Random2>
-    >> {
-        static inline void Append(std::string &s, T const &in) {
-            s.append("{\"x\":");
-            s += std::to_string(in.x);
-            s.append(",\"w\":");
-            s += std::to_string(in.w);
-            s.push_back('}');
-        }
-    };
-
-    template<typename T>
-    struct StringFuncs<T, std::enable_if_t<std::is_same_v<std::decay_t<T>, Random4>
-    >> {
-        static inline void Append(std::string &s, T const &in) {
-            s.append("{\"seed\":");
-            s += std::to_string(in.seed);
-            s.append(",\"count\":");
-            s += std::to_string(in.count);
-            s.push_back('}');
-        }
-    };
+	template<typename T>
+	struct ObjFuncs<T, std::enable_if_t<
+		std::is_same_v<std::decay_t<T>, Random1>
+		|| std::is_same_v<std::decay_t<T>, Random2>
+		|| std::is_same_v<std::decay_t<T>, Random3>
+		|| std::is_same_v<std::decay_t<T>, Random4>
+		>> {
+		static inline void Write(ObjManager& om, T const& in) {
+			if constexpr (std::is_same_v<std::decay_t<T>, Random4>) {
+				om.data->WriteFixed(in.count);
+				om.data->WriteFixed(in.seed);
+			}
+			else {
+				om.data->WriteFixed(in);
+			}
+		}
+		static inline int Read(ObjManager& om, T& out) {
+			if constexpr (std::is_same_v<std::decay_t<T>, Random4>) {
+				if (int r = om.data->ReadFixed(out.count)) return r;
+				if (int r = om.data->ReadFixed(out.seed)) return r;
+				out.InitBySeedCount();
+				return 0;
+			}
+			else {
+				return om.data->ReadFixed(out);
+			}
+		}
+		static inline void ToString(ObjManager& om, T const& in) {
+			om.str->push_back('{');
+			if constexpr (std::is_same_v < std::decay_t<T>, Random1 >
+				|| std::is_same_v < std::decay_t<T>, Random3 >) {
+				om.Append("\"seed\":", in.seed);
+			}
+			else if constexpr (std::is_same_v < std::decay_t<T>, Random2>) {
+				om.Append("\"x\":", in.x, ",\"w\":", in.w);
+			}
+			else if constexpr (std::is_same_v < std::decay_t<T>, Random4 >) {
+				om.Append("\"seed\":", in.seed, ",\"count\":", in.count);
+			}
+			om.str->push_back('}');
+		}
+		static inline void ToStringCore(ObjManager& om, T const& in) {
+		}
+		static inline void Clone1(ObjManager& om, T const& in, T& out) {
+			if constexpr (std::is_same_v<std::decay_t<T>, Random4>) {
+				out.count = in.count;
+				out.seed = in.seed;
+				out.InitBySeedCount();
+			}
+			else {
+				memcpy(&out, &in, sizeof(T));
+			}
+		}
+		static inline void Clone2(ObjManager& om, T const& in, T& out) {
+		}
+		static inline int RecursiveCheck(ObjManager& om, T const& in) {
+			return 0;
+		}
+		static inline void RecursiveReset(ObjManager& om, T& in) {
+		}
+		static inline void SetDefaultValue(ObjManager& om, T& in) {
+			in.Reset();
+		}
+	};
 }

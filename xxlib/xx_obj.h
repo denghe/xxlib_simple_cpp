@@ -17,7 +17,9 @@ void ToString(xx::ObjManager& o) const override; \
 void ToStringCore(xx::ObjManager& o) const override; \
 void Clone1(xx::ObjManager& o, void* const& tar) const override; \
 void Clone2(xx::ObjManager& o, void* const& tar) const override; \
-void RecursiveReset(xx::ObjManager& o) override;
+int RecursiveCheck(xx::ObjManager& o) const override; \
+void RecursiveReset(xx::ObjManager& o) override; \
+void SetDefaultValue(xx::ObjManager& o) override;
 
 #define XX_GENCODE_STRUCT_H(T) \
 T() = default; \
@@ -54,7 +56,12 @@ namespace xx {
 		}
 		static inline void Clone2(ObjManager& om, T const& in, T& out) {
 		}
+		static inline int RecursiveCheck(ObjManager& om, T const& in) {
+			return 0;
+		}
 		static inline void RecursiveReset(ObjManager& om, T& in) {
+		}
+		static inline void SetDefaultValue(ObjManager& om, T& in) {
 		}
 	};
 
@@ -68,7 +75,9 @@ namespace xx {
 	inline void ToStringCore(xx::ObjManager& o) const override { }
 	inline void Clone1(xx::ObjManager& o, void* const& tar) const override { }
 	inline void Clone2(xx::ObjManager& o, void* const& tar) const override { }
+	inline int RecursiveCheck(xx::ObjManager& o) const override { }
 	inline void RecursiveReset(xx::ObjManager& o) override { }
+	inline void SetDefaultValue(xx::ObjManager& o) { }
 	*/
 
 	// ObjBase: 仅用于 Shared<> Weak<> 包裹的类型基类. 只能单继承. 否则影响父子判断
@@ -99,8 +108,14 @@ namespace xx {
 		// 克隆步骤2: 只处理成员中的 Weak 类型。根据步骤 1 建立的映射关系来填充
 		virtual void Clone2(ObjManager& om, void* const& tar) const = 0;
 
+		// 返回成员变量( 如果是 Shared 的话 )是否存在递归引用
+		virtual int RecursiveCheck(ObjManager& om) const = 0;
+
 		// 向 o 传递所有 Shared<T> member 以斩断循环引用 防止内存泄露
 		virtual void RecursiveReset(ObjManager& om) = 0;
+
+		// 恢复成员变量初始值
+		virtual void SetDefaultValue(ObjManager& om) = 0;
 
 		// 注意: 下面两个函数, 不可以在析构函数中使用, 构造函数中使用也需要确保构造过程顺利无异常。另外，如果指定 T, 则 unsafe, 需小心确保 this 真的能转为 T
 		// 得到当前类的强指针
@@ -546,6 +561,7 @@ namespace xx {
 		// 由 ObjBase 虚函数 或 不依赖序列化上下文的场景调用
 		template<typename...Args>
 		XX_FORCEINLINE int Read(Args&...args) {
+			static_assert(sizeof...(args) > 0);
 			return Read_(args...);
 		}
 
@@ -977,7 +993,7 @@ namespace xx {
 					}, v);
 			}
 			else if constexpr (IsPair_v<T>) {
-				RecursiveResets(v.first, v.second);
+				RecursiveReset(v.first, v.second);
 			}
 			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
 				for (auto& kv : v) {
@@ -995,6 +1011,142 @@ namespace xx {
 		XX_FORCEINLINE void RecursiveReset(Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			(RecursiveReset_(args), ...);
+		}
+
+
+
+
+
+
+		// 判断是否存在循环引用，存在则返回非 0 ( 通常返回代码行号 )( 入口 )
+		template<typename...Args>
+		XX_FORCEINLINE int RecursiveCheckRoot(Args const&...args) {
+			static_assert(sizeof...(args) > 0);
+			//ptrs.clear();
+			auto sg = MakeScopeGuard([this] {
+				for (auto&& p : ptrs) {
+					*(uint32_t*)p = 0;
+				}
+				ptrs.clear();
+				});
+
+			return RecursiveCheck_(args...);
+		}
+
+	protected:
+		template<std::size_t I = 0, typename... Tp>
+		XX_FORCEINLINE std::enable_if_t<I == sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...>& t) {
+			return RecursiveCheck_(std::get<I>(t));
+		}
+
+		template<std::size_t I = 0, typename... Tp>
+		XX_FORCEINLINE std::enable_if_t < I < sizeof...(Tp) - 1, int> RecursiveCheckTuple(std::tuple<Tp...>& t) {
+			if (int r = RecursiveCheck_(std::get<I>(t))) return r;
+			return RecursiveCheckTuple<I + 1, Tp...>(t);
+		}
+
+		template<typename T>
+		XX_FORCEINLINE int RecursiveCheck_(T const& v) {
+			if constexpr (IsPtrShared_v<T>) {
+				if (v) {
+					auto h = ((PtrHeader*)v.pointer - 1);
+					if (h->offset == 0) {
+						h->offset = 1;
+						ptrs.push_back(&h->offset);
+						return RecursiveCheck_(*v);
+					}
+					else return __LINE__;
+				}
+			}
+			else if constexpr (IsPtrWeak_v<T>) {
+			}
+			else if constexpr (std::is_base_of_v<ObjBase, T>) {
+				return v.RecursiveCheck(*this);
+			}
+			else if constexpr (IsOptional_v<T>) {
+				if (v.has_value()) {
+					return RecursiveCheck_(*v);
+				}
+			}
+			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T>) {
+				for (auto& o : v) {
+					if (int r = RecursiveCheck_(o)) return r;
+				}
+			}
+			else if constexpr (IsTuple_v<T>) {
+				return RecursiveCheckTuple(v);
+			}
+			else if constexpr (IsPair_v<T>) {
+				return RecursiveCheck(v.first, v.second);
+			}
+			else if constexpr (IsMap_v<T> || IsUnorderedMap_v<T>) {
+				for (auto& kv : v) {
+					if (int r = RecursiveCheck_(kv.second)) return r;
+				}
+			}
+			else {
+				return ObjFuncs<T>::RecursiveCheck(*this, v);
+			}
+			return 0;
+		}
+
+		template<typename T, typename ...TS>
+		XX_FORCEINLINE int RecursiveCheck_(T const& v, TS const&...vs) {
+			if (auto r = RecursiveCheck_(v)) return r;
+			return RecursiveCheck_(vs...);
+		}
+
+	public:
+
+		// 供类成员函数调用
+		template<typename...Args>
+		XX_FORCEINLINE int RecursiveCheck(Args const&...args) {
+			static_assert(sizeof...(args) > 0);
+			return RecursiveCheck_(args...);
+		}
+
+
+
+
+
+
+
+		// 设置默认值( 主要针对 类，结构体 )
+		template<typename...Args>
+		XX_FORCEINLINE void SetDefaultValue(Args&...args) {
+			static_assert(sizeof...(args) > 0);
+			(SetDefaultValue_(args), ...);
+		}
+
+	protected:
+		template<typename T>
+		XX_FORCEINLINE void SetDefaultValue_(T& v) {
+			if constexpr (IsPtrShared_v<T> || IsPtrWeak_v<T>) {
+				v.Reset();
+			}
+			else if constexpr (std::is_base_of_v<ObjBase, T>) {
+				v.SetDefaultValue(*this);
+			}
+			else if constexpr (IsOptional_v<T>) {
+				v.reset();
+			}
+			else if constexpr (IsVector_v<T> || IsUnorderedSet_v<T> || IsMap_v<T> || IsUnorderedMap_v<T> || std::is_same_v<T, std::string>) {
+				v.clear();
+			}
+			else if constexpr (IsTuple_v<T>) {
+				std::apply([&](auto const &... args) {
+					(SetDefaultValue_(args), ...);
+				}, v);
+			}
+			else if constexpr (IsPair_v<T>) {
+				SetDefaultValue(v.first, v.second);
+			}
+			else if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+				v = (T)0;
+			}
+			else {
+				ObjFuncs<T>::SetDefaultValue(*this, v);
+			}
 		}
 	};
 }

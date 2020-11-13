@@ -3,7 +3,6 @@
 namespace FF {
 	void PkgGenTypes::RegisterTo(::xx::ObjManager& om) {
 	    om.Register<::FF::Foo>();
-	    om.Register<::FF::Foo2>();
 	    om.Register<::FF::Pathway>();
 	    om.Register<::FF::Fish>();
 	    om.Register<::FF::Player>();
@@ -44,40 +43,18 @@ namespace xx {
         om.Clone2(in.x, out.x);
         om.Clone2(in.y, out.y);
     }
+    int ObjFuncs<::FF::Point>::RecursiveCheck(::xx::ObjManager& om, ::FF::Point const& in) {
+        if (int r = om.RecursiveCheck(in.x)) return r;
+        if (int r = om.RecursiveCheck(in.y)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::Point>::RecursiveReset(::xx::ObjManager& om, ::FF::Point& in) {
         om.RecursiveReset(in.x);
         om.RecursiveReset(in.y);
     }
-	void ObjFuncs<::FF::LockPoint, void>::Write(::xx::ObjManager& om, ::FF::LockPoint const& in) {
-        om.Write(in.x);
-        om.Write(in.y);
-    }
-	int ObjFuncs<::FF::LockPoint, void>::Read(::xx::ObjManager& om, ::FF::LockPoint& out) {
-        if (int r = om.Read(out.x)) return r;
-        if (int r = om.Read(out.y)) return r;
-        return 0;
-    }
-	void ObjFuncs<::FF::LockPoint, void>::ToString(ObjManager &om, ::FF::LockPoint const& in) {
-        om.str->push_back('{');
-        ToStringCore(om, in);
-        om.str->push_back('}');
-    }
-	void ObjFuncs<::FF::LockPoint, void>::ToStringCore(ObjManager &om, ::FF::LockPoint const& in) {
-        auto sizeBak = om.str->size();
-        om.Append("\"x\":", in.x); 
-        om.Append(",\"y\":", in.y);
-    }
-    void ObjFuncs<::FF::LockPoint>::Clone1(::xx::ObjManager& om, ::FF::LockPoint const& in, ::FF::LockPoint &out) {
-        om.Clone1(in.x, out.x);
-        om.Clone1(in.y, out.y);
-    }
-    void ObjFuncs<::FF::LockPoint>::Clone2(::xx::ObjManager& om, ::FF::LockPoint const& in, ::FF::LockPoint &out) {
-        om.Clone2(in.x, out.x);
-        om.Clone2(in.y, out.y);
-    }
-    void ObjFuncs<::FF::LockPoint>::RecursiveReset(::xx::ObjManager& om, ::FF::LockPoint& in) {
-        om.RecursiveReset(in.x);
-        om.RecursiveReset(in.y);
+    void ObjFuncs<::FF::Point>::SetDefaultValue(::xx::ObjManager& om, ::FF::Point& in) {
+        in.x = 0.0f;
+        in.y = 0.0f;
     }
 	void ObjFuncs<::FF::CDCircle, void>::Write(::xx::ObjManager& om, ::FF::CDCircle const& in) {
         om.Write(in.x);
@@ -111,10 +88,101 @@ namespace xx {
         om.Clone2(in.y, out.y);
         om.Clone2(in.r, out.r);
     }
+    int ObjFuncs<::FF::CDCircle>::RecursiveCheck(::xx::ObjManager& om, ::FF::CDCircle const& in) {
+        if (int r = om.RecursiveCheck(in.x)) return r;
+        if (int r = om.RecursiveCheck(in.y)) return r;
+        if (int r = om.RecursiveCheck(in.r)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::CDCircle>::RecursiveReset(::xx::ObjManager& om, ::FF::CDCircle& in) {
         om.RecursiveReset(in.x);
         om.RecursiveReset(in.y);
         om.RecursiveReset(in.r);
+    }
+    void ObjFuncs<::FF::CDCircle>::SetDefaultValue(::xx::ObjManager& om, ::FF::CDCircle& in) {
+        in.x = 0.0f;
+        in.y = 0.0f;
+        in.r = 0.0f;
+    }
+	void ObjFuncs<::FF::LockPoint, void>::Write(::xx::ObjManager& om, ::FF::LockPoint const& in) {
+        om.Write(in.x);
+        om.Write(in.y);
+    }
+	int ObjFuncs<::FF::LockPoint, void>::Read(::xx::ObjManager& om, ::FF::LockPoint& out) {
+        if (int r = om.Read(out.x)) return r;
+        if (int r = om.Read(out.y)) return r;
+        return 0;
+    }
+	void ObjFuncs<::FF::LockPoint, void>::ToString(ObjManager &om, ::FF::LockPoint const& in) {
+        om.str->push_back('{');
+        ToStringCore(om, in);
+        om.str->push_back('}');
+    }
+	void ObjFuncs<::FF::LockPoint, void>::ToStringCore(ObjManager &om, ::FF::LockPoint const& in) {
+        auto sizeBak = om.str->size();
+        om.Append("\"x\":", in.x); 
+        om.Append(",\"y\":", in.y);
+    }
+    void ObjFuncs<::FF::LockPoint>::Clone1(::xx::ObjManager& om, ::FF::LockPoint const& in, ::FF::LockPoint &out) {
+        om.Clone1(in.x, out.x);
+        om.Clone1(in.y, out.y);
+    }
+    void ObjFuncs<::FF::LockPoint>::Clone2(::xx::ObjManager& om, ::FF::LockPoint const& in, ::FF::LockPoint &out) {
+        om.Clone2(in.x, out.x);
+        om.Clone2(in.y, out.y);
+    }
+    int ObjFuncs<::FF::LockPoint>::RecursiveCheck(::xx::ObjManager& om, ::FF::LockPoint const& in) {
+        if (int r = om.RecursiveCheck(in.x)) return r;
+        if (int r = om.RecursiveCheck(in.y)) return r;
+        return 0;
+    }
+    void ObjFuncs<::FF::LockPoint>::RecursiveReset(::xx::ObjManager& om, ::FF::LockPoint& in) {
+        om.RecursiveReset(in.x);
+        om.RecursiveReset(in.y);
+    }
+    void ObjFuncs<::FF::LockPoint>::SetDefaultValue(::xx::ObjManager& om, ::FF::LockPoint& in) {
+        in.x = 0.0f;
+        in.y = 0.0f;
+    }
+	void ObjFuncs<::FF::TimePoint_Speed, void>::Write(::xx::ObjManager& om, ::FF::TimePoint_Speed const& in) {
+        om.Write(in.time);
+        om.Write(in.speed);
+    }
+	int ObjFuncs<::FF::TimePoint_Speed, void>::Read(::xx::ObjManager& om, ::FF::TimePoint_Speed& out) {
+        if (int r = om.Read(out.time)) return r;
+        if (int r = om.Read(out.speed)) return r;
+        return 0;
+    }
+	void ObjFuncs<::FF::TimePoint_Speed, void>::ToString(ObjManager &om, ::FF::TimePoint_Speed const& in) {
+        om.str->push_back('{');
+        ToStringCore(om, in);
+        om.str->push_back('}');
+    }
+	void ObjFuncs<::FF::TimePoint_Speed, void>::ToStringCore(ObjManager &om, ::FF::TimePoint_Speed const& in) {
+        auto sizeBak = om.str->size();
+        om.Append("\"time\":", in.time); 
+        om.Append(",\"speed\":", in.speed);
+    }
+    void ObjFuncs<::FF::TimePoint_Speed>::Clone1(::xx::ObjManager& om, ::FF::TimePoint_Speed const& in, ::FF::TimePoint_Speed &out) {
+        om.Clone1(in.time, out.time);
+        om.Clone1(in.speed, out.speed);
+    }
+    void ObjFuncs<::FF::TimePoint_Speed>::Clone2(::xx::ObjManager& om, ::FF::TimePoint_Speed const& in, ::FF::TimePoint_Speed &out) {
+        om.Clone2(in.time, out.time);
+        om.Clone2(in.speed, out.speed);
+    }
+    int ObjFuncs<::FF::TimePoint_Speed>::RecursiveCheck(::xx::ObjManager& om, ::FF::TimePoint_Speed const& in) {
+        if (int r = om.RecursiveCheck(in.time)) return r;
+        if (int r = om.RecursiveCheck(in.speed)) return r;
+        return 0;
+    }
+    void ObjFuncs<::FF::TimePoint_Speed>::RecursiveReset(::xx::ObjManager& om, ::FF::TimePoint_Speed& in) {
+        om.RecursiveReset(in.time);
+        om.RecursiveReset(in.speed);
+    }
+    void ObjFuncs<::FF::TimePoint_Speed>::SetDefaultValue(::xx::ObjManager& om, ::FF::TimePoint_Speed& in) {
+        in.time = 0.0f;
+        in.speed = 0.0f;
     }
 	void ObjFuncs<::FF::TimePoint_CDCircles, void>::Write(::xx::ObjManager& om, ::FF::TimePoint_CDCircles const& in) {
         om.Write(in.time);
@@ -148,10 +216,21 @@ namespace xx {
         om.Clone2(in.maxCDCircle, out.maxCDCircle);
         om.Clone2(in.cdCircles, out.cdCircles);
     }
+    int ObjFuncs<::FF::TimePoint_CDCircles>::RecursiveCheck(::xx::ObjManager& om, ::FF::TimePoint_CDCircles const& in) {
+        if (int r = om.RecursiveCheck(in.time)) return r;
+        if (int r = om.RecursiveCheck(in.maxCDCircle)) return r;
+        if (int r = om.RecursiveCheck(in.cdCircles)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::TimePoint_CDCircles>::RecursiveReset(::xx::ObjManager& om, ::FF::TimePoint_CDCircles& in) {
         om.RecursiveReset(in.time);
         om.RecursiveReset(in.maxCDCircle);
         om.RecursiveReset(in.cdCircles);
+    }
+    void ObjFuncs<::FF::TimePoint_CDCircles>::SetDefaultValue(::xx::ObjManager& om, ::FF::TimePoint_CDCircles& in) {
+        in.time = 0.0f;
+        om.SetDefaultValue(in.maxCDCircle);
+        om.SetDefaultValue(in.cdCircles);
     }
 	void ObjFuncs<::FF::TimePoint_LockPoints, void>::Write(::xx::ObjManager& om, ::FF::TimePoint_LockPoints const& in) {
         om.Write(in.time);
@@ -185,41 +264,21 @@ namespace xx {
         om.Clone2(in.mainLockPoint, out.mainLockPoint);
         om.Clone2(in.lockPoints, out.lockPoints);
     }
+    int ObjFuncs<::FF::TimePoint_LockPoints>::RecursiveCheck(::xx::ObjManager& om, ::FF::TimePoint_LockPoints const& in) {
+        if (int r = om.RecursiveCheck(in.time)) return r;
+        if (int r = om.RecursiveCheck(in.mainLockPoint)) return r;
+        if (int r = om.RecursiveCheck(in.lockPoints)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::TimePoint_LockPoints>::RecursiveReset(::xx::ObjManager& om, ::FF::TimePoint_LockPoints& in) {
         om.RecursiveReset(in.time);
         om.RecursiveReset(in.mainLockPoint);
         om.RecursiveReset(in.lockPoints);
     }
-	void ObjFuncs<::FF::TimePoint_Speed, void>::Write(::xx::ObjManager& om, ::FF::TimePoint_Speed const& in) {
-        om.Write(in.time);
-        om.Write(in.speed);
-    }
-	int ObjFuncs<::FF::TimePoint_Speed, void>::Read(::xx::ObjManager& om, ::FF::TimePoint_Speed& out) {
-        if (int r = om.Read(out.time)) return r;
-        if (int r = om.Read(out.speed)) return r;
-        return 0;
-    }
-	void ObjFuncs<::FF::TimePoint_Speed, void>::ToString(ObjManager &om, ::FF::TimePoint_Speed const& in) {
-        om.str->push_back('{');
-        ToStringCore(om, in);
-        om.str->push_back('}');
-    }
-	void ObjFuncs<::FF::TimePoint_Speed, void>::ToStringCore(ObjManager &om, ::FF::TimePoint_Speed const& in) {
-        auto sizeBak = om.str->size();
-        om.Append("\"time\":", in.time); 
-        om.Append(",\"speed\":", in.speed);
-    }
-    void ObjFuncs<::FF::TimePoint_Speed>::Clone1(::xx::ObjManager& om, ::FF::TimePoint_Speed const& in, ::FF::TimePoint_Speed &out) {
-        om.Clone1(in.time, out.time);
-        om.Clone1(in.speed, out.speed);
-    }
-    void ObjFuncs<::FF::TimePoint_Speed>::Clone2(::xx::ObjManager& om, ::FF::TimePoint_Speed const& in, ::FF::TimePoint_Speed &out) {
-        om.Clone2(in.time, out.time);
-        om.Clone2(in.speed, out.speed);
-    }
-    void ObjFuncs<::FF::TimePoint_Speed>::RecursiveReset(::xx::ObjManager& om, ::FF::TimePoint_Speed& in) {
-        om.RecursiveReset(in.time);
-        om.RecursiveReset(in.speed);
+    void ObjFuncs<::FF::TimePoint_LockPoints>::SetDefaultValue(::xx::ObjManager& om, ::FF::TimePoint_LockPoints& in) {
+        in.time = 0.0f;
+        om.SetDefaultValue(in.mainLockPoint);
+        om.SetDefaultValue(in.lockPoints);
     }
 	void ObjFuncs<::FF::PathwayPoint, void>::Write(::xx::ObjManager& om, ::FF::PathwayPoint const& in) {
         om.Write(in.pos);
@@ -253,10 +312,21 @@ namespace xx {
         om.Clone2(in.a, out.a);
         om.Clone2(in.d, out.d);
     }
+    int ObjFuncs<::FF::PathwayPoint>::RecursiveCheck(::xx::ObjManager& om, ::FF::PathwayPoint const& in) {
+        if (int r = om.RecursiveCheck(in.pos)) return r;
+        if (int r = om.RecursiveCheck(in.a)) return r;
+        if (int r = om.RecursiveCheck(in.d)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::PathwayPoint>::RecursiveReset(::xx::ObjManager& om, ::FF::PathwayPoint& in) {
         om.RecursiveReset(in.pos);
         om.RecursiveReset(in.a);
         om.RecursiveReset(in.d);
+    }
+    void ObjFuncs<::FF::PathwayPoint>::SetDefaultValue(::xx::ObjManager& om, ::FF::PathwayPoint& in) {
+        om.SetDefaultValue(in.pos);
+        in.a = 0.0f;
+        in.d = 0.0f;
     }
 	void ObjFuncs<::FF::Action_AnimExt, void>::Write(::xx::ObjManager& om, ::FF::Action_AnimExt const& in) {
         om.Write(in.name);
@@ -300,12 +370,27 @@ namespace xx {
         om.Clone2(in.cds, out.cds);
         om.Clone2(in.ss, out.ss);
     }
+    int ObjFuncs<::FF::Action_AnimExt>::RecursiveCheck(::xx::ObjManager& om, ::FF::Action_AnimExt const& in) {
+        if (int r = om.RecursiveCheck(in.name)) return r;
+        if (int r = om.RecursiveCheck(in.totalSeconds)) return r;
+        if (int r = om.RecursiveCheck(in.lps)) return r;
+        if (int r = om.RecursiveCheck(in.cds)) return r;
+        if (int r = om.RecursiveCheck(in.ss)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::Action_AnimExt>::RecursiveReset(::xx::ObjManager& om, ::FF::Action_AnimExt& in) {
         om.RecursiveReset(in.name);
         om.RecursiveReset(in.totalSeconds);
         om.RecursiveReset(in.lps);
         om.RecursiveReset(in.cds);
         om.RecursiveReset(in.ss);
+    }
+    void ObjFuncs<::FF::Action_AnimExt>::SetDefaultValue(::xx::ObjManager& om, ::FF::Action_AnimExt& in) {
+        om.SetDefaultValue(in.name);
+        in.totalSeconds = 0.0f;
+        om.SetDefaultValue(in.lps);
+        om.SetDefaultValue(in.cds);
+        om.SetDefaultValue(in.ss);
     }
 	void ObjFuncs<::FF::File_AnimExt, void>::Write(::xx::ObjManager& om, ::FF::File_AnimExt const& in) {
         om.Write(in.actions);
@@ -344,11 +429,24 @@ namespace xx {
         om.Clone2(in.shadowY, out.shadowY);
         om.Clone2(in.shadowScale, out.shadowScale);
     }
+    int ObjFuncs<::FF::File_AnimExt>::RecursiveCheck(::xx::ObjManager& om, ::FF::File_AnimExt const& in) {
+        if (int r = om.RecursiveCheck(in.actions)) return r;
+        if (int r = om.RecursiveCheck(in.shadowX)) return r;
+        if (int r = om.RecursiveCheck(in.shadowY)) return r;
+        if (int r = om.RecursiveCheck(in.shadowScale)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::File_AnimExt>::RecursiveReset(::xx::ObjManager& om, ::FF::File_AnimExt& in) {
         om.RecursiveReset(in.actions);
         om.RecursiveReset(in.shadowX);
         om.RecursiveReset(in.shadowY);
         om.RecursiveReset(in.shadowScale);
+    }
+    void ObjFuncs<::FF::File_AnimExt>::SetDefaultValue(::xx::ObjManager& om, ::FF::File_AnimExt& in) {
+        om.SetDefaultValue(in.actions);
+        in.shadowX = 0.0f;
+        in.shadowY = 0.0f;
+        in.shadowScale = 0.0f;
     }
 	void ObjFuncs<::FF::TimePoint_Frame, void>::Write(::xx::ObjManager& om, ::FF::TimePoint_Frame const& in) {
         om.Write(in.time);
@@ -377,9 +475,18 @@ namespace xx {
         om.Clone2(in.time, out.time);
         om.Clone2(in.picName, out.picName);
     }
+    int ObjFuncs<::FF::TimePoint_Frame>::RecursiveCheck(::xx::ObjManager& om, ::FF::TimePoint_Frame const& in) {
+        if (int r = om.RecursiveCheck(in.time)) return r;
+        if (int r = om.RecursiveCheck(in.picName)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::TimePoint_Frame>::RecursiveReset(::xx::ObjManager& om, ::FF::TimePoint_Frame& in) {
         om.RecursiveReset(in.time);
         om.RecursiveReset(in.picName);
+    }
+    void ObjFuncs<::FF::TimePoint_Frame>::SetDefaultValue(::xx::ObjManager& om, ::FF::TimePoint_Frame& in) {
+        in.time = 0.0f;
+        om.SetDefaultValue(in.picName);
     }
 	void ObjFuncs<::FF::CurvePoint, void>::Write(::xx::ObjManager& om, ::FF::CurvePoint const& in) {
         om.Write(in.x);
@@ -418,11 +525,24 @@ namespace xx {
         om.Clone2(in.tension, out.tension);
         om.Clone2(in.numSegments, out.numSegments);
     }
+    int ObjFuncs<::FF::CurvePoint>::RecursiveCheck(::xx::ObjManager& om, ::FF::CurvePoint const& in) {
+        if (int r = om.RecursiveCheck(in.x)) return r;
+        if (int r = om.RecursiveCheck(in.y)) return r;
+        if (int r = om.RecursiveCheck(in.tension)) return r;
+        if (int r = om.RecursiveCheck(in.numSegments)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::CurvePoint>::RecursiveReset(::xx::ObjManager& om, ::FF::CurvePoint& in) {
         om.RecursiveReset(in.x);
         om.RecursiveReset(in.y);
         om.RecursiveReset(in.tension);
         om.RecursiveReset(in.numSegments);
+    }
+    void ObjFuncs<::FF::CurvePoint>::SetDefaultValue(::xx::ObjManager& om, ::FF::CurvePoint& in) {
+        in.x = 0.0f;
+        in.y = 0.0f;
+        in.tension = 0.0f;
+        in.numSegments = 0;
     }
 	void ObjFuncs<::FF::Action_Frames, void>::Write(::xx::ObjManager& om, ::FF::Action_Frames const& in) {
         om.Write(in.name);
@@ -456,10 +576,21 @@ namespace xx {
         om.Clone2(in.totalSeconds, out.totalSeconds);
         om.Clone2(in.frames, out.frames);
     }
+    int ObjFuncs<::FF::Action_Frames>::RecursiveCheck(::xx::ObjManager& om, ::FF::Action_Frames const& in) {
+        if (int r = om.RecursiveCheck(in.name)) return r;
+        if (int r = om.RecursiveCheck(in.totalSeconds)) return r;
+        if (int r = om.RecursiveCheck(in.frames)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::Action_Frames>::RecursiveReset(::xx::ObjManager& om, ::FF::Action_Frames& in) {
         om.RecursiveReset(in.name);
         om.RecursiveReset(in.totalSeconds);
         om.RecursiveReset(in.frames);
+    }
+    void ObjFuncs<::FF::Action_Frames>::SetDefaultValue(::xx::ObjManager& om, ::FF::Action_Frames& in) {
+        om.SetDefaultValue(in.name);
+        in.totalSeconds = 0.0f;
+        om.SetDefaultValue(in.frames);
     }
 	void ObjFuncs<::FF::File_Frames, void>::Write(::xx::ObjManager& om, ::FF::File_Frames const& in) {
         om.Write(in.actions);
@@ -488,9 +619,18 @@ namespace xx {
         om.Clone2(in.actions, out.actions);
         om.Clone2(in.plists, out.plists);
     }
+    int ObjFuncs<::FF::File_Frames>::RecursiveCheck(::xx::ObjManager& om, ::FF::File_Frames const& in) {
+        if (int r = om.RecursiveCheck(in.actions)) return r;
+        if (int r = om.RecursiveCheck(in.plists)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::File_Frames>::RecursiveReset(::xx::ObjManager& om, ::FF::File_Frames& in) {
         om.RecursiveReset(in.actions);
         om.RecursiveReset(in.plists);
+    }
+    void ObjFuncs<::FF::File_Frames>::SetDefaultValue(::xx::ObjManager& om, ::FF::File_Frames& in) {
+        om.SetDefaultValue(in.actions);
+        om.SetDefaultValue(in.plists);
     }
 	void ObjFuncs<::FF::File_pathway, void>::Write(::xx::ObjManager& om, ::FF::File_pathway const& in) {
         om.Write(in.isLoop);
@@ -519,9 +659,18 @@ namespace xx {
         om.Clone2(in.isLoop, out.isLoop);
         om.Clone2(in.points, out.points);
     }
+    int ObjFuncs<::FF::File_pathway>::RecursiveCheck(::xx::ObjManager& om, ::FF::File_pathway const& in) {
+        if (int r = om.RecursiveCheck(in.isLoop)) return r;
+        if (int r = om.RecursiveCheck(in.points)) return r;
+        return 0;
+    }
     void ObjFuncs<::FF::File_pathway>::RecursiveReset(::xx::ObjManager& om, ::FF::File_pathway& in) {
         om.RecursiveReset(in.isLoop);
         om.RecursiveReset(in.points);
+    }
+    void ObjFuncs<::FF::File_pathway>::SetDefaultValue(::xx::ObjManager& om, ::FF::File_pathway& in) {
+        in.isLoop = false;
+        om.SetDefaultValue(in.points);
     }
 }
 namespace FF {
@@ -529,14 +678,6 @@ namespace FF {
         this->operator=(std::move(o));
     }
     Point& Point::operator=(Point&& o) noexcept {
-        std::swap(this->x, o.x);
-        std::swap(this->y, o.y);
-        return *this;
-    }
-    LockPoint::LockPoint(LockPoint&& o) noexcept {
-        this->operator=(std::move(o));
-    }
-    LockPoint& LockPoint::operator=(LockPoint&& o) noexcept {
         std::swap(this->x, o.x);
         std::swap(this->y, o.y);
         return *this;
@@ -550,6 +691,22 @@ namespace FF {
         std::swap(this->r, o.r);
         return *this;
     }
+    LockPoint::LockPoint(LockPoint&& o) noexcept {
+        this->operator=(std::move(o));
+    }
+    LockPoint& LockPoint::operator=(LockPoint&& o) noexcept {
+        std::swap(this->x, o.x);
+        std::swap(this->y, o.y);
+        return *this;
+    }
+    TimePoint_Speed::TimePoint_Speed(TimePoint_Speed&& o) noexcept {
+        this->operator=(std::move(o));
+    }
+    TimePoint_Speed& TimePoint_Speed::operator=(TimePoint_Speed&& o) noexcept {
+        std::swap(this->time, o.time);
+        std::swap(this->speed, o.speed);
+        return *this;
+    }
     TimePoint_CDCircles::TimePoint_CDCircles(TimePoint_CDCircles&& o) noexcept {
         this->operator=(std::move(o));
     }
@@ -557,6 +714,15 @@ namespace FF {
         std::swap(this->time, o.time);
         std::swap(this->maxCDCircle, o.maxCDCircle);
         std::swap(this->cdCircles, o.cdCircles);
+        return *this;
+    }
+    TimePoint_LockPoints::TimePoint_LockPoints(TimePoint_LockPoints&& o) noexcept {
+        this->operator=(std::move(o));
+    }
+    TimePoint_LockPoints& TimePoint_LockPoints::operator=(TimePoint_LockPoints&& o) noexcept {
+        std::swap(this->time, o.time);
+        std::swap(this->mainLockPoint, o.mainLockPoint);
+        std::swap(this->lockPoints, o.lockPoints);
         return *this;
     }
     Bullet::Bullet(Bullet&& o) noexcept {
@@ -595,26 +761,18 @@ namespace FF {
         om.Clone2(this->id, out->id);
         om.Clone2(this->coin, out->coin);
     }
+    int Bullet::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->id)) return r;
+        if (int r = om.RecursiveCheck(this->coin)) return r;
+        return 0;
+    }
     void Bullet::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->id);
         om.RecursiveReset(this->coin);
     }
-    TimePoint_LockPoints::TimePoint_LockPoints(TimePoint_LockPoints&& o) noexcept {
-        this->operator=(std::move(o));
-    }
-    TimePoint_LockPoints& TimePoint_LockPoints::operator=(TimePoint_LockPoints&& o) noexcept {
-        std::swap(this->time, o.time);
-        std::swap(this->mainLockPoint, o.mainLockPoint);
-        std::swap(this->lockPoints, o.lockPoints);
-        return *this;
-    }
-    TimePoint_Speed::TimePoint_Speed(TimePoint_Speed&& o) noexcept {
-        this->operator=(std::move(o));
-    }
-    TimePoint_Speed& TimePoint_Speed::operator=(TimePoint_Speed&& o) noexcept {
-        std::swap(this->time, o.time);
-        std::swap(this->speed, o.speed);
-        return *this;
+    void Bullet::SetDefaultValue(::xx::ObjManager& om) {
+        this->id = 0;
+        this->coin = 0;
     }
     PathwayPoint::PathwayPoint(PathwayPoint&& o) noexcept {
         this->operator=(std::move(o));
@@ -634,6 +792,16 @@ namespace FF {
         std::swap(this->lps, o.lps);
         std::swap(this->cds, o.cds);
         std::swap(this->ss, o.ss);
+        return *this;
+    }
+    File_AnimExt::File_AnimExt(File_AnimExt&& o) noexcept {
+        this->operator=(std::move(o));
+    }
+    File_AnimExt& File_AnimExt::operator=(File_AnimExt&& o) noexcept {
+        std::swap(this->actions, o.actions);
+        std::swap(this->shadowX, o.shadowX);
+        std::swap(this->shadowY, o.shadowY);
+        std::swap(this->shadowScale, o.shadowScale);
         return *this;
     }
     Pathway::Pathway(Pathway&& o) noexcept {
@@ -672,19 +840,151 @@ namespace FF {
         om.Clone2(this->isLoop, out->isLoop);
         om.Clone2(this->points, out->points);
     }
+    int Pathway::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->isLoop)) return r;
+        if (int r = om.RecursiveCheck(this->points)) return r;
+        return 0;
+    }
     void Pathway::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->isLoop);
         om.RecursiveReset(this->points);
     }
-    File_AnimExt::File_AnimExt(File_AnimExt&& o) noexcept {
+    void Pathway::SetDefaultValue(::xx::ObjManager& om) {
+        this->isLoop = false;
+        om.SetDefaultValue(this->points);
+    }
+    Cannon::Cannon(Cannon&& o) noexcept {
         this->operator=(std::move(o));
     }
-    File_AnimExt& File_AnimExt::operator=(File_AnimExt&& o) noexcept {
-        std::swap(this->actions, o.actions);
-        std::swap(this->shadowX, o.shadowX);
-        std::swap(this->shadowY, o.shadowY);
-        std::swap(this->shadowScale, o.shadowScale);
+    Cannon& Cannon::operator=(Cannon&& o) noexcept {
+        std::swap(this->id, o.id);
+        std::swap(this->typeId, o.typeId);
+        std::swap(this->bullets, o.bullets);
         return *this;
+    }
+    void Cannon::Write(::xx::ObjManager& om) const {
+        om.Write(this->id);
+        om.Write(this->typeId);
+        om.Write(this->bullets);
+    }
+    int Cannon::Read(::xx::ObjManager& om) {
+        if (int r = om.Read(this->id)) return r;
+        if (int r = om.Read(this->typeId)) return r;
+        if (int r = om.Read(this->bullets)) return r;
+        return 0;
+    }
+    void Cannon::ToString(::xx::ObjManager& om) const {
+        om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
+		this->ToStringCore(om);
+		om.str->push_back('}');
+    }
+    void Cannon::ToStringCore(::xx::ObjManager& om) const {
+        om.Append(",\"id\":", this->id);
+        om.Append(",\"typeId\":", this->typeId);
+        om.Append(",\"bullets\":", this->bullets);
+    }
+    void Cannon::Clone1(::xx::ObjManager& om, void* const &tar) const {
+        auto out = (::FF::Cannon*)tar;
+        om.Clone1(this->id, out->id);
+        om.Clone1(this->typeId, out->typeId);
+        om.Clone1(this->bullets, out->bullets);
+    }
+    void Cannon::Clone2(::xx::ObjManager& om, void* const &tar) const {
+        auto out = (::FF::Cannon*)tar;
+        om.Clone2(this->id, out->id);
+        om.Clone2(this->typeId, out->typeId);
+        om.Clone2(this->bullets, out->bullets);
+    }
+    int Cannon::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->id)) return r;
+        if (int r = om.RecursiveCheck(this->typeId)) return r;
+        if (int r = om.RecursiveCheck(this->bullets)) return r;
+        return 0;
+    }
+    void Cannon::RecursiveReset(::xx::ObjManager& om) {
+        om.RecursiveReset(this->id);
+        om.RecursiveReset(this->typeId);
+        om.RecursiveReset(this->bullets);
+    }
+    void Cannon::SetDefaultValue(::xx::ObjManager& om) {
+        this->id = 0;
+        this->typeId = 0;
+        om.SetDefaultValue(this->bullets);
+    }
+    TimePoint_Frame::TimePoint_Frame(TimePoint_Frame&& o) noexcept {
+        this->operator=(std::move(o));
+    }
+    TimePoint_Frame& TimePoint_Frame::operator=(TimePoint_Frame&& o) noexcept {
+        std::swap(this->time, o.time);
+        std::swap(this->picName, o.picName);
+        return *this;
+    }
+    Stuff::Stuff(Stuff&& o) noexcept {
+        this->operator=(std::move(o));
+    }
+    Stuff& Stuff::operator=(Stuff&& o) noexcept {
+        std::swap(this->id, o.id);
+        std::swap(this->typeId, o.typeId);
+        std::swap(this->pos, o.pos);
+        std::swap(this->effectiveTime, o.effectiveTime);
+        return *this;
+    }
+    void Stuff::Write(::xx::ObjManager& om) const {
+        om.Write(this->id);
+        om.Write(this->typeId);
+        om.Write(this->pos);
+        om.Write(this->effectiveTime);
+    }
+    int Stuff::Read(::xx::ObjManager& om) {
+        if (int r = om.Read(this->id)) return r;
+        if (int r = om.Read(this->typeId)) return r;
+        if (int r = om.Read(this->pos)) return r;
+        if (int r = om.Read(this->effectiveTime)) return r;
+        return 0;
+    }
+    void Stuff::ToString(::xx::ObjManager& om) const {
+        om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
+		this->ToStringCore(om);
+		om.str->push_back('}');
+    }
+    void Stuff::ToStringCore(::xx::ObjManager& om) const {
+        om.Append(",\"id\":", this->id);
+        om.Append(",\"typeId\":", this->typeId);
+        om.Append(",\"pos\":", this->pos);
+        om.Append(",\"effectiveTime\":", this->effectiveTime);
+    }
+    void Stuff::Clone1(::xx::ObjManager& om, void* const &tar) const {
+        auto out = (::FF::Stuff*)tar;
+        om.Clone1(this->id, out->id);
+        om.Clone1(this->typeId, out->typeId);
+        om.Clone1(this->pos, out->pos);
+        om.Clone1(this->effectiveTime, out->effectiveTime);
+    }
+    void Stuff::Clone2(::xx::ObjManager& om, void* const &tar) const {
+        auto out = (::FF::Stuff*)tar;
+        om.Clone2(this->id, out->id);
+        om.Clone2(this->typeId, out->typeId);
+        om.Clone2(this->pos, out->pos);
+        om.Clone2(this->effectiveTime, out->effectiveTime);
+    }
+    int Stuff::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->id)) return r;
+        if (int r = om.RecursiveCheck(this->typeId)) return r;
+        if (int r = om.RecursiveCheck(this->pos)) return r;
+        if (int r = om.RecursiveCheck(this->effectiveTime)) return r;
+        return 0;
+    }
+    void Stuff::RecursiveReset(::xx::ObjManager& om) {
+        om.RecursiveReset(this->id);
+        om.RecursiveReset(this->typeId);
+        om.RecursiveReset(this->pos);
+        om.RecursiveReset(this->effectiveTime);
+    }
+    void Stuff::SetDefaultValue(::xx::ObjManager& om) {
+        this->id = 0;
+        this->typeId = 0;
+        om.SetDefaultValue(this->pos);
+        this->effectiveTime = 0;
     }
     Fish::Fish(Fish&& o) noexcept {
         this->operator=(std::move(o));
@@ -878,6 +1178,37 @@ namespace FF {
         om.Clone2(this->offset, out->offset);
         om.Clone2(this->file, out->file);
     }
+    int Fish::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->pos)) return r;
+        if (int r = om.RecursiveCheck(this->angle)) return r;
+        if (int r = om.RecursiveCheck(this->scaleX)) return r;
+        if (int r = om.RecursiveCheck(this->scaleY)) return r;
+        if (int r = om.RecursiveCheck(this->animElapsedSeconds)) return r;
+        if (int r = om.RecursiveCheck(this->totalElapsedSeconds)) return r;
+        if (int r = om.RecursiveCheck(this->pathwayI)) return r;
+        if (int r = om.RecursiveCheck(this->pathwayD)) return r;
+        if (int r = om.RecursiveCheck(this->speedScale)) return r;
+        if (int r = om.RecursiveCheck(this->timeScale)) return r;
+        if (int r = om.RecursiveCheck(this->lpsCursor)) return r;
+        if (int r = om.RecursiveCheck(this->cdsCursor)) return r;
+        if (int r = om.RecursiveCheck(this->ssCursor)) return r;
+        if (int r = om.RecursiveCheck(this->speed)) return r;
+        if (int r = om.RecursiveCheck(this->loop)) return r;
+        if (int r = om.RecursiveCheck(this->id)) return r;
+        if (int r = om.RecursiveCheck(this->indexAtContainer)) return r;
+        if (int r = om.RecursiveCheck(this->coin)) return r;
+        if (int r = om.RecursiveCheck(this->effectiveTime)) return r;
+        if (int r = om.RecursiveCheck(this->actionName)) return r;
+        if (int r = om.RecursiveCheck(this->fileName)) return r;
+        if (int r = om.RecursiveCheck(this->pathwayName)) return r;
+        if (int r = om.RecursiveCheck(this->luaName)) return r;
+        if (int r = om.RecursiveCheck(this->luaData)) return r;
+        if (int r = om.RecursiveCheck(this->pathway)) return r;
+        if (int r = om.RecursiveCheck(this->children)) return r;
+        if (int r = om.RecursiveCheck(this->offset)) return r;
+        if (int r = om.RecursiveCheck(this->file)) return r;
+        return 0;
+    }
     void Fish::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->pos);
         om.RecursiveReset(this->angle);
@@ -908,114 +1239,104 @@ namespace FF {
         om.RecursiveReset(this->offset);
         om.RecursiveReset(this->file);
     }
-    Stuff::Stuff(Stuff&& o) noexcept {
+    void Fish::SetDefaultValue(::xx::ObjManager& om) {
+        om.SetDefaultValue(this->pos);
+        this->angle = 0.0f;
+        this->scaleX = 1.0f;
+        this->scaleY = 1.0f;
+        this->animElapsedSeconds = 0.0f;
+        this->totalElapsedSeconds = 0.0f;
+        this->pathwayI = 0;
+        this->pathwayD = 0.0f;
+        this->speedScale = 1.0f;
+        this->timeScale = 1.0f;
+        this->lpsCursor = 0;
+        this->cdsCursor = 0;
+        this->ssCursor = 0;
+        this->speed = 0.0f;
+        this->loop = true;
+        this->id = 0;
+        this->indexAtContainer = 0;
+        this->coin = 0;
+        this->effectiveTime = 0;
+        om.SetDefaultValue(this->actionName);
+        om.SetDefaultValue(this->fileName);
+        om.SetDefaultValue(this->pathwayName);
+        om.SetDefaultValue(this->luaName);
+        om.SetDefaultValue(this->luaData);
+        om.SetDefaultValue(this->pathway);
+        om.SetDefaultValue(this->children);
+        om.SetDefaultValue(this->offset);
+        om.SetDefaultValue(this->file);
+    }
+    CurvePoint::CurvePoint(CurvePoint&& o) noexcept {
         this->operator=(std::move(o));
     }
-    Stuff& Stuff::operator=(Stuff&& o) noexcept {
-        std::swap(this->id, o.id);
-        std::swap(this->typeId, o.typeId);
+    CurvePoint& CurvePoint::operator=(CurvePoint&& o) noexcept {
+        std::swap(this->x, o.x);
+        std::swap(this->y, o.y);
+        std::swap(this->tension, o.tension);
+        std::swap(this->numSegments, o.numSegments);
+        return *this;
+    }
+    SimpleBullet::SimpleBullet(SimpleBullet&& o) noexcept {
+        this->operator=(std::move(o));
+    }
+    SimpleBullet& SimpleBullet::operator=(SimpleBullet&& o) noexcept {
+        this->BaseType::operator=(std::move(o));
+        std::swap(this->angle, o.angle);
         std::swap(this->pos, o.pos);
-        std::swap(this->effectiveTime, o.effectiveTime);
         return *this;
     }
-    void Stuff::Write(::xx::ObjManager& om) const {
-        om.Write(this->id);
-        om.Write(this->typeId);
+    void SimpleBullet::Write(::xx::ObjManager& om) const {
+        this->BaseType::Write(om);
+        om.Write(this->angle);
         om.Write(this->pos);
-        om.Write(this->effectiveTime);
     }
-    int Stuff::Read(::xx::ObjManager& om) {
-        if (int r = om.Read(this->id)) return r;
-        if (int r = om.Read(this->typeId)) return r;
+    int SimpleBullet::Read(::xx::ObjManager& om) {
+        if (int r = this->BaseType::Read(om)) return r;
+        if (int r = om.Read(this->angle)) return r;
         if (int r = om.Read(this->pos)) return r;
-        if (int r = om.Read(this->effectiveTime)) return r;
         return 0;
     }
-    void Stuff::ToString(::xx::ObjManager& om) const {
+    void SimpleBullet::ToString(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
+        this->BaseType::ToStringCore(om);
 		this->ToStringCore(om);
 		om.str->push_back('}');
     }
-    void Stuff::ToStringCore(::xx::ObjManager& om) const {
-        om.Append(",\"id\":", this->id);
-        om.Append(",\"typeId\":", this->typeId);
+    void SimpleBullet::ToStringCore(::xx::ObjManager& om) const {
+        this->BaseType::ToStringCore(om);
+        om.Append(",\"angle\":", this->angle);
         om.Append(",\"pos\":", this->pos);
-        om.Append(",\"effectiveTime\":", this->effectiveTime);
     }
-    void Stuff::Clone1(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::FF::Stuff*)tar;
-        om.Clone1(this->id, out->id);
-        om.Clone1(this->typeId, out->typeId);
+    void SimpleBullet::Clone1(::xx::ObjManager& om, void* const &tar) const {
+        this->BaseType::Clone1(om, tar);
+        auto out = (::FF::SimpleBullet*)tar;
+        om.Clone1(this->angle, out->angle);
         om.Clone1(this->pos, out->pos);
-        om.Clone1(this->effectiveTime, out->effectiveTime);
     }
-    void Stuff::Clone2(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::FF::Stuff*)tar;
-        om.Clone2(this->id, out->id);
-        om.Clone2(this->typeId, out->typeId);
+    void SimpleBullet::Clone2(::xx::ObjManager& om, void* const &tar) const {
+        this->BaseType::Clone2(om, tar);
+        auto out = (::FF::SimpleBullet*)tar;
+        om.Clone2(this->angle, out->angle);
         om.Clone2(this->pos, out->pos);
-        om.Clone2(this->effectiveTime, out->effectiveTime);
     }
-    void Stuff::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->id);
-        om.RecursiveReset(this->typeId);
-        om.RecursiveReset(this->pos);
-        om.RecursiveReset(this->effectiveTime);
-    }
-    Cannon::Cannon(Cannon&& o) noexcept {
-        this->operator=(std::move(o));
-    }
-    Cannon& Cannon::operator=(Cannon&& o) noexcept {
-        std::swap(this->id, o.id);
-        std::swap(this->typeId, o.typeId);
-        std::swap(this->bullets, o.bullets);
-        return *this;
-    }
-    void Cannon::Write(::xx::ObjManager& om) const {
-        om.Write(this->id);
-        om.Write(this->typeId);
-        om.Write(this->bullets);
-    }
-    int Cannon::Read(::xx::ObjManager& om) {
-        if (int r = om.Read(this->id)) return r;
-        if (int r = om.Read(this->typeId)) return r;
-        if (int r = om.Read(this->bullets)) return r;
+    int SimpleBullet::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = this->BaseType::RecursiveCheck(om)) return r;
+        if (int r = om.RecursiveCheck(this->angle)) return r;
+        if (int r = om.RecursiveCheck(this->pos)) return r;
         return 0;
     }
-    void Cannon::ToString(::xx::ObjManager& om) const {
-        om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
-		om.str->push_back('}');
+    void SimpleBullet::RecursiveReset(::xx::ObjManager& om) {
+        this->BaseType::RecursiveReset(om);
+        om.RecursiveReset(this->angle);
+        om.RecursiveReset(this->pos);
     }
-    void Cannon::ToStringCore(::xx::ObjManager& om) const {
-        om.Append(",\"id\":", this->id);
-        om.Append(",\"typeId\":", this->typeId);
-        om.Append(",\"bullets\":", this->bullets);
-    }
-    void Cannon::Clone1(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::FF::Cannon*)tar;
-        om.Clone1(this->id, out->id);
-        om.Clone1(this->typeId, out->typeId);
-        om.Clone1(this->bullets, out->bullets);
-    }
-    void Cannon::Clone2(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::FF::Cannon*)tar;
-        om.Clone2(this->id, out->id);
-        om.Clone2(this->typeId, out->typeId);
-        om.Clone2(this->bullets, out->bullets);
-    }
-    void Cannon::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->id);
-        om.RecursiveReset(this->typeId);
-        om.RecursiveReset(this->bullets);
-    }
-    TimePoint_Frame::TimePoint_Frame(TimePoint_Frame&& o) noexcept {
-        this->operator=(std::move(o));
-    }
-    TimePoint_Frame& TimePoint_Frame::operator=(TimePoint_Frame&& o) noexcept {
-        std::swap(this->time, o.time);
-        std::swap(this->picName, o.picName);
-        return *this;
+    void SimpleBullet::SetDefaultValue(::xx::ObjManager& om) {
+        this->BaseType::SetDefaultValue(om);
+        this->angle = 0;
+        om.SetDefaultValue(this->pos);
     }
     Player::Player(Player&& o) noexcept {
         this->operator=(std::move(o));
@@ -1107,6 +1428,20 @@ namespace FF {
         om.Clone2(this->stuffs, out->stuffs);
         om.Clone2(this->aimFish, out->aimFish);
     }
+    int Player::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->id)) return r;
+        if (int r = om.RecursiveCheck(this->nickname)) return r;
+        if (int r = om.RecursiveCheck(this->coin)) return r;
+        if (int r = om.RecursiveCheck(this->autoLock)) return r;
+        if (int r = om.RecursiveCheck(this->autoFire)) return r;
+        if (int r = om.RecursiveCheck(this->autoIncId)) return r;
+        if (int r = om.RecursiveCheck(this->sitId)) return r;
+        if (int r = om.RecursiveCheck(this->bankrupt)) return r;
+        if (int r = om.RecursiveCheck(this->cannons)) return r;
+        if (int r = om.RecursiveCheck(this->stuffs)) return r;
+        if (int r = om.RecursiveCheck(this->aimFish)) return r;
+        return 0;
+    }
     void Player::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->id);
         om.RecursiveReset(this->nickname);
@@ -1120,63 +1455,18 @@ namespace FF {
         om.RecursiveReset(this->stuffs);
         om.RecursiveReset(this->aimFish);
     }
-    CurvePoint::CurvePoint(CurvePoint&& o) noexcept {
-        this->operator=(std::move(o));
-    }
-    CurvePoint& CurvePoint::operator=(CurvePoint&& o) noexcept {
-        std::swap(this->x, o.x);
-        std::swap(this->y, o.y);
-        std::swap(this->tension, o.tension);
-        std::swap(this->numSegments, o.numSegments);
-        return *this;
-    }
-    SimpleBullet::SimpleBullet(SimpleBullet&& o) noexcept {
-        this->operator=(std::move(o));
-    }
-    SimpleBullet& SimpleBullet::operator=(SimpleBullet&& o) noexcept {
-        this->BaseType::operator=(std::move(o));
-        std::swap(this->angle, o.angle);
-        std::swap(this->pos, o.pos);
-        return *this;
-    }
-    void SimpleBullet::Write(::xx::ObjManager& om) const {
-        this->BaseType::Write(om);
-        om.Write(this->angle);
-        om.Write(this->pos);
-    }
-    int SimpleBullet::Read(::xx::ObjManager& om) {
-        if (int r = this->BaseType::Read(om)) return r;
-        if (int r = om.Read(this->angle)) return r;
-        if (int r = om.Read(this->pos)) return r;
-        return 0;
-    }
-    void SimpleBullet::ToString(::xx::ObjManager& om) const {
-        om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-        this->BaseType::ToStringCore(om);
-		this->ToStringCore(om);
-		om.str->push_back('}');
-    }
-    void SimpleBullet::ToStringCore(::xx::ObjManager& om) const {
-        this->BaseType::ToStringCore(om);
-        om.Append(",\"angle\":", this->angle);
-        om.Append(",\"pos\":", this->pos);
-    }
-    void SimpleBullet::Clone1(::xx::ObjManager& om, void* const &tar) const {
-        this->BaseType::Clone1(om, tar);
-        auto out = (::FF::SimpleBullet*)tar;
-        om.Clone1(this->angle, out->angle);
-        om.Clone1(this->pos, out->pos);
-    }
-    void SimpleBullet::Clone2(::xx::ObjManager& om, void* const &tar) const {
-        this->BaseType::Clone2(om, tar);
-        auto out = (::FF::SimpleBullet*)tar;
-        om.Clone2(this->angle, out->angle);
-        om.Clone2(this->pos, out->pos);
-    }
-    void SimpleBullet::RecursiveReset(::xx::ObjManager& om) {
-        this->BaseType::RecursiveReset(om);
-        om.RecursiveReset(this->angle);
-        om.RecursiveReset(this->pos);
+    void Player::SetDefaultValue(::xx::ObjManager& om) {
+        this->id = 0;
+        om.SetDefaultValue(this->nickname);
+        this->coin = 0;
+        this->autoLock = false;
+        this->autoFire = false;
+        this->autoIncId = 0;
+        this->sitId = 0;
+        this->bankrupt = false;
+        om.SetDefaultValue(this->cannons);
+        om.SetDefaultValue(this->stuffs);
+        om.SetDefaultValue(this->aimFish);
     }
     Action_Frames::Action_Frames(Action_Frames&& o) noexcept {
         this->operator=(std::move(o));
@@ -1235,58 +1525,35 @@ namespace FF {
         om.Clone2(this->players, out->players);
         om.Clone2(this->fishs, out->fishs);
     }
+    int Root::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->dtPool)) return r;
+        if (int r = om.RecursiveCheck(this->frame)) return r;
+        if (int r = om.RecursiveCheck(this->players)) return r;
+        if (int r = om.RecursiveCheck(this->fishs)) return r;
+        return 0;
+    }
     void Root::RecursiveReset(::xx::ObjManager& om) {
         om.RecursiveReset(this->dtPool);
         om.RecursiveReset(this->frame);
         om.RecursiveReset(this->players);
         om.RecursiveReset(this->fishs);
     }
+    void Root::SetDefaultValue(::xx::ObjManager& om) {
+        this->dtPool = 0.0f;
+        this->frame = 0;
+        om.SetDefaultValue(this->players);
+        om.SetDefaultValue(this->fishs);
+    }
     Foo::Foo(Foo&& o) noexcept {
         this->operator=(std::move(o));
     }
     Foo& Foo::operator=(Foo&& o) noexcept {
-        std::swap(this->children, o.children);
-        std::swap(this->a, o.a);
-        std::swap(this->b, o.b);
-        std::swap(this->c, o.c);
-        std::swap(this->d, o.d);
-        std::swap(this->e, o.e);
-        std::swap(this->f, o.f);
-        std::swap(this->a1, o.a1);
-        std::swap(this->b1, o.b1);
-        std::swap(this->c1, o.c1);
-        std::swap(this->d1, o.d1);
-        std::swap(this->e1, o.e1);
-        std::swap(this->f1, o.f1);
-        std::swap(this->a2, o.a2);
-        std::swap(this->b2, o.b2);
-        std::swap(this->c2, o.c2);
-        std::swap(this->d2, o.d2);
-        std::swap(this->e2, o.e2);
-        std::swap(this->f2, o.f2);
+        std::swap(this->rnd, o.rnd);
         return *this;
     }
     void Foo::Write(::xx::ObjManager& om) const {
         auto bak = om.data->WriteJump(sizeof(uint32_t));
-        om.Write(this->children);
-        om.Write(this->a);
-        om.Write(this->b);
-        om.Write(this->c);
-        om.Write(this->d);
-        om.Write(this->e);
-        om.Write(this->f);
-        om.Write(this->a1);
-        om.Write(this->b1);
-        om.Write(this->c1);
-        om.Write(this->d1);
-        om.Write(this->e1);
-        om.Write(this->f1);
-        om.Write(this->a2);
-        om.Write(this->b2);
-        om.Write(this->c2);
-        om.Write(this->d2);
-        om.Write(this->e2);
-        om.Write(this->f2);
+        om.Write(this->rnd);
         om.data->WriteFixedAt(bak, (uint32_t)(om.data->len - bak));
     }
     int Foo::Read(::xx::ObjManager& om) {
@@ -1294,44 +1561,8 @@ namespace FF {
         if (int r = om.data->ReadFixed(siz)) return r;
         auto endOffset = om.data->offset - sizeof(siz) + siz;
 
-        if (om.data->offset >= endOffset) this->children.clear();
-        else if (int r = om.Read(this->children)) return r;
-        if (om.data->offset >= endOffset) this->a = 1;
-        else if (int r = om.Read(this->a)) return r;
-        if (om.data->offset >= endOffset) this->b = 2.3f;
-        else if (int r = om.Read(this->b)) return r;
-        if (om.data->offset >= endOffset) this->c = "asdf";
-        else if (int r = om.Read(this->c)) return r;
-        if (om.data->offset >= endOffset) this->d.Reset();
-        else if (int r = om.Read(this->d)) return r;
-        if (om.data->offset >= endOffset) this->e.Reset();
-        else if (int r = om.Read(this->e)) return r;
-        if (om.data->offset >= endOffset) this->f.reset();
-        else if (int r = om.Read(this->f)) return r;
-        if (om.data->offset >= endOffset) this->a1 = 1;
-        else if (int r = om.Read(this->a1)) return r;
-        if (om.data->offset >= endOffset) this->b1 = 2.3f;
-        else if (int r = om.Read(this->b1)) return r;
-        if (om.data->offset >= endOffset) this->c1 = "asdf";
-        else if (int r = om.Read(this->c1)) return r;
-        if (om.data->offset >= endOffset) this->d1.Reset();
-        else if (int r = om.Read(this->d1)) return r;
-        if (om.data->offset >= endOffset) this->e1.Reset();
-        else if (int r = om.Read(this->e1)) return r;
-        if (om.data->offset >= endOffset) this->f1.reset();
-        else if (int r = om.Read(this->f1)) return r;
-        if (om.data->offset >= endOffset) this->a2 = 1;
-        else if (int r = om.Read(this->a2)) return r;
-        if (om.data->offset >= endOffset) this->b2 = 2.3f;
-        else if (int r = om.Read(this->b2)) return r;
-        if (om.data->offset >= endOffset) this->c2 = "asdf";
-        else if (int r = om.Read(this->c2)) return r;
-        if (om.data->offset >= endOffset) this->d2.Reset();
-        else if (int r = om.Read(this->d2)) return r;
-        if (om.data->offset >= endOffset) this->e2.Reset();
-        else if (int r = om.Read(this->e2)) return r;
-        if (om.data->offset >= endOffset) this->f2.reset();
-        else if (int r = om.Read(this->f2)) return r;
+        if (om.data->offset >= endOffset) om.SetDefaultValue(this->rnd);
+        else if (int r = om.Read(this->rnd)) return r;
 
         if (om.data->offset > endOffset) return __LINE__;
         else om.data->offset = endOffset;
@@ -1343,90 +1574,25 @@ namespace FF {
 		om.str->push_back('}');
     }
     void Foo::ToStringCore(::xx::ObjManager& om) const {
-        om.Append(",\"children\":", this->children);
-        om.Append(",\"a\":", this->a);
-        om.Append(",\"b\":", this->b);
-        om.Append(",\"c\":", this->c);
-        om.Append(",\"d\":", this->d);
-        om.Append(",\"e\":", this->e);
-        om.Append(",\"f\":", this->f);
-        om.Append(",\"a1\":", this->a1);
-        om.Append(",\"b1\":", this->b1);
-        om.Append(",\"c1\":", this->c1);
-        om.Append(",\"d1\":", this->d1);
-        om.Append(",\"e1\":", this->e1);
-        om.Append(",\"f1\":", this->f1);
-        om.Append(",\"a2\":", this->a2);
-        om.Append(",\"b2\":", this->b2);
-        om.Append(",\"c2\":", this->c2);
-        om.Append(",\"d2\":", this->d2);
-        om.Append(",\"e2\":", this->e2);
-        om.Append(",\"f2\":", this->f2);
+        om.Append(",\"rnd\":", this->rnd);
     }
     void Foo::Clone1(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::FF::Foo*)tar;
-        om.Clone1(this->children, out->children);
-        om.Clone1(this->a, out->a);
-        om.Clone1(this->b, out->b);
-        om.Clone1(this->c, out->c);
-        om.Clone1(this->d, out->d);
-        om.Clone1(this->e, out->e);
-        om.Clone1(this->f, out->f);
-        om.Clone1(this->a1, out->a1);
-        om.Clone1(this->b1, out->b1);
-        om.Clone1(this->c1, out->c1);
-        om.Clone1(this->d1, out->d1);
-        om.Clone1(this->e1, out->e1);
-        om.Clone1(this->f1, out->f1);
-        om.Clone1(this->a2, out->a2);
-        om.Clone1(this->b2, out->b2);
-        om.Clone1(this->c2, out->c2);
-        om.Clone1(this->d2, out->d2);
-        om.Clone1(this->e2, out->e2);
-        om.Clone1(this->f2, out->f2);
+        om.Clone1(this->rnd, out->rnd);
     }
     void Foo::Clone2(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::FF::Foo*)tar;
-        om.Clone2(this->children, out->children);
-        om.Clone2(this->a, out->a);
-        om.Clone2(this->b, out->b);
-        om.Clone2(this->c, out->c);
-        om.Clone2(this->d, out->d);
-        om.Clone2(this->e, out->e);
-        om.Clone2(this->f, out->f);
-        om.Clone2(this->a1, out->a1);
-        om.Clone2(this->b1, out->b1);
-        om.Clone2(this->c1, out->c1);
-        om.Clone2(this->d1, out->d1);
-        om.Clone2(this->e1, out->e1);
-        om.Clone2(this->f1, out->f1);
-        om.Clone2(this->a2, out->a2);
-        om.Clone2(this->b2, out->b2);
-        om.Clone2(this->c2, out->c2);
-        om.Clone2(this->d2, out->d2);
-        om.Clone2(this->e2, out->e2);
-        om.Clone2(this->f2, out->f2);
+        om.Clone2(this->rnd, out->rnd);
+    }
+    int Foo::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = om.RecursiveCheck(this->rnd)) return r;
+        return 0;
     }
     void Foo::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->children);
-        om.RecursiveReset(this->a);
-        om.RecursiveReset(this->b);
-        om.RecursiveReset(this->c);
-        om.RecursiveReset(this->d);
-        om.RecursiveReset(this->e);
-        om.RecursiveReset(this->f);
-        om.RecursiveReset(this->a1);
-        om.RecursiveReset(this->b1);
-        om.RecursiveReset(this->c1);
-        om.RecursiveReset(this->d1);
-        om.RecursiveReset(this->e1);
-        om.RecursiveReset(this->f1);
-        om.RecursiveReset(this->a2);
-        om.RecursiveReset(this->b2);
-        om.RecursiveReset(this->c2);
-        om.RecursiveReset(this->d2);
-        om.RecursiveReset(this->e2);
-        om.RecursiveReset(this->f2);
+        om.RecursiveReset(this->rnd);
+    }
+    void Foo::SetDefaultValue(::xx::ObjManager& om) {
+        om.SetDefaultValue(this->rnd);
     }
     File_Frames::File_Frames(File_Frames&& o) noexcept {
         this->operator=(std::move(o));
@@ -1435,165 +1601,6 @@ namespace FF {
         std::swap(this->actions, o.actions);
         std::swap(this->plists, o.plists);
         return *this;
-    }
-    Foo2::Foo2(Foo2&& o) noexcept {
-        this->operator=(std::move(o));
-    }
-    Foo2& Foo2::operator=(Foo2&& o) noexcept {
-        std::swap(this->children, o.children);
-        std::swap(this->a, o.a);
-        std::swap(this->b, o.b);
-        std::swap(this->c, o.c);
-        std::swap(this->d, o.d);
-        std::swap(this->e, o.e);
-        std::swap(this->f, o.f);
-        std::swap(this->a1, o.a1);
-        std::swap(this->b1, o.b1);
-        std::swap(this->c1, o.c1);
-        std::swap(this->d1, o.d1);
-        std::swap(this->e1, o.e1);
-        std::swap(this->f1, o.f1);
-        std::swap(this->a2, o.a2);
-        std::swap(this->b2, o.b2);
-        std::swap(this->c2, o.c2);
-        std::swap(this->d2, o.d2);
-        std::swap(this->e2, o.e2);
-        std::swap(this->f2, o.f2);
-        return *this;
-    }
-    void Foo2::Write(::xx::ObjManager& om) const {
-        om.Write(this->children);
-        om.Write(this->a);
-        om.Write(this->b);
-        om.Write(this->c);
-        om.Write(this->d);
-        om.Write(this->e);
-        om.Write(this->f);
-        om.Write(this->a1);
-        om.Write(this->b1);
-        om.Write(this->c1);
-        om.Write(this->d1);
-        om.Write(this->e1);
-        om.Write(this->f1);
-        om.Write(this->a2);
-        om.Write(this->b2);
-        om.Write(this->c2);
-        om.Write(this->d2);
-        om.Write(this->e2);
-        om.Write(this->f2);
-    }
-    int Foo2::Read(::xx::ObjManager& om) {
-        if (int r = om.Read(this->children)) return r;
-        if (int r = om.Read(this->a)) return r;
-        if (int r = om.Read(this->b)) return r;
-        if (int r = om.Read(this->c)) return r;
-        if (int r = om.Read(this->d)) return r;
-        if (int r = om.Read(this->e)) return r;
-        if (int r = om.Read(this->f)) return r;
-        if (int r = om.Read(this->a1)) return r;
-        if (int r = om.Read(this->b1)) return r;
-        if (int r = om.Read(this->c1)) return r;
-        if (int r = om.Read(this->d1)) return r;
-        if (int r = om.Read(this->e1)) return r;
-        if (int r = om.Read(this->f1)) return r;
-        if (int r = om.Read(this->a2)) return r;
-        if (int r = om.Read(this->b2)) return r;
-        if (int r = om.Read(this->c2)) return r;
-        if (int r = om.Read(this->d2)) return r;
-        if (int r = om.Read(this->e2)) return r;
-        if (int r = om.Read(this->f2)) return r;
-        return 0;
-    }
-    void Foo2::ToString(::xx::ObjManager& om) const {
-        om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
-		om.str->push_back('}');
-    }
-    void Foo2::ToStringCore(::xx::ObjManager& om) const {
-        om.Append(",\"children\":", this->children);
-        om.Append(",\"a\":", this->a);
-        om.Append(",\"b\":", this->b);
-        om.Append(",\"c\":", this->c);
-        om.Append(",\"d\":", this->d);
-        om.Append(",\"e\":", this->e);
-        om.Append(",\"f\":", this->f);
-        om.Append(",\"a1\":", this->a1);
-        om.Append(",\"b1\":", this->b1);
-        om.Append(",\"c1\":", this->c1);
-        om.Append(",\"d1\":", this->d1);
-        om.Append(",\"e1\":", this->e1);
-        om.Append(",\"f1\":", this->f1);
-        om.Append(",\"a2\":", this->a2);
-        om.Append(",\"b2\":", this->b2);
-        om.Append(",\"c2\":", this->c2);
-        om.Append(",\"d2\":", this->d2);
-        om.Append(",\"e2\":", this->e2);
-        om.Append(",\"f2\":", this->f2);
-    }
-    void Foo2::Clone1(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::FF::Foo2*)tar;
-        om.Clone1(this->children, out->children);
-        om.Clone1(this->a, out->a);
-        om.Clone1(this->b, out->b);
-        om.Clone1(this->c, out->c);
-        om.Clone1(this->d, out->d);
-        om.Clone1(this->e, out->e);
-        om.Clone1(this->f, out->f);
-        om.Clone1(this->a1, out->a1);
-        om.Clone1(this->b1, out->b1);
-        om.Clone1(this->c1, out->c1);
-        om.Clone1(this->d1, out->d1);
-        om.Clone1(this->e1, out->e1);
-        om.Clone1(this->f1, out->f1);
-        om.Clone1(this->a2, out->a2);
-        om.Clone1(this->b2, out->b2);
-        om.Clone1(this->c2, out->c2);
-        om.Clone1(this->d2, out->d2);
-        om.Clone1(this->e2, out->e2);
-        om.Clone1(this->f2, out->f2);
-    }
-    void Foo2::Clone2(::xx::ObjManager& om, void* const &tar) const {
-        auto out = (::FF::Foo2*)tar;
-        om.Clone2(this->children, out->children);
-        om.Clone2(this->a, out->a);
-        om.Clone2(this->b, out->b);
-        om.Clone2(this->c, out->c);
-        om.Clone2(this->d, out->d);
-        om.Clone2(this->e, out->e);
-        om.Clone2(this->f, out->f);
-        om.Clone2(this->a1, out->a1);
-        om.Clone2(this->b1, out->b1);
-        om.Clone2(this->c1, out->c1);
-        om.Clone2(this->d1, out->d1);
-        om.Clone2(this->e1, out->e1);
-        om.Clone2(this->f1, out->f1);
-        om.Clone2(this->a2, out->a2);
-        om.Clone2(this->b2, out->b2);
-        om.Clone2(this->c2, out->c2);
-        om.Clone2(this->d2, out->d2);
-        om.Clone2(this->e2, out->e2);
-        om.Clone2(this->f2, out->f2);
-    }
-    void Foo2::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->children);
-        om.RecursiveReset(this->a);
-        om.RecursiveReset(this->b);
-        om.RecursiveReset(this->c);
-        om.RecursiveReset(this->d);
-        om.RecursiveReset(this->e);
-        om.RecursiveReset(this->f);
-        om.RecursiveReset(this->a1);
-        om.RecursiveReset(this->b1);
-        om.RecursiveReset(this->c1);
-        om.RecursiveReset(this->d1);
-        om.RecursiveReset(this->e1);
-        om.RecursiveReset(this->f1);
-        om.RecursiveReset(this->a2);
-        om.RecursiveReset(this->b2);
-        om.RecursiveReset(this->c2);
-        om.RecursiveReset(this->d2);
-        om.RecursiveReset(this->e2);
-        om.RecursiveReset(this->f2);
     }
     File_pathway::File_pathway(File_pathway&& o) noexcept {
         this->operator=(std::move(o));
@@ -1634,7 +1641,14 @@ namespace FF {
         this->BaseType::Clone2(om, tar);
         auto out = (::FF::TrackBullet*)tar;
     }
+    int TrackBullet::RecursiveCheck(::xx::ObjManager& om) const {
+        if (int r = this->BaseType::RecursiveCheck(om)) return r;
+        return 0;
+    }
     void TrackBullet::RecursiveReset(::xx::ObjManager& om) {
         this->BaseType::RecursiveReset(om);
+    }
+    void TrackBullet::SetDefaultValue(::xx::ObjManager& om) {
+        this->BaseType::SetDefaultValue(om);
     }
 }

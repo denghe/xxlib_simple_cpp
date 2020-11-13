@@ -23,53 +23,15 @@
 
 */
 
+namespace xx {
+    [External]
+    struct Random1 { }
+}
+
 [TypeId(12), Compatible]
 class Foo {
-    List<Shared<Foo>> children;
-    int a = 1;
-    float b = 2.3f;
-    string c = "asdf";
-    Shared<Foo> d;
-    Weak<Foo> e;
-    Nullable<int> f;
-    int a1 = 1;
-    float b1 = 2.3f;
-    string c1 = "asdf";
-    Shared<Foo> d1;
-    Weak<Foo> e1;
-    Nullable<int> f1;
-    int a2 = 1;
-    float b2 = 2.3f;
-    string c2 = "asdf";
-    Shared<Foo> d2;
-    Weak<Foo> e2;
-    Nullable<int> f2;
+    xx.Random1 rnd;
 }
-
-[TypeId(13)]
-class Foo2 {
-    List<Shared<Foo2>> children;
-    int a = 1;
-    float b = 2.3f;
-    string c = "asdf";
-    Shared<Foo2> d;
-    Weak<Foo2> e;
-    Nullable<int> f;
-    int a1 = 1;
-    float b1 = 2.3f;
-    string c1 = "asdf";
-    Shared<Foo2> d1;
-    Weak<Foo2> e1;
-    Nullable<int> f1;
-    int a2 = 1;
-    float b2 = 2.3f;
-    string c2 = "asdf";
-    Shared<Foo2> d2;
-    Weak<Foo2> e2;
-    Nullable<int> f2;
-}
-
-
 
 
 [Include]

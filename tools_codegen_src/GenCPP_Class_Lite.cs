@@ -180,18 +180,13 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
             sb.Append(f._GetDesc()._GetComment_Cpp(8) + @"
         " + (f.IsStatic ? "constexpr " : "") + ftn + " " + f.Name);
 
-            if (ft._IsExternal() && !ft._GetExternalSerializable() && !string.IsNullOrEmpty(ft._GetExternalCppDefaultValue())) {
-                sb.Append(" = " + ft._GetExternalCppDefaultValue() + ";");
+            var v = f.GetValue(f.IsStatic ? null : o);
+            var dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+            if (dv != "") {
+                sb.Append(" = " + dv + ";");
             }
             else {
-                var v = f.GetValue(f.IsStatic ? null : o);
-                var dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
-                if (dv != "") {
-                    sb.Append(" = " + dv + ";");
-                }
-                else {
-                    sb.Append(";");
-                }
+                sb.Append(";");
             }
         }
     }
@@ -212,7 +207,9 @@ namespace xx {");
 		static void ToStringCore(ObjManager& om, " + ctn + @" const& in);
 		static void Clone1(ObjManager& om, " + ctn + @" const& in, " + ctn + @"& out);
 		static void Clone2(ObjManager& om, " + ctn + @" const& in, " + ctn + @"& out);
+		static int RecursiveCheck(ObjManager& om, " + ctn + @" const& in);
 		static void RecursiveReset(ObjManager& om, " + ctn + @"& in);
+		static void SetDefaultValue(ObjManager& om, " + ctn + @"& in);
 	};");
         }
         sb.Append(@"
@@ -270,15 +267,8 @@ namespace xx {");
 
             foreach (var f in fs) {
                 var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-                if (f._Has<TemplateLibrary.Custom>()) {
-                    // todo: call custom func
-                    throw new NotImplementedException();
-                }
-                else {
-                    sb.Append(@"
+                sb.Append(@"
         om.Write(this->" + f.Name + ");");
-                }
             }
 
             if (c._Has<TemplateLibrary.Compatible>()) {
@@ -305,33 +295,19 @@ namespace xx {");
 ");
                 foreach (var f in fs) {
                     var ft = f.FieldType;
-                    if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
 
                     string dv = "";
-                    if (ft._IsExternal() && ft._GetExternalSerializable() && !string.IsNullOrEmpty(ft._GetExternalCppDefaultValue())) {
-                        dv = ft._GetExternalCppDefaultValue();
+                    var v = f.GetValue(f.IsStatic ? null : o);
+                    dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+                    if (dv != "") {
+                        dv = "this->" + f.Name + " = " + dv;
                     }
                     else {
-                        var v = f.GetValue(f.IsStatic ? null : o);
-                        dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
-                        if (dv != "") {
-                            dv = " = " + dv;
-                        }
-                        else {
-                            if (ft._IsString() || ft._IsList()) {   // todo: more type support
-                                dv = ".clear()";
-                            }
-                            else if(ft._IsNullable()) {
-                                dv = ".reset()";
-                            }
-                            else if (ft._IsShared() || ft._IsWeak()) {
-                                dv = ".Reset()";
-                            }
-                        }
+                        dv = "om.SetDefaultValue(this->" + f.Name + ")";
                     }
 
                     sb.Append(@"
-        if (om.data->offset >= endOffset) this->" + f.Name + dv + @";
+        if (om.data->offset >= endOffset) " + dv + @";
         else if (int r = om.Read(this->" + f.Name + @")) return r;");
                 }
 
@@ -342,7 +318,6 @@ namespace xx {");
             }
             else {
                 foreach (var f in fs) {
-                    if (f.FieldType._IsExternal() && !f.FieldType._GetExternalSerializable()) continue;
                     sb.Append(@"
         if (int r = om.Read(this->" + f.Name + @")) return r;");
                 }
@@ -373,7 +348,6 @@ namespace xx {");
 
             foreach (var f in fs) {
                 var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
                 sb.Append(@"
         om.Append("",\""" + f.Name + @"\"":"", this->" + f.Name + @");");
             }
@@ -391,15 +365,8 @@ namespace xx {");
         auto out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
             foreach (var f in fs) {
                 var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-                if (f._Has<TemplateLibrary.Custom>()) {
-                    // todo: call custom func
-                    throw new NotImplementedException();
-                }
-                else {
-                    sb.Append(@"
+                sb.Append(@"
         om.Clone1(this->" + f.Name + ", out->" + f.Name + ");");
-                }
             }
             sb.Append(@"
     }");
@@ -415,18 +382,29 @@ namespace xx {");
 
             foreach (var f in fs) {
                 var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-                if (f._Has<TemplateLibrary.Custom>()) {
-                    // todo: call custom func
-                    throw new NotImplementedException();
-                }
-                else {
-                    sb.Append(@"
+                sb.Append(@"
         om.Clone2(this->" + f.Name + ", out->" + f.Name + ");");
-                }
             }
             sb.Append(@"
     }");
+
+            sb.Append(@"
+    int " + c.Name + @"::RecursiveCheck(::xx::ObjManager& om) const {");
+            if (c._HasBaseType()) {
+                var bt = c.BaseType;
+                sb.Append(@"
+        if (int r = this->BaseType::RecursiveCheck(om)) return r;");
+            }
+            foreach (var f in fs) {
+                var ft = f.FieldType;
+                // todo: 跳过不含有 Shared 的类型的生成
+                sb.Append(@"
+        if (int r = om.RecursiveCheck(this->" + f.Name + ")) return r;");
+            }
+            sb.Append(@"
+        return 0;
+    }");
+
             sb.Append(@"
     void " + c.Name + @"::RecursiveReset(::xx::ObjManager& om) {");
             if (c._HasBaseType()) {
@@ -436,18 +414,39 @@ namespace xx {");
             }
             foreach (var f in fs) {
                 var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-                if (f._Has<TemplateLibrary.Custom>()) {
-                    // todo: call custom func
-                    throw new NotImplementedException();
-                }
-                else {
-                    sb.Append(@"
+                sb.Append(@"
         om.RecursiveReset(this->" + f.Name + ");");
-                }
             }
             sb.Append(@"
     }");
+
+
+            sb.Append(@"
+    void " + c.Name + @"::SetDefaultValue(::xx::ObjManager& om) {");
+            if (c._HasBaseType()) {
+                var bt = c.BaseType;
+                sb.Append(@"
+        this->BaseType::SetDefaultValue(om);");
+            }
+            foreach (var f in fs) {
+                var ft = f.FieldType;
+
+                string dv = "";
+                var v = f.GetValue(f.IsStatic ? null : o);
+                dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+                if (dv != "") {
+                    dv = "this->" + f.Name + " = " + dv;
+                }
+                else {
+                    dv = "om.SetDefaultValue(this->" + f.Name + ")";
+                }
+
+                sb.Append(@"
+        " + dv + @";");
+            }
+            sb.Append(@"
+    }");
+
 
         }
     }
@@ -479,15 +478,8 @@ namespace xx {");
 
         foreach (var f in fs) {
             var ft = f.FieldType;
-            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-            if (f._Has<TemplateLibrary.Custom>()) {
-                // todo
-                throw new NotImplementedException();
-            }
-            else {
-                sb.Append(@"
+            sb.Append(@"
         om.Write(in." + f.Name + ");");
-            }
         }
 
         if (c._Has<TemplateLibrary.Compatible>()) {
@@ -517,40 +509,24 @@ namespace xx {");
 ");
             foreach (var f in fs) {
                 var ft = f.FieldType;
-                if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
 
                 string dv = "";
-                if (ft._IsExternal() && ft._GetExternalSerializable() && !string.IsNullOrEmpty(ft._GetExternalCppDefaultValue())) {
-                    dv = ft._GetExternalCppDefaultValue();
+                var v = f.GetValue(f.IsStatic ? null : o);
+                dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+                if (dv != "") {
+                    dv = "out." + f.Name + " = " + dv;
                 }
                 else {
-                    var v = f.GetValue(f.IsStatic ? null : o);
-                    dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
-                    if (dv != "") {
-                        dv = " = " + dv;
-                    }
-                    else {
-                        if (ft._IsString() || ft._IsList()) {   // todo: more type support
-                            dv = ".clear()";
-                        }
-                        else if (ft._IsNullable()) {
-                            dv = ".reset()";
-                        }
-                        else if (ft._IsShared() || ft._IsWeak()) {
-                            dv = ".Reset()";
-                        }
-                    }
+                    dv = "om.SetDefaultValue(out." + f.Name + ")";
                 }
 
-                // todo: set default value
                 sb.Append(@"
-        if (om.data->offset >= endOffset) this->" + f.Name + dv + @";
-        else if (int r = om.Read(this->" + f.Name + @")) return r;");
+        if (om.data->offset >= endOffset) " + dv + @";
+        else if (int r = om.Read(out." + f.Name + @")) return r;");
             }
         }
         else {
             foreach (var f in fs) {
-                if (f.FieldType._IsExternal() && !f.FieldType._GetExternalSerializable()) continue;
                 sb.Append(@"
         if (int r = om.Read(out." + f.Name + @")) return r;");
             }
@@ -577,7 +553,6 @@ namespace xx {");
 
         foreach (var f in fs) {
             var ft = f.FieldType;
-            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
             if (f == fs[0]) {
                 if (c._HasBaseType()) {
                     sb.Append(@"
@@ -606,11 +581,8 @@ namespace xx {");
         }
         foreach (var f in fs) {
             var ft = f.FieldType;
-            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-            else {
-                sb.Append(@"
+            sb.Append(@"
         om.Clone1(in." + f.Name + ", out." + f.Name + ");");
-            }
         }
         sb.Append(@"
     }");
@@ -625,13 +597,27 @@ namespace xx {");
         }
         foreach (var f in fs) {
             var ft = f.FieldType;
-            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-            else {
-                sb.Append(@"
+            sb.Append(@"
         om.Clone2(in." + f.Name + ", out." + f.Name + ");");
-            }
         }
         sb.Append(@"
+    }");
+
+        sb.Append(@"
+    int ObjFuncs<" + ctn + @">::RecursiveCheck(::xx::ObjManager& om, " + ctn + @" const& in) {");
+        if (c._HasBaseType()) {
+            var bt = c.BaseType;
+            var btn = bt._GetTypeDecl_Cpp(templateName);
+            sb.Append(@"
+        if (int r = ObjFuncs<" + btn + ">::RecursiveCheck(om, in)) return r;");
+        }
+        foreach (var f in fs) {
+            var ft = f.FieldType;
+            sb.Append(@"
+        if (int r = om.RecursiveCheck(in." + f.Name + ")) return r;");
+        }
+        sb.Append(@"
+        return 0;
     }");
 
         sb.Append(@"
@@ -644,11 +630,35 @@ namespace xx {");
         }
         foreach (var f in fs) {
             var ft = f.FieldType;
-            if (ft._IsExternal() && !ft._GetExternalSerializable()) continue;
-            else {
-                sb.Append(@"
+            sb.Append(@"
         om.RecursiveReset(in." + f.Name + ");");
+        }
+        sb.Append(@"
+    }");
+
+        sb.Append(@"
+    void ObjFuncs<" + ctn + @">::SetDefaultValue(::xx::ObjManager& om, " + ctn + @"& in) {");
+        if (c._HasBaseType()) {
+            var bt = c.BaseType;
+            var btn = bt._GetTypeDecl_Cpp(templateName);
+            sb.Append(@"
+        ObjFuncs<" + btn + ">::SetDefaultValue(om, in);");
+        }
+        foreach (var f in fs) {
+            var ft = f.FieldType;
+
+            string dv = "";
+            var v = f.GetValue(f.IsStatic ? null : o);
+            dv = ft._GetDefaultValueDecl_Cpp(v, templateName);
+            if (dv != "") {
+                dv = "in." + f.Name + " = " + dv;
             }
+            else {
+                dv = "om.SetDefaultValue(in." + f.Name + ")";
+            }
+
+            sb.Append(@"
+        " + dv + @";");
         }
         sb.Append(@"
     }");
@@ -671,10 +681,8 @@ namespace " + templateName + @" {
 	void PkgGenTypes::RegisterTo(::xx::ObjManager& om) {");
         foreach (var kv in typeIdMappings) {
             var ctn = kv.Value._GetTypeDecl_Cpp(templateName);
-            if (!kv.Value._Has<TemplateLibrary.Virtual>()) {
-                sb.Append(@"
+            sb.Append(@"
 	    om.Register<" + ctn + @">();");
-            }
         }
         sb.Append(@"
 	}

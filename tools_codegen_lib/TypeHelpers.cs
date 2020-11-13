@@ -233,17 +233,6 @@ public static class TypeHelpers {
         return t.GenericTypeArguments[index];
     }
 
-    /// <summary>
-    /// 获取字段是否只读属性
-    /// </summary>
-    public static bool _IsReadOnly<T>(this T t) where T : ICustomAttributeProvider {
-        foreach (var a in t.GetCustomAttributes(false)) {
-            if (a is TemplateLibrary.Column)
-                return ((TemplateLibrary.Column)a).readOnly;
-        }
-        return false;
-    }
-
 
     /// <summary>
     /// 返回 t 是否为 用户类
@@ -351,34 +340,6 @@ public static class TypeHelpers {
     /// </summary>
     public static bool _IsExternal(this Type t) {
         return _Has<TemplateLibrary.External>(t);
-    }
-    public static bool _GetExternalSerializable(this Type t) {
-        foreach (var a in t.GetCustomAttributes(false)) {
-            if (a is TemplateLibrary.External)
-                return ((TemplateLibrary.External)a).serializable;
-        }
-        return false;
-    }
-    public static string _GetExternalCppDefaultValue(this Type t) {
-        foreach (var a in t.GetCustomAttributes(false)) {
-            if (a is TemplateLibrary.External)
-                return ((TemplateLibrary.External)a).cppDefaultValue;
-        }
-        return "";
-    }
-    public static string _GetExternalCsharpDefaultValue(this Type t) {
-        foreach (var a in t.GetCustomAttributes(false)) {
-            if (a is TemplateLibrary.External)
-                return ((TemplateLibrary.External)a).csharpDefaultValue;
-        }
-        return "";
-    }
-    public static string _GetExternalLuaDefaultValue(this Type t) {
-        foreach (var a in t.GetCustomAttributes(false)) {
-            if (a is TemplateLibrary.External)
-                return ((TemplateLibrary.External)a).luaDefaultValue;
-        }
-        return "";
     }
 
     /// <summary>
@@ -1059,197 +1020,6 @@ public static class TypeHelpers {
 
 
 
-    /// <summary>
-    /// 将填写的 Sql 文本按占位符 {?} 的位置切割成  string / int 交替形态, 以便于遍历和生成相关拼接语句
-    /// </summary>
-    public static List<object> _SpliteSql(this string sql) {
-        var rtv = new List<object>();
-        var sb = new StringBuilder();
-        string numStr = "";
-        int offset = 0, i = 0;
-        while (offset < sql.Length) {
-            var c = sql[offset];
-            if (c == '{') {
-                c = sql[++offset];
-                if (c == '{') {
-                    sb.Append('{');
-                }
-                else {
-                    while (offset < sql.Length) {
-                        c = sql[offset];
-                        if (c == '}') {
-                            rtv.Add(sb.ToString());
-                            sb.Clear();
-
-                            int.TryParse(numStr, out i);
-                            rtv.Add(i);
-                            numStr = "";
-
-                            break;
-                        }
-                        else {
-                            numStr += c;
-                        }
-                        ++offset;
-                    }
-                }
-            }
-            else {
-                sb.Append(c);
-            }
-            ++offset;
-        }
-        if (sb.Length > 0) {
-            rtv.Add(sb.ToString());
-        }
-        return rtv;
-    }
-
-    /// <summary>
-    /// 返回类型对应的 SqlDataReader 之数据读取函数名
-    /// </summary>
-    public static string _GetDataReaderFuncName(this Type t) {
-        if (t._IsNullable()) {
-            return _GetDataReaderFuncName(t.GenericTypeArguments[0]);
-        }
-        if (t.Namespace == nameof(TemplateLibrary)) {
-            switch (t.Name) {
-                case "DateTime":
-                    return "r.GetDateTime";
-                //case "Data":
-                //    return "r.GetXXXXXXXXXXXXX";
-
-                default:
-                    throw new Exception("unhandled data type");
-            }
-        }
-        else if (t.Namespace == nameof(System)) {
-            switch (t.Name) {
-                case "Void":
-                    throw new Exception("impossible");
-                case "Byte":
-                    return "r.GetByte";
-                case "UInt8":
-                    return "r.GetSByte";
-                case "UInt16":
-                    return "r.GetUInt16";
-                case "UInt32":
-                    return "r.GetUInt32";
-                case "UInt64":
-                    return "r.GetUInt64";
-                case "SByte":
-                    return "r.GetSByte";
-                case "Int8":
-                    return "r.GetByte";
-                case "Int16":
-                    return "r.GetInt16";
-                case "Int32":
-                    return "r.GetInt32";
-                case "Int64":
-                    return "r.GetInt64";
-                case "Double":
-                    return "r.GetDouble";
-                case "Float":
-                    return "r.GetFloat";
-                case "Single":
-                    return "r.GetFloat";
-                case "Boolean":
-                    return "r.GetBoolean";
-                case "Bool":
-                    return "r.GetBoolean";
-                case "String":
-                    return "r.GetString";
-                //case "DateTime":
-                //    return "r.GetDateTime";
-
-                default:
-                    throw new Exception("unhandled data type");
-            }
-        }
-        else if (t.IsEnum) {
-            return "(" + t.FullName + ")r.Get" + t.GetEnumUnderlyingType().Name;
-        }
-        //else if (t.Namespace == nameof(TemplateLibrary) && t.Name == "Data")
-        //{
-        //    return "r.GetBBuffer";
-        //}
-        else throw new Exception("todo");
-    }
-
-    /// <summary>
-    /// 返回类型对应的 SqlDataReader 之数据读取函数名 之 C++ 版
-    /// </summary>
-    public static string _GetDataReaderFuncName_Cpp(this Type t, int colIdx) {
-        if (t._IsNullable()) {
-            return _GetDataReaderFuncName_Cpp(t.GenericTypeArguments[0], colIdx);
-        }
-        else if (t.Namespace == nameof(TemplateLibrary)) {
-            switch (t.Name) {
-                //case "DateTime":
-                //    return "sr.GetDateTime";
-                case "Data":
-                    return "this->mempool->MPCreate<xx::Data>(sr.ReadBlob(" + colIdx + "))";
-
-                default:
-                    throw new Exception("unhandled data type");
-            }
-        }
-        else if (t.Namespace == nameof(System)) {
-            switch (t.Name) {
-                case "Void":
-                    throw new Exception("impossible");
-                case "Byte":
-                    return "(uint8_t)sr.ReadInt32(" + colIdx + ")";
-                case "UInt8":
-                    return "(uint8_t)sr.ReadInt32(" + colIdx + ")";
-                case "UInt16":
-                    return "(uint16_t)sr.ReadInt32(" + colIdx + ")";
-                case "UInt32":
-                    return "(uint32_t)sr.ReadInt32(" + colIdx + ")";
-                case "UInt64":
-                    return "(uint64_t)sr.ReadInt64(" + colIdx + ")";
-                case "SByte":
-                    return "(int8_t)sr.ReadInt32(" + colIdx + ")";
-                case "Int8":
-                    return "(int8_t)sr.ReadInt32(" + colIdx + ")";
-                case "Int16":
-                    return "(int16_t)sr.ReadInt32(" + colIdx + ")";
-                case "Int32":
-                    return "sr.ReadInt32(" + colIdx + ")";
-                case "Int64":
-                    return "sr.ReadInt64(" + colIdx + ")";
-                case "Double":
-                    return "sr.ReadDouble(" + colIdx + ")";
-                case "Float":
-                    return "(float)sr.ReadDouble(" + colIdx + ")";
-                case "Single":
-                    return "(float)sr.ReadDouble(" + colIdx + ")";
-                case "Boolean":
-                    return "sr.ReadInt32(" + colIdx + ") ? true : false";
-                case "Bool":
-                    return "sr.ReadInt32(" + colIdx + ") ? true : false";
-                case "String":
-                    return "this->mempool->MPCreate<xx::String>(sr.ReadString(" + colIdx + "))";
-                //case "DateTime":
-                //    return "sr.GetDateTime";
-
-                default:
-                    throw new Exception("unhandled data type");
-            }
-        }
-        else if (t.IsEnum) {
-            return "(" + t.FullName + ")" + _GetDataReaderFuncName_Cpp(t.GetEnumUnderlyingType(), colIdx);
-        }
-        //else if (t.Namespace == nameof(TemplateLibrary) && t.Name == "Data")
-        //{
-        //    return "sr.GetBBuffer";
-        //}
-        else throw new Exception("unhandled data type:" + t.FullName);
-    }
-
-
-
-
 
 
 
@@ -1315,19 +1085,6 @@ public static class TypeHelpers {
     }
 
 
-
-
-    /// <summary>
-    /// 获取 Attribute 之 Sql 文本. 未找到将返回 ""
-    /// </summary>
-    public static string _GetSql(this ICustomAttributeProvider t) {
-        foreach (var a in t.GetCustomAttributes(false)) {
-            if (a is TemplateLibrary.Sql)
-                return ((TemplateLibrary.Sql)a).value;
-        }
-        return "";
-    }
-
     /// <summary>
     /// 判断目标类型是否为派生类
     /// </summary>
@@ -1335,21 +1092,4 @@ public static class TypeHelpers {
         if (t.BaseType == null) return false;
         return t.BaseType != typeof(object) && t.BaseType != typeof(System.ValueType);
     }
-
-
-
 }
-
-
-///// <summary>
-///// 获取 Attribute 之 Key. 未找到将返回 null
-///// </summary>
-//public static bool? _GetKey(this ICustomAttributeProvider t)
-//{
-//    foreach (var a in t.GetCustomAttributes(false))
-//    {
-//        if (a is TemplateLibrary.Key)
-//            return ((TemplateLibrary.Key)a).value;
-//    }
-//    return false;
-//}
