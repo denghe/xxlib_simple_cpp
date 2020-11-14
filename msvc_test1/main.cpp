@@ -1,80 +1,79 @@
 #include "FF_class_lite.h"
 #include "xx_chrono.h"
+#include "xx_lua.h"
+
+// todo: 针对容器类型的各种 读 长度保护。简单判断如果 size + offset > len 就失败
+
+enum class 花色 {
+	筒, 条, 万
+};
+struct 牌 {
+	花色 花色;
+	int 点数;
+};
+constexpr 牌 operator"" 筒(uint64_t v) {
+	return { 花色::筒, (int)v };
+}
+constexpr 牌 operator"" 条(uint64_t v) {
+	return { 花色::条, (int)v };
+}
+constexpr 牌 operator"" 万(uint64_t v) {
+	return { 花色::万, (int)v };
+}
 
 int main() {
+	std::vector<牌> ps = { 5条, 3万 };
+
 	xx::ObjManager om;
 	FF::PkgGenTypes::RegisterTo(om);
 
-	auto f = xx::MakeShared<FF::Foo>();
-	auto f_ = xx::MakeScopeGuard([&] { om.KillRecursive(f); });
-	f->parent = f;
+	using namespace xx::Lua;
+	State L;
+	DoString(L, R"(
+function tprint (tbl, indent)
+  if not indent then indent = 0 end
+  for k, v in pairs(tbl) do
+    formatting = string.rep("  ", indent) .. k .. ": "
+    if type(v) == "table" then
+      print(formatting)
+      tprint(v, indent+1)
+    elseif type(v) == 'boolean' then
+      print(formatting .. tostring(v))      
+    else
+      print(formatting .. v)
+    end
+  end
+end
 
-	auto f2 = xx::MakeShared<FF::Foo2>();
-	f->children.emplace_back(f2);
-	f2->children.emplace_back(f2);
+t = {
+	[1] = "asdf",
+	[3] = 1.2,
+	abc = {
+		[5] = 3.4,
+		k1 = "v1",
+		k2 = "v2"
+	}
+}
 
-	auto f3 = om.Clone(f2);
-	f->children.emplace_back(f3);
-
-	om.CoutN(om.HasRecursive(f));
-	om.CoutN(f);
+tprint(t)
+)");
+	lua_getglobal(L, "t");
+	AssertTop(L, 1);
 
 	xx::Data d;
-	om.WriteTo(d, f);
+	WriteTo(L, d);
 	om.CoutN(d);
 
-	
-	//{
-	//	xx::Shared<FF::Foo> a;
-	//	a.Emplace();asdf
-	//	a->children.emplace_back().Emplace();
-	//	//om.CoutN(a);
+	lua_pop(L, 1);
+	AssertTop(L, 0);
 
-	//	d.Clear();
-	//	om.WriteTo(d, a);
-	//	//om.CoutN(d);
+	ReadFrom(L, d);
+	AssertTop(L, 1);
+	lua_setglobal(L, "t2");
 
-	//	//d[3] = 1;
-	//	//d.len -= 2;
-	//	//om.CoutN(d);
-	//	auto sec = xx::NowEpochSeconds();
-	//	xx::Shared<FF::Foo> b;
-	//	auto b_ = xx::MakeScopeGuard([&] { om.RecursiveResetRoot(b); });
-	//	for (size_t i = 0; i < 10000000; i++) {
-	//		d.offset = 0;
-	//		om.ReadFrom(d, b);
-	//	}
-	//	auto sec2 = xx::NowEpochSeconds();
-	//	om.CoutN(sec2 - sec);
-	//	om.CoutN(b);
-	//}
-
-
-	//{
-	//	xx::Shared<FF::Foo2> a;
-	//	a.Emplace();
-	//	a->children.emplace_back().Emplace();
-	//	//om.CoutN(a);
-
-	//	d.Clear();
-	//	om.WriteTo(d, a);
-	//	//om.CoutN(d);
-
-	//	//d[3] = 1;
-	//	//d.len -= 2;
-	//	//om.CoutN(d);
-	//	auto sec = xx::NowEpochSeconds();
-	//	xx::Shared<FF::Foo2> b;
-	//	auto b_ = xx::MakeScopeGuard([&] { om.RecursiveResetRoot(b); });
-	//	for (size_t i = 0; i < 10000000; i++) {
-	//		d.offset = 0;
-	//		om.ReadFrom(d, b);
-	//	}
-	//	auto sec2 = xx::NowEpochSeconds();
-	//	om.CoutN(sec2 - sec);
-	//	om.CoutN(b);
-	//}
-
+	DoString(L, R"(
+tprint(t2)
+)");
 
 	return 0;
 }

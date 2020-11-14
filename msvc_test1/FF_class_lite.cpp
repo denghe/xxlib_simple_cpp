@@ -26,12 +26,12 @@ namespace xx {
         if (int r = om.Read(out.y)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::Point, void>::ToString(ObjManager &om, ::FF::Point const& in) {
+	void ObjFuncs<::FF::Point, void>::Append(ObjManager &om, ::FF::Point const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::Point, void>::ToStringCore(ObjManager &om, ::FF::Point const& in) {
+	void ObjFuncs<::FF::Point, void>::AppendCore(ObjManager &om, ::FF::Point const& in) {
         om.Append("\"x\":", in.x); 
         om.Append(",\"y\":", in.y);
     }
@@ -67,12 +67,12 @@ namespace xx {
         if (int r = om.Read(out.r)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::CDCircle, void>::ToString(ObjManager &om, ::FF::CDCircle const& in) {
+	void ObjFuncs<::FF::CDCircle, void>::Append(ObjManager &om, ::FF::CDCircle const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::CDCircle, void>::ToStringCore(ObjManager &om, ::FF::CDCircle const& in) {
+	void ObjFuncs<::FF::CDCircle, void>::AppendCore(ObjManager &om, ::FF::CDCircle const& in) {
         om.Append("\"x\":", in.x); 
         om.Append(",\"y\":", in.y);
         om.Append(",\"r\":", in.r);
@@ -112,12 +112,12 @@ namespace xx {
         if (int r = om.Read(out.y)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::LockPoint, void>::ToString(ObjManager &om, ::FF::LockPoint const& in) {
+	void ObjFuncs<::FF::LockPoint, void>::Append(ObjManager &om, ::FF::LockPoint const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::LockPoint, void>::ToStringCore(ObjManager &om, ::FF::LockPoint const& in) {
+	void ObjFuncs<::FF::LockPoint, void>::AppendCore(ObjManager &om, ::FF::LockPoint const& in) {
         om.Append("\"x\":", in.x); 
         om.Append(",\"y\":", in.y);
     }
@@ -153,12 +153,12 @@ namespace xx {
         if (int r = om.Read(out.lockPoints)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::TimePoint_LockPoints, void>::ToString(ObjManager &om, ::FF::TimePoint_LockPoints const& in) {
+	void ObjFuncs<::FF::TimePoint_LockPoints, void>::Append(ObjManager &om, ::FF::TimePoint_LockPoints const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::TimePoint_LockPoints, void>::ToStringCore(ObjManager &om, ::FF::TimePoint_LockPoints const& in) {
+	void ObjFuncs<::FF::TimePoint_LockPoints, void>::AppendCore(ObjManager &om, ::FF::TimePoint_LockPoints const& in) {
         om.Append("\"time\":", in.time); 
         om.Append(",\"mainLockPoint\":", in.mainLockPoint);
         om.Append(",\"lockPoints\":", in.lockPoints);
@@ -200,12 +200,12 @@ namespace xx {
         if (int r = om.Read(out.cdCircles)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::TimePoint_CDCircles, void>::ToString(ObjManager &om, ::FF::TimePoint_CDCircles const& in) {
+	void ObjFuncs<::FF::TimePoint_CDCircles, void>::Append(ObjManager &om, ::FF::TimePoint_CDCircles const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::TimePoint_CDCircles, void>::ToStringCore(ObjManager &om, ::FF::TimePoint_CDCircles const& in) {
+	void ObjFuncs<::FF::TimePoint_CDCircles, void>::AppendCore(ObjManager &om, ::FF::TimePoint_CDCircles const& in) {
         om.Append("\"time\":", in.time); 
         om.Append(",\"maxCDCircle\":", in.maxCDCircle);
         om.Append(",\"cdCircles\":", in.cdCircles);
@@ -245,12 +245,12 @@ namespace xx {
         if (int r = om.Read(out.speed)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::TimePoint_Speed, void>::ToString(ObjManager &om, ::FF::TimePoint_Speed const& in) {
+	void ObjFuncs<::FF::TimePoint_Speed, void>::Append(ObjManager &om, ::FF::TimePoint_Speed const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::TimePoint_Speed, void>::ToStringCore(ObjManager &om, ::FF::TimePoint_Speed const& in) {
+	void ObjFuncs<::FF::TimePoint_Speed, void>::AppendCore(ObjManager &om, ::FF::TimePoint_Speed const& in) {
         om.Append("\"time\":", in.time); 
         om.Append(",\"speed\":", in.speed);
     }
@@ -290,12 +290,12 @@ namespace xx {
         if (int r = om.Read(out.ss)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::Action_AnimExt, void>::ToString(ObjManager &om, ::FF::Action_AnimExt const& in) {
+	void ObjFuncs<::FF::Action_AnimExt, void>::Append(ObjManager &om, ::FF::Action_AnimExt const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::Action_AnimExt, void>::ToStringCore(ObjManager &om, ::FF::Action_AnimExt const& in) {
+	void ObjFuncs<::FF::Action_AnimExt, void>::AppendCore(ObjManager &om, ::FF::Action_AnimExt const& in) {
         om.Append("\"name\":", in.name); 
         om.Append(",\"totalSeconds\":", in.totalSeconds);
         om.Append(",\"lps\":", in.lps);
@@ -349,12 +349,12 @@ namespace xx {
         if (int r = om.Read(out.d)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::PathwayPoint, void>::ToString(ObjManager &om, ::FF::PathwayPoint const& in) {
+	void ObjFuncs<::FF::PathwayPoint, void>::Append(ObjManager &om, ::FF::PathwayPoint const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::PathwayPoint, void>::ToStringCore(ObjManager &om, ::FF::PathwayPoint const& in) {
+	void ObjFuncs<::FF::PathwayPoint, void>::AppendCore(ObjManager &om, ::FF::PathwayPoint const& in) {
         om.Append("\"pos\":", in.pos); 
         om.Append(",\"a\":", in.a);
         om.Append(",\"d\":", in.d);
@@ -398,12 +398,12 @@ namespace xx {
         if (int r = om.Read(out.shadowScale)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::File_AnimExt, void>::ToString(ObjManager &om, ::FF::File_AnimExt const& in) {
+	void ObjFuncs<::FF::File_AnimExt, void>::Append(ObjManager &om, ::FF::File_AnimExt const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::File_AnimExt, void>::ToStringCore(ObjManager &om, ::FF::File_AnimExt const& in) {
+	void ObjFuncs<::FF::File_AnimExt, void>::AppendCore(ObjManager &om, ::FF::File_AnimExt const& in) {
         om.Append("\"actions\":", in.actions); 
         om.Append(",\"shadowX\":", in.shadowX);
         om.Append(",\"shadowY\":", in.shadowY);
@@ -449,12 +449,12 @@ namespace xx {
         if (int r = om.Read(out.picName)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::TimePoint_Frame, void>::ToString(ObjManager &om, ::FF::TimePoint_Frame const& in) {
+	void ObjFuncs<::FF::TimePoint_Frame, void>::Append(ObjManager &om, ::FF::TimePoint_Frame const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::TimePoint_Frame, void>::ToStringCore(ObjManager &om, ::FF::TimePoint_Frame const& in) {
+	void ObjFuncs<::FF::TimePoint_Frame, void>::AppendCore(ObjManager &om, ::FF::TimePoint_Frame const& in) {
         om.Append("\"time\":", in.time); 
         om.Append(",\"picName\":", in.picName);
     }
@@ -490,12 +490,12 @@ namespace xx {
         if (int r = om.Read(out.frames)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::Action_Frames, void>::ToString(ObjManager &om, ::FF::Action_Frames const& in) {
+	void ObjFuncs<::FF::Action_Frames, void>::Append(ObjManager &om, ::FF::Action_Frames const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::Action_Frames, void>::ToStringCore(ObjManager &om, ::FF::Action_Frames const& in) {
+	void ObjFuncs<::FF::Action_Frames, void>::AppendCore(ObjManager &om, ::FF::Action_Frames const& in) {
         om.Append("\"name\":", in.name); 
         om.Append(",\"totalSeconds\":", in.totalSeconds);
         om.Append(",\"frames\":", in.frames);
@@ -539,12 +539,12 @@ namespace xx {
         if (int r = om.Read(out.numSegments)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::CurvePoint, void>::ToString(ObjManager &om, ::FF::CurvePoint const& in) {
+	void ObjFuncs<::FF::CurvePoint, void>::Append(ObjManager &om, ::FF::CurvePoint const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::CurvePoint, void>::ToStringCore(ObjManager &om, ::FF::CurvePoint const& in) {
+	void ObjFuncs<::FF::CurvePoint, void>::AppendCore(ObjManager &om, ::FF::CurvePoint const& in) {
         om.Append("\"x\":", in.x); 
         om.Append(",\"y\":", in.y);
         om.Append(",\"tension\":", in.tension);
@@ -590,12 +590,12 @@ namespace xx {
         if (int r = om.Read(out.plists)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::File_Frames, void>::ToString(ObjManager &om, ::FF::File_Frames const& in) {
+	void ObjFuncs<::FF::File_Frames, void>::Append(ObjManager &om, ::FF::File_Frames const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::File_Frames, void>::ToStringCore(ObjManager &om, ::FF::File_Frames const& in) {
+	void ObjFuncs<::FF::File_Frames, void>::AppendCore(ObjManager &om, ::FF::File_Frames const& in) {
         om.Append("\"actions\":", in.actions); 
         om.Append(",\"plists\":", in.plists);
     }
@@ -629,12 +629,12 @@ namespace xx {
         if (int r = om.Read(out.points)) return r;
         return 0;
     }
-	void ObjFuncs<::FF::File_pathway, void>::ToString(ObjManager &om, ::FF::File_pathway const& in) {
+	void ObjFuncs<::FF::File_pathway, void>::Append(ObjManager &om, ::FF::File_pathway const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<::FF::File_pathway, void>::ToStringCore(ObjManager &om, ::FF::File_pathway const& in) {
+	void ObjFuncs<::FF::File_pathway, void>::AppendCore(ObjManager &om, ::FF::File_pathway const& in) {
         om.Append("\"isLoop\":", in.isLoop); 
         om.Append(",\"points\":", in.points);
     }
@@ -703,12 +703,12 @@ namespace FF {
         if (int r = om.Read(this->coin)) return r;
         return 0;
     }
-    void Bullet::ToString(::xx::ObjManager& om) const {
+    void Bullet::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Bullet::ToStringCore(::xx::ObjManager& om) const {
+    void Bullet::AppendCore(::xx::ObjManager& om) const {
         om.Append(",\"id\":", this->id);
         om.Append(",\"coin\":", this->coin);
     }
@@ -798,12 +798,12 @@ namespace FF {
         if (int r = om.Read(this->points)) return r;
         return 0;
     }
-    void Pathway::ToString(::xx::ObjManager& om) const {
+    void Pathway::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Pathway::ToStringCore(::xx::ObjManager& om) const {
+    void Pathway::AppendCore(::xx::ObjManager& om) const {
         om.Append(",\"isLoop\":", this->isLoop);
         om.Append(",\"points\":", this->points);
     }
@@ -860,12 +860,12 @@ namespace FF {
         if (int r = om.Read(this->bullets)) return r;
         return 0;
     }
-    void Cannon::ToString(::xx::ObjManager& om) const {
+    void Cannon::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Cannon::ToStringCore(::xx::ObjManager& om) const {
+    void Cannon::AppendCore(::xx::ObjManager& om) const {
         om.Append(",\"id\":", this->id);
         om.Append(",\"typeId\":", this->typeId);
         om.Append(",\"bullets\":", this->bullets);
@@ -993,12 +993,12 @@ namespace FF {
         if (int r = om.Read(this->file)) return r;
         return 0;
     }
-    void Fish::ToString(::xx::ObjManager& om) const {
+    void Fish::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Fish::ToStringCore(::xx::ObjManager& om) const {
+    void Fish::AppendCore(::xx::ObjManager& om) const {
         om.Append(",\"pos\":", this->pos);
         om.Append(",\"angle\":", this->angle);
         om.Append(",\"scaleX\":", this->scaleX);
@@ -1204,12 +1204,12 @@ namespace FF {
         if (int r = om.Read(this->effectiveTime)) return r;
         return 0;
     }
-    void Stuff::ToString(::xx::ObjManager& om) const {
+    void Stuff::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Stuff::ToStringCore(::xx::ObjManager& om) const {
+    void Stuff::AppendCore(::xx::ObjManager& om) const {
         om.Append(",\"id\":", this->id);
         om.Append(",\"typeId\":", this->typeId);
         om.Append(",\"pos\":", this->pos);
@@ -1300,12 +1300,12 @@ namespace FF {
         if (int r = om.Read(this->aimFish)) return r;
         return 0;
     }
-    void Player::ToString(::xx::ObjManager& om) const {
+    void Player::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Player::ToStringCore(::xx::ObjManager& om) const {
+    void Player::AppendCore(::xx::ObjManager& om) const {
         om.Append(",\"id\":", this->id);
         om.Append(",\"nickname\":", this->nickname);
         om.Append(",\"coin\":", this->coin);
@@ -1406,12 +1406,12 @@ namespace FF {
         if (int r = om.Read(this->children)) return r;
         return 0;
     }
-    void Foo::ToString(::xx::ObjManager& om) const {
+    void Foo::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Foo::ToStringCore(::xx::ObjManager& om) const {
+    void Foo::AppendCore(::xx::ObjManager& om) const {
         om.Append(",\"id\":", this->id);
         om.Append(",\"parent\":", this->parent);
         om.Append(",\"children\":", this->children);
@@ -1473,13 +1473,13 @@ namespace FF {
         if (int r = om.Read(this->pos)) return r;
         return 0;
     }
-    void SimpleBullet::ToString(::xx::ObjManager& om) const {
+    void SimpleBullet::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void SimpleBullet::ToStringCore(::xx::ObjManager& om) const {
-        this->BaseType::ToStringCore(om);
+    void SimpleBullet::AppendCore(::xx::ObjManager& om) const {
+        this->BaseType::AppendCore(om);
         om.Append(",\"angle\":", this->angle);
         om.Append(",\"pos\":", this->pos);
     }
@@ -1546,13 +1546,13 @@ namespace FF {
         if (int r = om.Read(this->name)) return r;
         return 0;
     }
-    void Foo2::ToString(::xx::ObjManager& om) const {
+    void Foo2::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Foo2::ToStringCore(::xx::ObjManager& om) const {
-        this->BaseType::ToStringCore(om);
+    void Foo2::AppendCore(::xx::ObjManager& om) const {
+        this->BaseType::AppendCore(om);
         om.Append(",\"name\":", this->name);
     }
     void Foo2::Clone1(::xx::ObjManager& om, void* const &tar) const {
@@ -1601,12 +1601,12 @@ namespace FF {
         if (int r = om.Read(this->fishs)) return r;
         return 0;
     }
-    void Root::ToString(::xx::ObjManager& om) const {
+    void Root::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void Root::ToStringCore(::xx::ObjManager& om) const {
+    void Root::AppendCore(::xx::ObjManager& om) const {
         om.Append(",\"dtPool\":", this->dtPool);
         om.Append(",\"frame\":", this->frame);
         om.Append(",\"players\":", this->players);
@@ -1667,13 +1667,13 @@ namespace FF {
         if (int r = this->BaseType::Read(om)) return r;
         return 0;
     }
-    void TrackBullet::ToString(::xx::ObjManager& om) const {
+    void TrackBullet::Append(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void TrackBullet::ToStringCore(::xx::ObjManager& om) const {
-        this->BaseType::ToStringCore(om);
+    void TrackBullet::AppendCore(::xx::ObjManager& om) const {
+        this->BaseType::AppendCore(om);
     }
     void TrackBullet::Clone1(::xx::ObjManager& om, void* const &tar) const {
         this->BaseType::Clone1(om, tar);

@@ -23,11 +23,11 @@ namespace xx {
 		static inline int Read(ObjManager& om, T& out) {
 			return 0;
 		}
-		static inline void ToString(ObjManager& om, T const& in) {
+		static inline void Append(ObjManager& om, T const& in) {
 			std::string s(xx::TypeName_v<T>);
 			assert(false);
 		}
-		static inline void ToStringCore(ObjManager& om, T const& in) {
+		static inline void AppendCore(ObjManager& om, T const& in) {
 		}
 		static inline void Clone1(ObjManager& om, T const& in, T& out) {
 			out = in;
@@ -49,8 +49,8 @@ namespace xx {
 	/*
 	inline void Write(xx::ObjManager& o) const override { }
 	inline int Read(xx::ObjManager& o) override { }
-	inline void ToString(xx::ObjManager& o) const override { }
-	inline void ToStringCore(xx::ObjManager& o) const override { }
+	inline void Append(xx::ObjManager& o) const override { }
+	inline void AppendCore(xx::ObjManager& o) const override { }
 	inline void Clone1(xx::ObjManager& o, void* const& tar) const override { }
 	inline void Clone2(xx::ObjManager& o, void* const& tar) const override { }
 	inline int RecursiveCheck(xx::ObjManager& o) const override { }
@@ -75,10 +75,10 @@ namespace xx {
 		virtual int Read(ObjManager& om) = 0;
 
 		// 输出 json 长相时用于输出外包围 {  } 部分
-		virtual void ToString(ObjManager& om) const = 0;
+		virtual void Append(ObjManager& om) const = 0;
 
 		// 输出 json 长相时用于输出花括号内部的成员拼接
-		virtual void ToStringCore(ObjManager& om) const = 0;
+		virtual void AppendCore(ObjManager& om) const = 0;
 
 		// 克隆步骤1: 拷贝普通数据，遇到 Shared 就同型新建, 并保存映射关系
 		virtual void Clone1(ObjManager& om, void* const& tar) const = 0;
@@ -217,7 +217,7 @@ namespace xx {
 		template<typename T>
 		XX_FORCEINLINE void Write_(T const& v) {
 			auto& d = *data;
-			if constexpr (IsPtrShared_v<T>) {
+			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 					if (!v) {
@@ -249,7 +249,7 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsPtrWeak_v<T>) {
+			else if constexpr (IsXxWeak_v<T>) {
 				if (v.h) {
 					auto p = v.h + 1;
 					Write_(*(Shared<typename T::ElementType>*) & p);
@@ -382,7 +382,7 @@ namespace xx {
 		template<typename T>
 		XX_FORCEINLINE int Read_(T& v) {
 			auto& d = *data;
-			if constexpr (IsPtrShared_v<T>) {
+			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
 					uint32_t offs;
@@ -425,7 +425,7 @@ namespace xx {
 					return Read_(v.Value());
 				}
 			}
-			else if constexpr (IsPtrWeak_v<T>) {
+			else if constexpr (IsXxWeak_v<T>) {
 				Shared<typename T::ElementType> o;
 				if (int r = Read_(o)) return r;
 				if (o.pointer) {
@@ -564,7 +564,7 @@ namespace xx {
 		template<typename T>
 		XX_FORCEINLINE void Append_(T const& v) {
 			auto& s = *str;
-			if constexpr (IsPtrShared_v<T>) {
+			if constexpr (IsXxShared_v<T>) {
 				using U = typename T::ElementType;
 				if (v) {
 					if constexpr (std::is_same_v<U, ObjBase> || TypeId_v<U> > 0) {
@@ -586,11 +586,11 @@ namespace xx {
 					s.append("null");
 				}
 			}
-			else if constexpr (IsPtrWeak_v<T>) {
+			else if constexpr (IsXxWeak_v<T>) {
 				Append_(v.Lock());
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
-				v.ToString(*this);
+				v.Append(*this);
 			}
 			else if constexpr (std::is_arithmetic_v<T>) {
 				if constexpr (std::is_same_v<bool, T>) {
@@ -703,7 +703,7 @@ namespace xx {
 				s.push_back('\"');
 			}
 			else {
-				ObjFuncs<T>::ToString(*this, v);
+				ObjFuncs<T>::Append(*this, v);
 			}
 		}
 
@@ -784,7 +784,7 @@ namespace xx {
 
 		template<typename T>
 		XX_FORCEINLINE void Clone1(T const& in, T& out) {
-			if constexpr (IsPtrShared_v<T>) {
+			if constexpr (IsXxShared_v<T>) {
 				if (!in) {
 					out.Reset();
 				}
@@ -806,7 +806,7 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsPtrWeak_v<T>) {
+			else if constexpr (IsXxWeak_v<T>) {
 				out.Reset();
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
@@ -864,7 +864,7 @@ namespace xx {
 
 		template<typename T>
 		XX_FORCEINLINE void Clone2(T const& in, T& out) {
-			if constexpr (IsPtrShared_v<T>) {
+			if constexpr (IsXxShared_v<T>) {
 				if (in) {
 					auto h = ((PtrHeader*)in.pointer - 1);
 					if (h->offset == 0) {
@@ -875,7 +875,7 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsPtrWeak_v<T>) {
+			else if constexpr (IsXxWeak_v<T>) {
 				if (!in) return;
 				if (in.h->offset) {
 					out = *(Shared<typename T::ElementType>*) & ptrs2[in.h->offset - 1];
@@ -944,7 +944,7 @@ namespace xx {
 	protected:
 		template<typename T>
 		XX_FORCEINLINE void RecursiveReset_(T& v) {
-			if constexpr (IsPtrShared_v<T>) {
+			if constexpr (IsXxShared_v<T>) {
 				if (v) {
 					auto h = ((PtrHeader*)v.pointer - 1);
 					if (h->offset == 0) {
@@ -958,7 +958,7 @@ namespace xx {
 					}
 				}
 			}
-			else if constexpr (IsPtrWeak_v<T>) {
+			else if constexpr (IsXxWeak_v<T>) {
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				v.RecursiveReset(*this);
@@ -1033,7 +1033,7 @@ namespace xx {
 
 		template<typename T>
 		XX_FORCEINLINE int RecursiveCheck_(T const& v) {
-			if constexpr (IsPtrShared_v<T>) {
+			if constexpr (IsXxShared_v<T>) {
 				if (v) {
 					auto h = ((PtrHeader*)v.pointer - 1);
 					if (h->offset == 0) {
@@ -1044,7 +1044,7 @@ namespace xx {
 					else return __LINE__;
 				}
 			}
-			else if constexpr (IsPtrWeak_v<T>) {
+			else if constexpr (IsXxWeak_v<T>) {
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				return v.RecursiveCheck(*this);
@@ -1107,7 +1107,7 @@ namespace xx {
 	protected:
 		template<typename T>
 		XX_FORCEINLINE void SetDefaultValue_(T& v) {
-			if constexpr (IsPtrShared_v<T> || IsPtrWeak_v<T>) {
+			if constexpr (IsXxShared_v<T> || IsXxWeak_v<T>) {
 				v.Reset();
 			}
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
@@ -1151,8 +1151,8 @@ T(T&& o) noexcept; \
 T& operator=(T&& o) noexcept; \
 void Write(xx::ObjManager& o) const override; \
 int Read(xx::ObjManager& o) override; \
-void ToString(xx::ObjManager& o) const override; \
-void ToStringCore(xx::ObjManager& o) const override; \
+void Append(xx::ObjManager& o) const override; \
+void AppendCore(xx::ObjManager& o) const override; \
 void Clone1(xx::ObjManager& o, void* const& tar) const override; \
 void Clone2(xx::ObjManager& o, void* const& tar) const override; \
 int RecursiveCheck(xx::ObjManager& o) const override; \
@@ -1171,8 +1171,8 @@ template<> \
 struct ObjFuncs<T, void> { \
 static void Write(ObjManager & om, T const& in); \
 static int Read(ObjManager & om, T & out); \
-static void ToString(ObjManager & om, T const& in); \
-static void ToStringCore(ObjManager & om, T const& in); \
+static void Append(ObjManager & om, T const& in); \
+static void AppendCore(ObjManager & om, T const& in); \
 static void Clone1(ObjManager & om, T const& in, T & out); \
 static void Clone2(ObjManager & om, T const& in, T & out); \
 static int RecursiveCheck(ObjManager & om, T const& in); \

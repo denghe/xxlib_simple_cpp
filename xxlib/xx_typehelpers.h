@@ -306,8 +306,18 @@ namespace xx {
     /************************************************************************************/
     // IsPointerClass_v  是否为指针类 T*, shared_ptr, unique_ptr
     // ToPointer(T?? v) 返回指针版 v
+
+    template<typename, typename = void>
+    struct IsPointerClass : std::false_type {
+    };
+
     template<typename T>
-    constexpr bool IsPointerClass_v = std::is_pointer_v<std::decay_t<T>> || IsShared_v<T> || IsUnique_v<T>;
+    struct IsPointerClass<T, std::enable_if_t<std::is_pointer_v<std::decay_t<T>> || IsShared_v<T> || IsUnique_v<T>>>
+        : std::true_type {
+    };
+
+    template<typename T>
+    constexpr bool IsPointerClass_v = IsPointerClass::value;
 
     template<typename T, class = void>
     struct ToPointerFuncs;

@@ -372,39 +372,48 @@ namespace xx {
 	// type traits
 
 	template<typename T>
-	struct IsPtrShared : std::false_type {
+	struct IsXxShared : std::false_type {
 	};
 	template<typename T>
-	struct IsPtrShared<Shared<T>> : std::true_type {
+	struct IsXxShared<Shared<T>> : std::true_type {
 	};
 	template<typename T>
-	struct IsPtrShared<Shared<T>&> : std::true_type {
+	struct IsXxShared<Shared<T>&> : std::true_type {
 	};
 	template<typename T>
-	struct IsPtrShared<Shared<T> const&> : std::true_type {
+	struct IsXxShared<Shared<T> const&> : std::true_type {
 	};
 	template<typename T>
-	constexpr bool IsPtrShared_v = IsPtrShared<T>::value;
+	constexpr bool IsXxShared_v = IsXxShared<T>::value;
 
 
 	template<typename T>
-	struct IsPtrWeak : std::false_type {
+	struct IsXxWeak : std::false_type {
 	};
 	template<typename T>
-	struct IsPtrWeak<Weak<T>> : std::true_type {
+	struct IsXxWeak<Weak<T>> : std::true_type {
 	};
 	template<typename T>
-	struct IsPtrWeak<Weak<T>&> : std::true_type {
+	struct IsXxWeak<Weak<T>&> : std::true_type {
 	};
 	template<typename T>
-	struct IsPtrWeak<Weak<T> const&> : std::true_type {
+	struct IsXxWeak<Weak<T> const&> : std::true_type {
 	};
 	template<typename T>
-	constexpr bool IsPtrWeak_v = IsPtrWeak<T>::value;
+	constexpr bool IsXxWeak_v = IsXxWeak<T>::value;
 
 
+	template<typename T>
+	struct IsPointerClass<T, std::enable_if_t<IsXxShared_v<T> || IsXxWeak_v<T>>>
+		: std::true_type {
+	};
 
-
+	template<typename T>
+	struct ToPointerFuncs<T, std::enable_if_t<IsXxWeak_v<T>>> {
+		static inline auto Convert(T&& v) {
+			return v.Lock();
+		}
+	};
 
 	/************************************************************************************/
 	// helpers

@@ -317,18 +317,18 @@ namespace xx {");
     }");
             var ctn = c._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
-    void " + c.Name + @"::ToString(::xx::ObjManager& om) const {
+    void " + c.Name + @"::Append(::xx::ObjManager& om) const {
         om.Append(""{\""__typeId__\"":"", this->ObjBase::GetTypeId());");
             sb.Append(@"
-		this->ToStringCore(om);
+		this->AppendCore(om);
 		om.str->push_back('}');
     }
-    void " + c.Name + @"::ToStringCore(::xx::ObjManager& om) const {");
+    void " + c.Name + @"::AppendCore(::xx::ObjManager& om) const {");
 
             if (c._HasBaseType()) {
                 var bt = c.BaseType;
                 sb.Append(@"
-        this->BaseType::ToStringCore(om);");
+        this->BaseType::AppendCore(om);");
             }
 
             foreach (var f in fs) {
@@ -526,18 +526,18 @@ namespace xx {");
     }");
 
         sb.Append(@"
-	void ObjFuncs<" + ctn + @", void>::ToString(ObjManager &om, " + ctn + @" const& in) {
+	void ObjFuncs<" + ctn + @", void>::Append(ObjManager &om, " + ctn + @" const& in) {
         om.str->push_back('{');
-        ToStringCore(om, in);
+        AppendCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<" + ctn + @", void>::ToStringCore(ObjManager &om, " + ctn + @" const& in) {");
+	void ObjFuncs<" + ctn + @", void>::AppendCore(ObjManager &om, " + ctn + @" const& in) {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
             var btn = bt._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
         auto sizeBak = om.str->size();
-        ObjFuncs<" + btn + ">::ToStringCore(om, in);");
+        ObjFuncs<" + btn + ">::AppendCore(om, in);");
         }
 
         foreach (var f in fs) {
