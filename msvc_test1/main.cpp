@@ -1,28 +1,28 @@
-#include "FF_class_lite.h"
+ï»¿#include "FF_class_lite.h"
 #include "xx_chrono.h"
 #include "xx_lua.h"
 
-// todo: Õë¶ÔÈİÆ÷ÀàĞÍµÄ¸÷ÖÖ ¶Á ³¤¶È±£»¤¡£¼òµ¥ÅĞ¶ÏÈç¹û size + offset > len ¾ÍÊ§°Ü
+// todo: é’ˆå¯¹å®¹å™¨ç±»å‹çš„å„ç§ è¯» é•¿åº¦ä¿æŠ¤ã€‚ç®€å•åˆ¤æ–­å¦‚æœ size + offset > len å°±å¤±è´¥
 
-enum class »¨É« {
-	Í², Ìõ, Íò
+enum class èŠ±è‰² {
+	ç­’, æ¡, ä¸‡
 };
-struct ÅÆ {
-	»¨É« »¨É«;
-	int µãÊı;
+struct ç‰Œ {
+	èŠ±è‰² èŠ±è‰²;
+	int ç‚¹æ•°;
 };
-constexpr ÅÆ operator"" Í²(uint64_t v) {
-	return { »¨É«::Í², (int)v };
+constexpr ç‰Œ operator"" ç­’(uint64_t v) {
+	return { èŠ±è‰²::ç­’, (int)v };
 }
-constexpr ÅÆ operator"" Ìõ(uint64_t v) {
-	return { »¨É«::Ìõ, (int)v };
+constexpr ç‰Œ operator"" æ¡(uint64_t v) {
+	return { èŠ±è‰²::æ¡, (int)v };
 }
-constexpr ÅÆ operator"" Íò(uint64_t v) {
-	return { »¨É«::Íò, (int)v };
+constexpr ç‰Œ operator"" ä¸‡(uint64_t v) {
+	return { èŠ±è‰²::ä¸‡, (int)v };
 }
 
 int main() {
-	std::vector<ÅÆ> ps = { 5Ìõ, 3Íò };
+	std::vector<ç‰Œ> ps = { 5æ¡, 3ä¸‡ };
 
 	xx::ObjManager om;
 	FF::PkgGenTypes::RegisterTo(om);
