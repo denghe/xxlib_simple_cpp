@@ -1,49 +1,29 @@
 #include "FF_class_lite.h"
 #include "xx_chrono.h"
 
-template<typename T>
-XX_NOINLINE void Test1(xx::ObjManager& om, xx::Data& d, T const& v) {
-	auto sec = xx::NowEpochSeconds();
-	for (size_t i = 0; i < 10000000; i++) {
-		d.Clear();
-		om.WriteTo(d, v);
-	}
-	om.CoutN(xx::NowEpochSeconds() - sec);
-	om.CoutN(d);
-}
-
-template<typename T>
-XX_NOINLINE void Test2(xx::ObjManager& om, xx::Data& d, T& v) {
-	auto sec = xx::NowEpochSeconds();
-	for (size_t i = 0; i < 10000000; i++) {
-		d.offset = 0;
-		om.ReadFrom(d, v);
-	}
-	om.CoutN(xx::NowEpochSeconds() - sec);
-	om.CoutN(v);
-}
-
 int main() {
 	xx::ObjManager om;
 	FF::PkgGenTypes::RegisterTo(om);
 
+	auto f = xx::MakeShared<FF::Foo>();
+	auto f_ = xx::MakeScopeGuard([&] { om.KillRecursive(f); });
+	f->parent = f;
+
+	auto f2 = xx::MakeShared<FF::Foo2>();
+	f->children.emplace_back(f2);
+	f2->children.emplace_back(f2);
+
+	auto f3 = om.Clone(f2);
+	f->children.emplace_back(f3);
+
+	om.CoutN(om.HasRecursive(f));
+	om.CoutN(f);
+
 	xx::Data d;
-	d.Reserve(1024);
+	om.WriteTo(d, f);
+	om.CoutN(d);
 
-	{
-		auto f = xx::MakeShared<FF::Foo2>();
-		f->ptr.Emplace();
-		om.CoutN(f);
-
-		Test1(om, d, f);
-	}
-
-	{
-		xx::ObjBase_s o;
-		Test2(om, d, o);
-	}
-
-
+	
 	//{
 	//	xx::Shared<FF::Foo> a;
 	//	a.Emplace();asdf

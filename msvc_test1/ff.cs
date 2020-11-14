@@ -20,7 +20,6 @@
 
 1. 动画播放器：针对 frames，spine, c3b 的原始存档，能跨类型加载，能切动作，能设置是否循环，能快进/暂停 甚至后退，能指定显示坐标，角度，缩放，隐藏/显示，层级，有播放结束事件
 2. 承担部分业务逻辑的移动对象：组合 动画播放器，能加载 ext 附加数据并提供相关功能，能绑移动路径，能在路径上快进/前进/后退/停止. 可设置相对坐标，角度，缩放，有移动结束事件
-
 */
 
 namespace xx {
@@ -28,17 +27,16 @@ namespace xx {
     struct Random1 { }
 }
 
-[TypeId(1000)]
+[TypeId(1)]
 class Foo {
-    int x = 5;
-    float y = 0.5f;
-    string name = "sb";
+    int id = 1;
+    Weak<Foo> parent;
+    List<Shared<Foo>> children;
 }
 
-[TypeId(1001)]
+[TypeId(2)]
 class Foo2 : Foo {
-    Nullable<string> name;
-    Shared<Foo> ptr;
+    string name = "foo2";
 }
 
 

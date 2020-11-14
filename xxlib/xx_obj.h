@@ -134,13 +134,13 @@ namespace xx {
 		std::string* str = nullptr;
 		ObjBase_s null;
 
-		// 类实例 创建函数
+		// 类创建函数
 		typedef ObjBase_s(*FT)();
 
-		// typeId : 类实例 创建函数 映射容器
+		// typeId 创建函数 映射容器
 		std::array<FT, std::numeric_limits<uint16_t>::max()> fs{};
 
-		// 存储 typeId 的 父typeId 的下标. 为便于判断，约定 ObjBase's typeId == 0
+		// 存储 typeId 的 父typeId 的下标
 		std::array<uint16_t, std::numeric_limits<uint16_t>::max()> pids{};
 
 		// 根据 typeid 判断父子关系
@@ -182,7 +182,7 @@ namespace xx {
 			}
 		}
 
-		// 注册类型 & ptrTypeId. 将创建函数塞入容器
+		// 关联 typeId 与创建函数
 		template<typename T>
 		XX_FORCEINLINE void Register() {
 			static_assert(std::is_base_of_v<ObjBase, T>);
@@ -739,7 +739,7 @@ namespace xx {
 
 		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
 		template<typename T>
-		XX_FORCEINLINE void Clone(T const& in, T& out) {
+		XX_FORCEINLINE void CloneTo(T const& in, T& out) {
 			//ptrs.clear();
 			auto sg1 = MakeScopeGuard([this] {
 				for (auto&& p : ptrs) {
@@ -752,6 +752,14 @@ namespace xx {
 			Clone1(in, out);
 			sg1();
 			Clone2(in, out);
+		}
+
+		// 向 out 深度复制 in. 会初始化 ptrs, 并在写入结束后擦屁股( 主要入口 )
+		template<typename T>
+		XX_FORCEINLINE std::decay_t<T> Clone(T const& in) {
+			std::decay_t<T> out;
+			CloneTo(in, out);
+			return out;
 		}
 
 		template<class Tuple, std::size_t N>
@@ -920,7 +928,7 @@ namespace xx {
 		// 斩断循环引用的 Shared 以方便顺利释放内存( 入口 )
 		// 并不直接清空 args
 		template<typename...Args>
-		XX_FORCEINLINE void RecursiveResetRoot(Args&...args) {
+		XX_FORCEINLINE void KillRecursive(Args&...args) {
 			static_assert(sizeof...(args) > 0);
 			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {
@@ -998,7 +1006,7 @@ namespace xx {
 
 		// 判断是否存在循环引用，存在则返回非 0 ( 通常返回代码行号 )( 入口 )
 		template<typename...Args>
-		XX_FORCEINLINE int RecursiveCheckRoot(Args const&...args) {
+		XX_FORCEINLINE int HasRecursive(Args const&...args) {
 			static_assert(sizeof...(args) > 0);
 			//ptrs.clear();
 			auto sg = MakeScopeGuard([this] {

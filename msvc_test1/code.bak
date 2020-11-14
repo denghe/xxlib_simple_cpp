@@ -1,3 +1,56 @@
+#include "FF_class_lite.h"
+#include "xx_chrono.h"
+
+template<typename T>
+XX_NOINLINE void Test1(xx::ObjManager& om, xx::Data& d, T const& v) {
+	auto sec = xx::NowEpochSeconds();
+	for (size_t i = 0; i < 10000000; i++) {
+		d.Clear();
+		om.WriteTo(d, v);
+	}
+	om.CoutN(xx::NowEpochSeconds() - sec);
+	om.CoutN(d);
+}
+
+template<typename T>
+XX_NOINLINE void Test2(xx::ObjManager& om, xx::Data& d, T& v) {
+	auto sec = xx::NowEpochSeconds();
+	for (size_t i = 0; i < 10000000; i++) {
+		d.offset = 0;
+		om.ReadFrom(d, v);
+	}
+	om.CoutN(xx::NowEpochSeconds() - sec);
+	om.CoutN(v);
+}
+
+int main() {
+	xx::ObjManager om;
+	FF::PkgGenTypes::RegisterTo(om);
+
+	xx::Data d;
+	d.Reserve(1024);
+
+	{
+		auto f = xx::MakeShared<FF::Foo2>();
+		f->ptr.Emplace();
+		om.CoutN(f);
+
+		Test1(om, d, f);
+	}
+
+	{
+		xx::ObjBase_s o;
+		Test2(om, d, o);
+	}
+
+
+
+
+
+
+
+
+
 	{
 		auto f = xx::MakeShared<FF::Foo>();
 		om.CoutN(f);

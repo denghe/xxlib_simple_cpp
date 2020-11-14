@@ -1390,20 +1390,20 @@ namespace FF {
         this->operator=(std::move(o));
     }
     Foo& Foo::operator=(Foo&& o) noexcept {
-        std::swap(this->x, o.x);
-        std::swap(this->y, o.y);
-        std::swap(this->name, o.name);
+        std::swap(this->id, o.id);
+        std::swap(this->parent, o.parent);
+        std::swap(this->children, o.children);
         return *this;
     }
     void Foo::Write(::xx::ObjManager& om) const {
-        om.Write(this->x);
-        om.Write(this->y);
-        om.Write(this->name);
+        om.Write(this->id);
+        om.Write(this->parent);
+        om.Write(this->children);
     }
     int Foo::Read(::xx::ObjManager& om) {
-        if (int r = om.Read(this->x)) return r;
-        if (int r = om.Read(this->y)) return r;
-        if (int r = om.Read(this->name)) return r;
+        if (int r = om.Read(this->id)) return r;
+        if (int r = om.Read(this->parent)) return r;
+        if (int r = om.Read(this->children)) return r;
         return 0;
     }
     void Foo::ToString(::xx::ObjManager& om) const {
@@ -1412,37 +1412,37 @@ namespace FF {
 		om.str->push_back('}');
     }
     void Foo::ToStringCore(::xx::ObjManager& om) const {
-        om.Append(",\"x\":", this->x);
-        om.Append(",\"y\":", this->y);
-        om.Append(",\"name\":", this->name);
+        om.Append(",\"id\":", this->id);
+        om.Append(",\"parent\":", this->parent);
+        om.Append(",\"children\":", this->children);
     }
     void Foo::Clone1(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::FF::Foo*)tar;
-        om.Clone1(this->x, out->x);
-        om.Clone1(this->y, out->y);
-        om.Clone1(this->name, out->name);
+        om.Clone1(this->id, out->id);
+        om.Clone1(this->parent, out->parent);
+        om.Clone1(this->children, out->children);
     }
     void Foo::Clone2(::xx::ObjManager& om, void* const &tar) const {
         auto out = (::FF::Foo*)tar;
-        om.Clone2(this->x, out->x);
-        om.Clone2(this->y, out->y);
-        om.Clone2(this->name, out->name);
+        om.Clone2(this->id, out->id);
+        om.Clone2(this->parent, out->parent);
+        om.Clone2(this->children, out->children);
     }
     int Foo::RecursiveCheck(::xx::ObjManager& om) const {
-        if (int r = om.RecursiveCheck(this->x)) return r;
-        if (int r = om.RecursiveCheck(this->y)) return r;
-        if (int r = om.RecursiveCheck(this->name)) return r;
+        if (int r = om.RecursiveCheck(this->id)) return r;
+        if (int r = om.RecursiveCheck(this->parent)) return r;
+        if (int r = om.RecursiveCheck(this->children)) return r;
         return 0;
     }
     void Foo::RecursiveReset(::xx::ObjManager& om) {
-        om.RecursiveReset(this->x);
-        om.RecursiveReset(this->y);
-        om.RecursiveReset(this->name);
+        om.RecursiveReset(this->id);
+        om.RecursiveReset(this->parent);
+        om.RecursiveReset(this->children);
     }
     void Foo::SetDefaultValue(::xx::ObjManager& om) {
-        this->x = 5;
-        this->y = 0.5f;
-        this->name = "sb";
+        this->id = 1;
+        om.SetDefaultValue(this->parent);
+        om.SetDefaultValue(this->children);
     }
     Action_Frames::Action_Frames(Action_Frames&& o) noexcept {
         this->operator=(std::move(o));
@@ -1475,7 +1475,6 @@ namespace FF {
     }
     void SimpleBullet::ToString(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-        this->BaseType::ToStringCore(om);
 		this->ToStringCore(om);
 		om.str->push_back('}');
     }
@@ -1536,58 +1535,48 @@ namespace FF {
     Foo2& Foo2::operator=(Foo2&& o) noexcept {
         this->BaseType::operator=(std::move(o));
         std::swap(this->name, o.name);
-        std::swap(this->ptr, o.ptr);
         return *this;
     }
     void Foo2::Write(::xx::ObjManager& om) const {
         this->BaseType::Write(om);
         om.Write(this->name);
-        om.Write(this->ptr);
     }
     int Foo2::Read(::xx::ObjManager& om) {
         if (int r = this->BaseType::Read(om)) return r;
         if (int r = om.Read(this->name)) return r;
-        if (int r = om.Read(this->ptr)) return r;
         return 0;
     }
     void Foo2::ToString(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-        this->BaseType::ToStringCore(om);
 		this->ToStringCore(om);
 		om.str->push_back('}');
     }
     void Foo2::ToStringCore(::xx::ObjManager& om) const {
         this->BaseType::ToStringCore(om);
         om.Append(",\"name\":", this->name);
-        om.Append(",\"ptr\":", this->ptr);
     }
     void Foo2::Clone1(::xx::ObjManager& om, void* const &tar) const {
         this->BaseType::Clone1(om, tar);
         auto out = (::FF::Foo2*)tar;
         om.Clone1(this->name, out->name);
-        om.Clone1(this->ptr, out->ptr);
     }
     void Foo2::Clone2(::xx::ObjManager& om, void* const &tar) const {
         this->BaseType::Clone2(om, tar);
         auto out = (::FF::Foo2*)tar;
         om.Clone2(this->name, out->name);
-        om.Clone2(this->ptr, out->ptr);
     }
     int Foo2::RecursiveCheck(::xx::ObjManager& om) const {
         if (int r = this->BaseType::RecursiveCheck(om)) return r;
         if (int r = om.RecursiveCheck(this->name)) return r;
-        if (int r = om.RecursiveCheck(this->ptr)) return r;
         return 0;
     }
     void Foo2::RecursiveReset(::xx::ObjManager& om) {
         this->BaseType::RecursiveReset(om);
         om.RecursiveReset(this->name);
-        om.RecursiveReset(this->ptr);
     }
     void Foo2::SetDefaultValue(::xx::ObjManager& om) {
         this->BaseType::SetDefaultValue(om);
-        om.SetDefaultValue(this->name);
-        om.SetDefaultValue(this->ptr);
+        this->name = "foo2";
     }
     Root::Root(Root&& o) noexcept {
         this->operator=(std::move(o));
@@ -1680,7 +1669,6 @@ namespace FF {
     }
     void TrackBullet::ToString(::xx::ObjManager& om) const {
         om.Append("{\"__typeId__\":", this->ObjBase::GetTypeId());
-        this->BaseType::ToStringCore(om);
 		this->ToStringCore(om);
 		om.str->push_back('}');
     }
@@ -1692,7 +1680,6 @@ namespace FF {
     }
     void TrackBullet::Clone2(::xx::ObjManager& om, void* const &tar) const {
         this->BaseType::Clone2(om, tar);
-        auto out = (::FF::TrackBullet*)tar;
     }
     int TrackBullet::RecursiveCheck(::xx::ObjManager& om) const {
         if (int r = this->BaseType::RecursiveCheck(om)) return r;

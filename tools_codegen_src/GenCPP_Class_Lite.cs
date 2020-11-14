@@ -319,10 +319,6 @@ namespace xx {");
             sb.Append(@"
     void " + c.Name + @"::ToString(::xx::ObjManager& om) const {
         om.Append(""{\""__typeId__\"":"", this->ObjBase::GetTypeId());");
-            if (c._HasBaseType()) {
-                sb.Append(@"
-        this->BaseType::ToStringCore(om);");
-            }
             sb.Append(@"
 		this->ToStringCore(om);
 		om.str->push_back('}');
@@ -368,8 +364,10 @@ namespace xx {");
                 sb.Append(@"
         this->BaseType::Clone2(om, tar);");
             }
-            sb.Append(@"
+            if (fs.Count > 0) {
+                sb.Append(@"
         auto out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
+            }
 
             foreach (var f in fs) {
                 var ft = f.FieldType;

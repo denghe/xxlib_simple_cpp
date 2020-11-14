@@ -3,7 +3,7 @@
 #include "FF_class_lite.h.inc"  // user create it for extend include files
 namespace FF {
 	struct PkgGenMd5 {
-		inline static const ::std::string value = "#*MD5<5eed49720000083228fb631398592107>*#";
+		inline static const ::std::string value = "#*MD5<1a2e54c7b6145765e004fe1ea4bf2e0d>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(::xx::ObjManager& om);
@@ -42,9 +42,9 @@ namespace xx {
     template<> struct TypeId<::FF::Fish> { static const uint16_t value = 100; };
     template<> struct TypeId<::FF::Stuff> { static const uint16_t value = 104; };
     template<> struct TypeId<::FF::Player> { static const uint16_t value = 101; };
-    template<> struct TypeId<::FF::Foo> { static const uint16_t value = 1000; };
+    template<> struct TypeId<::FF::Foo> { static const uint16_t value = 1; };
     template<> struct TypeId<::FF::SimpleBullet> { static const uint16_t value = 300; };
-    template<> struct TypeId<::FF::Foo2> { static const uint16_t value = 1001; };
+    template<> struct TypeId<::FF::Foo2> { static const uint16_t value = 2; };
     template<> struct TypeId<::FF::Root> { static const uint16_t value = 105; };
     template<> struct TypeId<::FF::TrackBullet> { static const uint16_t value = 301; };
 }
@@ -257,9 +257,9 @@ namespace FF {
     };
     struct Foo : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Foo, ::xx::ObjBase)
-        int32_t x = 5;
-        float y = 0.5f;
-        ::std::string name = "sb";
+        int32_t id = 1;
+        ::xx::Weak<::FF::Foo> parent;
+        ::std::vector<::xx::Shared<::FF::Foo>> children;
     };
     struct SimpleBullet : ::FF::Bullet {
         XX_GENCODE_OBJECT_H(SimpleBullet, ::FF::Bullet)
@@ -269,8 +269,7 @@ namespace FF {
     };
     struct Foo2 : ::FF::Foo {
         XX_GENCODE_OBJECT_H(Foo2, ::FF::Foo)
-        ::std::optional<::std::string> name;
-        ::xx::Shared<::FF::Foo> ptr;
+        ::std::string name = "foo2";
     };
     struct Root : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Root, ::xx::ObjBase)
