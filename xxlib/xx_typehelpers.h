@@ -317,7 +317,7 @@ namespace xx {
     };
 
     template<typename T>
-    constexpr bool IsPointerClass_v = IsPointerClass::value;
+    constexpr bool IsPointerClass_v = IsPointerClass<T>::value;
 
     template<typename T, class = void>
     struct ToPointerFuncs;

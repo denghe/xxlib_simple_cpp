@@ -4,25 +4,25 @@
 
 // todo: 针对容器类型的各种 读 长度保护。简单判断如果 size + offset > len 就失败
 
-enum class 花色 {
+enum class 花色s {
 	筒, 条, 万
 };
 struct 牌 {
-	花色 花色;
+	花色s 花色;
 	int 点数;
 };
-constexpr 牌 operator"" 筒(uint64_t v) {
-	return { 花色::筒, (int)v };
+constexpr 牌 operator"" 筒(unsigned long long v) {
+	return { 花色s::筒, (int)v };
 }
-constexpr 牌 operator"" 条(uint64_t v) {
-	return { 花色::条, (int)v };
+constexpr 牌 operator"" 条(unsigned long long v) {
+	return { 花色s::条, (int)v };
 }
-constexpr 牌 operator"" 万(uint64_t v) {
-	return { 花色::万, (int)v };
+constexpr 牌 operator"" 万(unsigned long long v) {
+	return { 花色s::万, (int)v };
 }
 
 int main() {
-	std::vector<牌> ps = { 5条, 3万 };
+	std::vector<牌> 牌s = { 5条, 3万 };
 
 	xx::ObjManager om;
 	FF::PkgGenTypes::RegisterTo(om);
