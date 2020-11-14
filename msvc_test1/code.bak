@@ -1,3 +1,35 @@
+	{
+		auto f = xx::MakeShared<FF::Foo>();
+		om.CoutN(f);
+
+		om.CoutN(f->rnd.NextDouble());
+		om.CoutN(f->rnd.NextDouble());
+		om.CoutN(f->rnd.NextDouble());
+
+		om.WriteTo(d, f);
+		om.CoutN(d);
+	}
+
+	{
+		d.Clear();
+		d.Fill({ 1, 12, 0, 0, 0, 0 });
+		om.CoutN(d);
+
+		xx::ObjBase_s obj;
+		om.ReadFrom(d, obj);
+		om.CoutN(obj);
+		auto f = om.As<FF::Foo>(obj);
+		om.CoutN(f->rnd.NextDouble());
+		om.CoutN(f->rnd.NextDouble());
+		om.CoutN(f->rnd.NextDouble());
+	}
+
+
+
+
+
+
+
 #include "FF_class_lite.h"
 #include "xx_chrono.h"
 

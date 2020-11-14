@@ -4,29 +4,7 @@
 #include "xx_data.h"
 #include "xx_typename_islambda.h"
 
-#define XX_GENCODE_OBJECT_H(T, BT) \
-using BaseType = BT; \
-T() = default; \
-T(T const&) = default; \
-T& operator=(T const&) = default; \
-T(T&& o) noexcept; \
-T& operator=(T&& o) noexcept; \
-void Write(xx::ObjManager& o) const override; \
-int Read(xx::ObjManager& o) override; \
-void ToString(xx::ObjManager& o) const override; \
-void ToStringCore(xx::ObjManager& o) const override; \
-void Clone1(xx::ObjManager& o, void* const& tar) const override; \
-void Clone2(xx::ObjManager& o, void* const& tar) const override; \
-int RecursiveCheck(xx::ObjManager& o) const override; \
-void RecursiveReset(xx::ObjManager& o) override; \
-void SetDefaultValue(xx::ObjManager& o) override;
-
-#define XX_GENCODE_STRUCT_H(T) \
-T() = default; \
-T(T const&) = default; \
-T& operator=(T const&) = default; \
-T(T&& o) noexcept; \
-T& operator=(T&& o) noexcept;
+// 辅助宏在最下面
 
 namespace xx {
 
@@ -194,13 +172,13 @@ namespace xx {
 			static_assert(std::is_base_of_v<ObjBase, T>);
 			static_assert(std::is_base_of_v<ObjBase, U>);
 			if constexpr (std::is_same_v<U, T> || std::is_base_of_v<T, U>) {
-				return v.ReinterpretCast<T>();
+				return v.template ReinterpretCast<T>();
 			}
 			else {
 				if (!v || !IsBaseOf<T>(v.header()->typeId)) {
-					return null.ReinterpretCast<T>();
+					return null.template ReinterpretCast<T>();
 				}
-				return v.ReinterpretCast<T>();
+				return v.template ReinterpretCast<T>();
 			}
 		}
 
@@ -422,7 +400,7 @@ namespace xx {
 						if (!IsBaseOf<U>(typeId)) return __LINE__;
 
 						if (!v || v.typeId() != typeId) {
-							v = std::move(Create(typeId).ReinterpretCast<U>());
+							v = std::move(Create(typeId).template ReinterpretCast<U>());
 						}
 						ptrs.emplace_back(v.pointer);
 						if (int r = Read_(*v)) return r;
@@ -431,7 +409,7 @@ namespace xx {
 						if (offs > len) return __LINE__;
 						auto& o = *(ObjBase_s*)&ptrs[offs - 1];
 						if (!IsBaseOf<U>(o.typeId())) return __LINE__;
-						v = o.ReinterpretCast<U>();
+						v = o.template ReinterpretCast<U>();
 					}
 				}
 				else {
@@ -810,7 +788,7 @@ namespace xx {
 
 						auto inTypeId = in.typeId();
 						if (out.typeId() != inTypeId) {
-							out = std::move(Create(inTypeId).ReinterpretCast<typename T::ElementType>());
+							out = std::move(Create(inTypeId).template ReinterpretCast<typename T::ElementType>());
 						}
 						ptrs2.push_back(out.pointer);
 						Clone1(*in, *out);
@@ -1127,6 +1105,9 @@ namespace xx {
 			else if constexpr (std::is_base_of_v<ObjBase, T>) {
 				v.SetDefaultValue(*this);
 			}
+			else if constexpr (std::is_same_v<Data, T>) {
+				v.Clear();
+			}
 			else if constexpr (IsOptional_v<T>) {
 				v.reset();
 			}
@@ -1150,3 +1131,43 @@ namespace xx {
 		}
 	};
 }
+
+
+
+#define XX_GENCODE_OBJECT_H(T, BT) \
+using BaseType = BT; \
+T() = default; \
+T(T const&) = default; \
+T& operator=(T const&) = default; \
+T(T&& o) noexcept; \
+T& operator=(T&& o) noexcept; \
+void Write(xx::ObjManager& o) const override; \
+int Read(xx::ObjManager& o) override; \
+void ToString(xx::ObjManager& o) const override; \
+void ToStringCore(xx::ObjManager& o) const override; \
+void Clone1(xx::ObjManager& o, void* const& tar) const override; \
+void Clone2(xx::ObjManager& o, void* const& tar) const override; \
+int RecursiveCheck(xx::ObjManager& o) const override; \
+void RecursiveReset(xx::ObjManager& o) override; \
+void SetDefaultValue(xx::ObjManager& o) override;
+
+#define XX_GENCODE_STRUCT_H(T) \
+T() = default; \
+T(T const&) = default; \
+T& operator=(T const&) = default; \
+T(T&& o) noexcept; \
+T& operator=(T&& o) noexcept;
+
+#define XX_GENCODE_STRUCT_TEMPLATE_H(T) \
+template<> \
+struct ObjFuncs<T, void> { \
+static void Write(ObjManager & om, T const& in); \
+static int Read(ObjManager & om, T & out); \
+static void ToString(ObjManager & om, T const& in); \
+static void ToStringCore(ObjManager & om, T const& in); \
+static void Clone1(ObjManager & om, T const& in, T & out); \
+static void Clone2(ObjManager & om, T const& in, T & out); \
+static int RecursiveCheck(ObjManager & om, T const& in); \
+static void RecursiveReset(ObjManager & om, T & in); \
+static void SetDefaultValue(ObjManager & om, T & in); \
+};

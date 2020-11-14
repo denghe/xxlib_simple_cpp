@@ -67,6 +67,7 @@
     <None Include="FF_Bullet.inc">
       <Filter>FF</Filter>
     </None>
+    <None Include="code.bak" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="FF">

@@ -32,9 +32,6 @@ namespace xx {
 			WriteBuf(ptr, siz);
 		}
 
-		// 通过 初始化列表 来构造
-		Data(std::initializer_list<uint8_t> bytes) : Data((char*)bytes.begin(), bytes.size()) {}
-
 		// 复制构造
 		Data(Data const& o) {
 			operator=(o);
@@ -128,6 +125,17 @@ namespace xx {
 			len -= siz;
 			if (len) {
 				::memmove(buf, buf + siz, len);
+			}
+		}
+
+		// 通过 初始化列表 填充内容. 填充前会先 Clear
+		template<typename T>
+		XX_FORCEINLINE void Fill(std::initializer_list<T> const& bytes) {
+			static_assert(std::is_integral_v<T>);
+			Clear();
+			Reserve(bytes.size());
+			for (auto&& b : bytes) {
+				buf[len++] = (uint8_t)b;
 			}
 		}
 

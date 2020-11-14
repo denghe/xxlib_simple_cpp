@@ -28,9 +28,17 @@ namespace xx {
     struct Random1 { }
 }
 
-[TypeId(12), Compatible]
+[TypeId(1000)]
 class Foo {
-    xx.Random1 rnd;
+    int x = 5;
+    float y = 0.5f;
+    string name = "sb";
+}
+
+[TypeId(1001)]
+class Foo2 : Foo {
+    Nullable<string> name;
+    Shared<Foo> ptr;
 }
 
 

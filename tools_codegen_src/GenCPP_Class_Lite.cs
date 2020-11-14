@@ -199,18 +199,7 @@ namespace xx {");
             if (!c._IsUserStruct()) continue;
             var ctn = c._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
-	template<>
-	struct ObjFuncs<" + ctn + @", void> {
-		static void Write(ObjManager& om, " + ctn + @" const& in);
-		static int Read(ObjManager& om, " + ctn + @"& out);
-		static void ToString(ObjManager& om, " + ctn + @" const& in);
-		static void ToStringCore(ObjManager& om, " + ctn + @" const& in);
-		static void Clone1(ObjManager& om, " + ctn + @" const& in, " + ctn + @"& out);
-		static void Clone2(ObjManager& om, " + ctn + @" const& in, " + ctn + @"& out);
-		static int RecursiveCheck(ObjManager& om, " + ctn + @" const& in);
-		static void RecursiveReset(ObjManager& om, " + ctn + @"& in);
-		static void SetDefaultValue(ObjManager& om, " + ctn + @"& in);
-	};");
+	XX_GENCODE_STRUCT_TEMPLATE_H(" + ctn + @")");
         }
         sb.Append(@"
 }");
@@ -361,8 +350,10 @@ namespace xx {");
                 sb.Append(@"
         this->BaseType::Clone1(om, tar);");
             }
-            sb.Append(@"
+            if (fs.Count > 0) {
+                sb.Append(@"
         auto out = (" + c._GetTypeDecl_Cpp(templateName) + @"*)tar;");
+            }
             foreach (var f in fs) {
                 var ft = f.FieldType;
                 sb.Append(@"
@@ -542,12 +533,12 @@ namespace xx {");
         ToStringCore(om, in);
         om.str->push_back('}');
     }
-	void ObjFuncs<" + ctn + @", void>::ToStringCore(ObjManager &om, " + ctn + @" const& in) {
-        auto sizeBak = om.str->size();");
+	void ObjFuncs<" + ctn + @", void>::ToStringCore(ObjManager &om, " + ctn + @" const& in) {");
         if (c._HasBaseType()) {
             var bt = c.BaseType;
             var btn = bt._GetTypeDecl_Cpp(templateName);
             sb.Append(@"
+        auto sizeBak = om.str->size();
         ObjFuncs<" + btn + ">::ToStringCore(om, in);");
         }
 
