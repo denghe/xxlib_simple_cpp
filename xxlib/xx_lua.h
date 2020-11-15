@@ -52,7 +52,12 @@ namespace xx::Lua {
 	struct MetaFuncs {
 		inline static std::string name = std::string(TypeName_v<T>);
 
-		static inline void Fill(lua_State* const& L) {}
+		static inline void Fill(lua_State* const& L) {
+			//Meta<T>(L, name)
+				//.Func("xxxx", &T::xxxxxx)
+				//.Prop("GetXxxx", "SetXxxx", &T::xxxx)
+				//.Lambda("Xxxxxx", [](T& self, ...) { ... });
+		}
 	};
 
 	// 压入指定类型的 metatable( 以 MetaFuncs<T>::name.data() 为 key, 存放与注册表。没有找到就创建并放入 )
@@ -480,9 +485,10 @@ namespace xx::Lua {
 			if (!lua_isfunction(L, idx)) Error(L, "args[", std::to_string(idx), "] is not a lua function");
 			CheckStack(L, 1);
 			xx::MakeTo(p);
-			p->first = L;
-			lua_pushvalue(L, idx);                                      // ..., func, ..., func
-			p->second = luaL_ref(L, LUA_REGISTRYINDEX);                 // ..., func, ...
+			p->first = lua_newthread(L);								// ..., func, ..., L2
+			p->second = luaL_ref(L, LUA_REGISTRYINDEX);					// ..., func, ...
+			lua_pushvalue(L, idx);										// ..., func, ..., func
+			lua_xmove(L, p->first, 1);									// ..., func, ...            L2: func
 		}
 
 		// 如果 p 引用计数唯一, 则反注册
@@ -521,20 +527,18 @@ namespace xx::Lua {
 
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			out = [fw = FuncWrapper(L, idx)](auto... args) {
-				auto&& L = fw.p->first;
-				auto top = lua_gettop(L);
-				CheckStack(L, 1);
-				lua_rawgeti(L, LUA_REGISTRYINDEX, fw.p->second);            // ..., func
-				auto num = ::xx::Lua::Push(L, args...);                     // ..., func, args...
-				lua_call(L, num, LUA_MULTRET);                              // ..., rtv...?
+				auto&& L = fw.p->first;									// func
+				lua_pushvalue(L, 1);									// func, func
+				auto num = ::xx::Lua::Push(L, args...);                 // func, func, args...
+				lua_call(L, num, LUA_MULTRET);                          // func, rtv...?
 				if constexpr (!std::is_void_v<FuncR_t<U>>) {
 					FuncR_t<FunctionType_t<T>> rtv;
-					xx::Lua::To(L, top + 1, rtv);
-					lua_settop(L, top);                                     // ...
+					xx::Lua::To(L, 2, rtv);
+					lua_settop(L, 1);                                   // func
 					return rtv;
 				}
 				else {
-					lua_settop(L, top);                                     // ...( 保险起见 )
+					lua_settop(L, 1);                                   // func
 				}
 			};
 		}
@@ -784,7 +788,7 @@ namespace xx::Lua {
 		out = (U*)lua_touserdata(L, idx);
 		return;
 	LabError:
-		Error(L, "error! args[", std::to_string(idx), "] is not ", xx::TypeName_v<U>);
+		Error(L, "error! args[", std::to_string(idx), "] is not ", std::string(xx::TypeName_v<U>));
 	}
 
 	template<typename T, typename ENABLED>
