@@ -23,6 +23,9 @@ extern "C" {
 }
 #endif
 
+// 设置是否使用 lua_newthread 创建的 lua_State 来存放 函数 以加速调用( 但是创建性能剧烈降低 )
+//#define USE_NEW_THREAD_HOLD_FUNC
+
 
 namespace xx::Lua {
 
@@ -485,10 +488,16 @@ namespace xx::Lua {
 			if (!lua_isfunction(L, idx)) Error(L, "args[", std::to_string(idx), "] is not a lua function");
 			CheckStack(L, 1);
 			xx::MakeTo(p);
+#ifdef USE_NEW_THREAD_HOLD_FUNC
 			p->first = lua_newthread(L);								// ..., func, ..., L2
 			p->second = luaL_ref(L, LUA_REGISTRYINDEX);					// ..., func, ...
 			lua_pushvalue(L, idx);										// ..., func, ..., func
 			lua_xmove(L, p->first, 1);									// ..., func, ...            L2: func
+#else
+			p->first = L;
+			lua_pushvalue(L, idx);                                      // ..., func, ..., func
+			p->second = luaL_ref(L, LUA_REGISTRYINDEX);                 // ..., func, ...
+#endif
 		}
 
 		// 如果 p 引用计数唯一, 则反注册
@@ -528,6 +537,7 @@ namespace xx::Lua {
 		static inline void To(lua_State* const& L, int const& idx, T& out) {
 			out = [fw = FuncWrapper(L, idx)](auto... args) {
 				auto&& L = fw.p->first;									// func
+#ifdef USE_NEW_THREAD_HOLD_FUNC
 				lua_pushvalue(L, 1);									// func, func
 				auto num = ::xx::Lua::Push(L, args...);                 // func, func, args...
 				lua_call(L, num, LUA_MULTRET);                          // func, rtv...?
@@ -540,6 +550,22 @@ namespace xx::Lua {
 				else {
 					lua_settop(L, 1);                                   // func
 				}
+#else
+				auto top = lua_gettop(L);
+				CheckStack(L, 1);
+				lua_rawgeti(L, LUA_REGISTRYINDEX, fw.p->second);        // ..., func
+				auto num = ::xx::Lua::Push(L, args...);                 // ..., func, args...
+				lua_call(L, num, LUA_MULTRET);                          // ..., rtv...?
+				if constexpr (!std::is_void_v<FuncR_t<U>>) {
+					FuncR_t<FunctionType_t<T>> rtv;
+					xx::Lua::To(L, top + 1, rtv);
+					lua_settop(L, top);                                 // ...
+					return rtv;
+				}
+				else {
+					lua_settop(L, top);                                 // ...
+				}
+#endif
 			};
 		}
 	};

@@ -3,6 +3,25 @@
 #include "xx_lua.h"
 #include "sol/sol.hpp"
 
+void Test0() {
+	xx::Lua::State L;
+	xx::Lua::DoString(L, R"(
+function xxx()
+end
+)");
+	auto L2 = lua_newthread(L);
+	lua_getglobal(L2, "xxx");
+
+	auto secs = xx::NowEpochSeconds();
+	for (size_t i = 0; i < 100000000; i++) {
+		lua_pushvalue(L2, 1);
+		lua_call(L2, 0, LUA_MULTRET);
+		lua_settop(L2, 1);
+	}
+	std::cout << xx::NowEpochSeconds(secs) << std::endl;
+}
+
+
 void Test1() {
 	xx::Lua::State L;
 	xx::Lua::DoString(L, R"(
@@ -34,6 +53,8 @@ end
 	}
 	std::cout << xx::NowEpochSeconds(secs) << std::endl;
 }
+
+
 
 namespace xx::Lua {
 	template<typename T>
@@ -72,6 +93,7 @@ namespace xx::Lua {
 
 int main() {
 
+	Test0();
 	Test1();
 	Test2();
 
