@@ -1,119 +1,48 @@
 ﻿#include "FF_class_lite.h"
 #include "xx_chrono.h"
 #include "xx_lua.h"
-#include "sol/sol.hpp"
-
-void Test0() {
-	xx::Lua::State L;
-	xx::Lua::DoString(L, R"(
-function xxx()
-end
-)");
-	auto L2 = lua_newthread(L);
-	lua_getglobal(L2, "xxx");
-
-	auto secs = xx::NowEpochSeconds();
-	for (size_t i = 0; i < 100000000; i++) {
-		lua_pushvalue(L2, 1);
-		lua_call(L2, 0, LUA_MULTRET);
-		lua_settop(L2, 1);
-	}
-	std::cout << xx::NowEpochSeconds(secs) << std::endl;
-}
-
-
-void Test1() {
-	xx::Lua::State L;
-	xx::Lua::DoString(L, R"(
-function xxx()
-end
-)");
-	std::function<void()> xxx;
-	xx::Lua::GetGlobal(L, "xxx", xxx);
-
-	auto secs = xx::NowEpochSeconds();
-	for (size_t i = 0; i < 100000000; i++) {
-		xxx();
-	}
-	std::cout << xx::NowEpochSeconds(secs) << std::endl;
-}
-
-void Test2() {
-	sol::state L;
-	L.script(R"(
-function xxx()
-end
-)");
-	sol::function f = L["xxx"];
-	std::function<void()> xxx = f;
-
-	auto secs = xx::NowEpochSeconds();
-	for (size_t i = 0; i < 100000000; i++) {
-		xxx();
-	}
-	std::cout << xx::NowEpochSeconds(secs) << std::endl;
-}
-
-
 
 namespace xx::Lua {
 	template<typename T>
-	struct MetaFuncs<T, std::enable_if_t<xx::IsXxShared_v<T>&& std::is_same_v<typename T::ElementType, int>>> {
+	struct MetaFuncs<T, std::enable_if_t<(xx::IsXxShared_v<T> && std::is_same_v<typename T::ElementType, ObjBase>)
+		|| std::is_same_v<ObjBase*, std::decay_t<T>>
+		>> {
 		inline static std::string name = std::string(TypeName_v<T>);
 
 		static inline void Fill(lua_State* const& L) {
 			Meta<T>(L, name)
-				.Lambda("HasValue"
-					, [](T& self)->bool {
-						return (bool)self;
-					})
-				.Lambda("GetValue"
-					, [](T& self)->int {
-						if (self) return *self;
-						else return 0;
-					})
-				.Lambda("SetValue"
-					, [](T& self, int const& v) {
-						if (self) {
-							*self = v;
-						}
-					})
-				.Lambda("Reset"
-					, [](T& self) {
-						self.Reset();
-					})
-				.Lambda("Assign"
-					, [](T& self, T const& o) {
-						self = o;
-					})
-						;
+				.Lambda("HasValue", [](T& self)->bool { return (bool)self; })
+				.Lambda("Reset", [](T& self) { self.Reset(); })
+				.Lambda("Copy", [](T& self)->T { return self; })
+				.Lambda("Assign", [](T& self, T const& o) { self = o; });
+		}
+	};
+
+	template<typename T>
+	struct MetaFuncs<T, std::enable_if_t<xx::IsXxShared_v<T> && std::is_same_v<typename T::ElementType, FF::Foo>
+		|| std::is_pointer_v<T> && std::is_same_v<FF::Foo*, std::decay_t<T>>>> {
+		inline static std::string name = std::string(TypeName_v<T>);
+
+		static inline void Fill(lua_State* const& L) {
+			using U = std::conditional_t<std::is_pointer_v<T>, ObjBase*, Shared<ObjBase>>;
+			Meta<T, U>(L, name)
+				.Lambda("RandomNext", [](T& self)->double { if (!self) return 0; return self->rnd.NextDouble(); });
 		}
 	};
 }
 
 int main() {
-
-	Test0();
-	Test1();
-	Test2();
-
-	return 0;
-
 	xx::ObjManager om;
 	FF::PkgGenTypes::RegisterTo(om);
 
-	using namespace xx::Lua;
-	State L;
-
-	SetGlobal(L, "i", xx::MakeShared<int>(123));
-
-	DoString(L, R"(
-print(i)
-print(i:HasValue())
-print(i:GetValue())
-print(i:SetValue(2))
-print(i:Reset())
-print(i:HasValue())
+	xx::Lua::State L;
+	xx::Lua::SetGlobal(L, "foo", xx::MakeShared<FF::Foo>());
+	xx::Lua::DoString(L, R"(
+print(foo:HasValue())
+print(foo:RandomNext())
+print(foo:Reset())
+print(foo:HasValue())
+print(foo:RandomNext())
 
 function tprint (tbl, indent)
   if not indent then indent = 0 end
@@ -143,17 +72,17 @@ t = {
 tprint(t)
 )");
 	lua_getglobal(L, "t");
-	AssertTop(L, 1);
+	xx::Lua::AssertTop(L, 1);
 
 	xx::Data d;
 	WriteTo(L, d);
 	om.CoutN(d);
 
 	lua_pop(L, 1);
-	AssertTop(L, 0);
+	xx::Lua::AssertTop(L, 0);
 
 	ReadFrom(L, d);
-	AssertTop(L, 1);
+	xx::Lua::AssertTop(L, 1);
 	lua_setglobal(L, "t2");
 
 	DoString(L, R"(
@@ -162,4 +91,3 @@ tprint(t2)
 
 	return 0;
 }
- 

@@ -202,7 +202,7 @@ namespace xx {
 				return om.data->ReadFixed(out);
 			}
 		}
-		static inline void ToString(ObjManager& om, T const& in) {
+		static inline void Append(ObjManager& om, T const& in) {
 			om.str->push_back('{');
 			if constexpr (std::is_same_v < std::decay_t<T>, Random1 >
 				|| std::is_same_v < std::decay_t<T>, Random3 >) {
@@ -216,7 +216,7 @@ namespace xx {
 			}
 			om.str->push_back('}');
 		}
-		static inline void ToStringCore(ObjManager& om, T const& in) {
+		static inline void AppendCore(ObjManager& om, T const& in) {
 		}
 		static inline void Clone1(ObjManager& om, T const& in, T& out) {
 			if constexpr (std::is_same_v<std::decay_t<T>, Random4>) {

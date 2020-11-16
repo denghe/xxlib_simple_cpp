@@ -29,16 +29,8 @@ namespace xx {
 
 [TypeId(1)]
 class Foo {
-    int id = 1;
-    Weak<Foo> parent;
-    List<Shared<Foo>> children;
+    xx.Random1 rnd;
 }
-
-[TypeId(2)]
-class Foo2 : Foo {
-    string name = "foo2";
-}
-
 
 [Include]
 [Desc("坐标")]
