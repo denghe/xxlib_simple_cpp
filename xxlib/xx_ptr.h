@@ -79,6 +79,23 @@ namespace xx {
 			return ((PtrHeader*)pointer - 1);
 		}
 
+		// 将 header 内容拼接为 string 返回 以方便显示 & 调试
+		[[maybe_unused]] [[nodiscard]] XX_FORCEINLINE std::string GetHeaderInfo() const noexcept {
+			std::string s;
+			if (!pointer) {
+				s += "nil";
+			}
+			else {
+				auto h = header();
+				s += "{\"useCount\":" + std::to_string(h->useCount)
+					+ ",\"refCount\":" + std::to_string(h->refCount)
+					+ ",\"typeId\":" + std::to_string(h->typeId)
+					+ ",\"offset\":" + std::to_string(h->offset)
+					+ "}";
+			}
+			return s;
+		}
+
 		void Reset() {
 			if (pointer) {
 				auto h = header();

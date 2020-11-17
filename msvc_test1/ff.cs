@@ -32,6 +32,14 @@ class Foo {
     xx.Random1 rnd;
 }
 
+[TypeId(2)]
+class Node {
+    Shared<Node> child;
+}
+
+
+
+
 [Include]
 [Desc("坐标")]
 struct Point {

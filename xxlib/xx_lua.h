@@ -55,12 +55,12 @@ namespace xx::Lua {
 	struct MetaFuncs {
 		inline static std::string name = std::string(TypeName_v<T>);
 
-		static inline void Fill(lua_State* const& L) {
+		static void Fill(lua_State* const& L);// {
 			//Meta<T>(L, name)
 				//.Func("xxxx", &T::xxxxxx)
 				//.Prop("GetXxxx", "SetXxxx", &T::xxxx)
 				//.Lambda("Xxxxxx", [](T& self, ...) { ... });
-		}
+		//}
 	};
 
 	// 压入指定类型的 metatable( 以 MetaFuncs<T>::name.data() 为 key, 存放与注册表。没有找到就创建并放入 )
@@ -107,6 +107,7 @@ namespace xx::Lua {
 			lua_pushvalue(L, -1);                                           // ..., mt, mt
 			lua_rawsetp(L, LUA_REGISTRYINDEX, MetaFuncs<T>::name.data());   // ..., mt
 #endif
+			//std::cout << "PushMeta MetaFuncs<T>::name.data() = " << (size_t)MetaFuncs<T>::name.data() << " T = " << MetaFuncs<T>::name << std::endl;
 		}
 	}
 
@@ -804,17 +805,17 @@ namespace xx::Lua {
 		lua_getmetatable(L, idx);                                           // ... tar(idx) ..., mt
 		if (lua_isnil(L, -1)) goto LabError;
 #if LUA_VERSION_NUM == 501
-		lua_pushlightuserdata(L, (void*)MetaFuncs<U>::name.data());                // ... tar(idx) ..., mt,  key
+		lua_pushlightuserdata(L, (void*)MetaFuncs<U>::name.data());         // ... tar(idx) ..., mt, key
 		lua_rawget(L, -2);                                                  // ... tar(idx) ..., mt, 1?
 #else
-		lua_rawgetp(L, -1, MetaFuncs<U>::name.data());                             // ... tar(idx) ..., mt, 1?
+		lua_rawgetp(L, -1, MetaFuncs<U>::name.data());                      // ... tar(idx) ..., mt, 1?
 #endif
 		if (lua_isnil(L, -1)) goto LabError;
 		lua_pop(L, 2);                                                      // ... tar(idx) ...
 		out = (U*)lua_touserdata(L, idx);
 		return;
 	LabError:
-		Error(L, "error! args[", std::to_string(idx), "] is not ", std::string(xx::TypeName_v<U>));
+		Error(L, "error! args[", std::to_string(idx), "] is not ", MetaFuncs<U>::name, " ", std::to_string((size_t)MetaFuncs<U>::name.data()));
 	}
 
 	template<typename T, typename ENABLED>
@@ -903,6 +904,15 @@ namespace xx::Lua {
 			return *this;
 		}
 	};
+
+
+	template<typename T, typename ENABLED>
+	void MetaFuncs<T, ENABLED>::Fill(lua_State* const& L) {
+		if constexpr (!IsLambda_v<T>) {
+			Meta<T>(L, name);
+		}
+	}
+
 
 	enum class LuaTypes : uint8_t {
 		Nil, True, False, Integer, Double, String, Table, TableEnd      // todo: 将常见 int double 的 0 值  string 的 0 长 也提为类型
