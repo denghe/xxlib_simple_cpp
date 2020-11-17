@@ -75,7 +75,7 @@ namespace xx::Lua {
 		inline static std::string name = std::string(TypeName_v<T>);
 		static inline void Fill(lua_State* const& L) {
 			MetaFuncs_Fill_Shared<T>(L, name);
-			Meta<T, Shared<T::ElementType::BaseType>>(L, name)
+			Meta<T, Shared<typename T::ElementType::BaseType>>(L, name)
 				.Prop("GetChild", "SetChild", &FF::Node::child);
 		}
 	};
