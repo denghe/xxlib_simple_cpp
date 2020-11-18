@@ -14,7 +14,7 @@
 // 注意：除非函数标记了 noexcept, 否则就需要 try
 // todo: + noexcept
 
-// 当前已支持的数据类型：int, int64_t, double, std::string
+// 当前已支持的数据类型：int, int64_t, double, std::string, Data
 
 
 namespace xx::MySql {
