@@ -230,8 +230,29 @@ ubuntu 18.04 LTS server，安装时勾安 OpenSSH server 默认安全选项
 sudo apt install gcc-8 g++-8 gdb gdbserver libreadline-dev libboost-all-dev
 ```  
 
-设置 gcc g++ 命令指向 8.0:
-```  
+设置 gcc g++ 命令指向 8.0:  
+```
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8
 ```
   
+
+mariadb 安装流程:  
+```
+sudo apt update
+
+sudo apt install mariadb-server
+
+sudo mysql_secure_installation
+
+vim /etc/mysql/mariadb.conf.d/50-server.cnf
+bind-address = 0.0.0.0
+
+systemctl restart mariadb
+
+netstat -ant | grep 3306
+
+sudo mariadb
+GRANT ALL ON *.* to 'root'@'%.%.%.%' IDENTIFIED BY 'password' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+```
+
