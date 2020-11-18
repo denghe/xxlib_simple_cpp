@@ -81,13 +81,61 @@ class Pathway {
 
 
 /*******************************************************************************************/
-// 锁定相关
+// 精灵帧动画 存盘文件相关
 /*******************************************************************************************/
 
-[Struct, Desc("锁定点")]
-class LockPoint {
-    float x;
-    float y;
+[Struct, Desc("帧动画 存盘文件 .frames")]
+class File_Frames {
+    [Desc("帧动画集合")]
+    List<FrameAnim> frameAnims;
+    [Desc("图位于哪些 plist")]
+    List<string> plists;
+}
+
+[Struct, Desc("帧动画")]
+class FrameAnim {
+    [Desc("动画名")]
+    string name;
+    [Desc("总时长( 秒 )")]
+    float totalSeconds;
+    [Desc("时间点--帧 集合")]
+    List<TimePoint_Frame> frames;
+}
+
+[Struct, Desc("时间点--帧")]
+class TimePoint_Frame {
+    [Desc("起始时间( 秒 )")]
+    float time;
+    [Desc("帧名")]
+    string picName;
+    // todo: offset?
+}
+
+
+/*******************************************************************************************/
+// 动画 存盘文件相关
+/*******************************************************************************************/
+
+[Struct, Desc("动画配置 存盘文件 *.anims")]
+class File_Anims {
+    [Desc("指向原始资源文件名( atlas/spine, c3b, frames )")]
+    string resFileName;
+    [Desc("动画集合")]    // 手工附加该成员 以防止被序列化
+    List<Anim> anims;
+    float shadowX, shadowY;
+    float shadowScale;
+}
+
+[Struct, Desc("针对  等动画文件, 附加 碰撞 & 锁定 等数据")]
+class Anim {
+    [Desc("动画名")]
+    string name;
+    [Desc("总时长( 秒 )")]
+    float totalSeconds;
+    [Desc("时间点--锁定点线 集合")]
+    List<TimePoint_LockPoints> lps;
+    [Desc("时间点--碰撞圆 集合")]
+    List<TimePoint_CDCircles> cds;
 }
 
 [Struct, Desc("时间点--锁定点线")]
@@ -100,15 +148,10 @@ class TimePoint_LockPoints {
     List<LockPoint> lockPoints;
 }
 
-/*******************************************************************************************/
-// 碰撞相关
-/*******************************************************************************************/
-
-[Struct, Include, Desc("碰撞圆")]
-class CDCircle {
+[Struct, Desc("锁定点")]
+class LockPoint {
     float x;
     float y;
-    float r;
 }
 
 [Struct, Desc("时间点--碰撞圆集合")]
@@ -121,9 +164,47 @@ class TimePoint_CDCircles {
     List<CDCircle> cdCircles;
 }
 
+[Struct, Include, Desc("碰撞圆")]
+class CDCircle {
+    float x;
+    float y;
+    float r;
+}
+
+
 /*******************************************************************************************/
-// 时间点--速度
+// 动作 存盘文件相关
 /*******************************************************************************************/
+
+[Struct, Desc("动作配置 存盘文件 *.acts")]
+class File_Actions {
+    [Desc("存储 动画配置 文件名. 反序列化后用于填充 anims 部分的内容")]
+    string animsFileName;
+    // 代码中抠洞附加该成员变量
+    //File_Anims anims;
+    [Desc("动作集合")]
+    List<Action> actions;
+}
+
+[Struct, Desc("针对 atlas/spine, c3b, frames 等动画文件, 附加 移动 & 动画切换 等数据")]
+class Action {
+    [Desc("动作名")]
+    string name;
+    [Desc("总时长( 秒 )")]
+    float totalSeconds;
+    [Desc("时间点--移动速度 集合")]
+    List<TimePoint_Anim> anims;
+    [Desc("时间点--移动速度 集合")]
+    List<TimePoint_Speed> speeds;
+}
+
+[Struct, Desc("时间点--动画切换( 下标值域为负可用于表达事件 )")]
+class TimePoint_Anim {
+    [Desc("起始时间( 秒 )")]
+    float time;
+    [Desc("切换到指定动画的下标")]
+    int animIndex;
+}
 
 [Struct, Desc("时间点--移动速度")]
 class TimePoint_Speed {
@@ -133,69 +214,7 @@ class TimePoint_Speed {
     float speed;
 }
 
-/*******************************************************************************************/
-// 精灵帧
-/*******************************************************************************************/
 
-[Struct, Desc("时间点--精灵帧")]
-class TimePoint_Frame {
-    [Desc("起始时间( 秒 )")]
-    float time;
-    [Desc("精灵帧名称")]
-    string picName;
-}
-
-[Struct, Desc("精灵帧动画--动作( 兼容 spine, c3b, frames )")]
-class Action_Frames {
-    [Desc("动作名")]
-    string name;
-    [Desc("总时长( 秒 )")]
-    float totalSeconds;
-    [Desc("时间点--精灵帧 集合")]
-    List<TimePoint_Frame> frames;
-}
-
-/*******************************************************************************************/
-// 精灵帧动画 存盘文件
-/*******************************************************************************************/
-
-[Struct, Desc("精灵帧动画 存盘文件")]
-class File_Frames {
-    [Desc("动作集合")]
-    List<Action_Frames> actions;
-    [Desc("图位于哪些 plist")]
-    List<string> plists;
-}
-
-/*******************************************************************************************/
-// 动作
-/*******************************************************************************************/
-
-[Struct, Desc("针对 atlas/spine, c3b, frames 等动画文件, 附加 移动 & 碰撞 & 锁定 等数据")]
-class Action_AnimExt {
-    [Desc("动作名")]
-    string name;
-    [Desc("总时长( 秒 )")]
-    float totalSeconds;
-    [Desc("时间点--锁定点线 集合")]
-    List<TimePoint_LockPoints> lps;
-    [Desc("时间点--碰撞圆 集合")]
-    List<TimePoint_CDCircles> cds;
-    [Desc("时间点--移动速度 集合")]
-    List<TimePoint_Speed> ss;
-}
-
-/*******************************************************************************************/
-// 动画 存盘文件
-/*******************************************************************************************/
-
-[Struct, Desc("针对动画的扩展信息 存盘文件( *.frames.ext, *.atlas.ext, *.c3b.ext ")]
-class File_AnimExt {
-    [Desc("动作集合")]
-    List<Action_AnimExt> actions;
-    float shadowX, shadowY;
-    float shadowScale;
-}
 
 /*******************************************************************************************/
 // 移动路线 存盘文件
@@ -210,6 +229,14 @@ class File_pathway {
     List<CurvePoint> points;
 }
 
+
+
+
+
+
+/*******************************************************************************************/
+// Fish 相关
+/*******************************************************************************************/
 
 [Include, TypeId(100)]
 class Fish {
@@ -240,7 +267,7 @@ class Fish {
     Shared<Pathway> pathway;
     List<Shared<Fish>> children;
     Point offset;
-    File_AnimExt file;
+    File_Action file;
 }
 
 [Include, TypeId(101)]
