@@ -7,6 +7,7 @@
 
 #endif
 
+#include "xx_data.h"
 #include "xx_string.h"
 #include <mutex>        // for mysql_init
 
@@ -32,15 +33,39 @@ namespace xx {
     template<>
     struct StringFuncs<xx::MySql::Result, void> {
         static inline void Append(std::string &s, xx::MySql::Result const &in) {
-            xx::Append(s, "{\"affectedRows\":", in.affectedRows, ",\"columns\":", in.columns, ",\"rows\":", in.rows,
-                       '}');
+            xx::Append(s, "{\"affectedRows\":", in.affectedRows, ",\"columns\":", in.columns, ",\"rows\":", in.rows, '}');
+        }
+    };
+}
+
+namespace xx::MySql {
+    // string, Data 字串转义 for Append(string
+    struct EscapeWrapper {
+        char const* buf;
+        unsigned long len;
+        EscapeWrapper(std::string const& s) : buf((char*)s.data()), len((unsigned long)s.size()) {}
+        EscapeWrapper(std::string_view const& s) : buf((char*)s.data()), len((unsigned long)s.size()) {}
+        EscapeWrapper(Data const& d) : buf(d.buf), len((unsigned long)d.len) {}
+        EscapeWrapper(DataView const& d) : buf(d.buf), len((unsigned long)d.len) {}
+        EscapeWrapper(char const* const& buf,  size_t const& len) : buf(buf), len((unsigned long)len) {}
+    };
+}
+namespace xx {
+    template<>
+    struct StringFuncs<xx::MySql::EscapeWrapper, void> {
+        static inline void Append(std::string &s, xx::MySql::EscapeWrapper const &in) {
+            auto siz = s.size();
+            s.resize(siz + in.len * 2 + 1);
+            auto buf = (char*)s.data() + siz;
+            auto &&n = mysql_escape_string(buf, in.buf, in.len);
+            s.resize(siz + n);
         }
     };
 }
 
 namespace xx::MySql {
     // 字串转义
-    static std::string Escape(std::string const &in) noexcept;
+    std::string Escape(std::string const &in);
 
     // 发现 mysql_init 非线程安全 故全局 lock 一下
     inline std::mutex mutex_connOpen;
@@ -84,8 +109,10 @@ namespace xx::MySql {
 
         std::string ReadString(int const &colIdx) const;
 
+        Data ReadData(int const &colIdx) const;
+
         // todo: ato? 替换为更快的实现?
-        // todo: Data? more types support?
+        // todo: more types support?
 
         // 填充( 不做 数据类型校验. char* 能成功转为目标类型就算成功 )
         template<typename T>
@@ -221,9 +248,9 @@ namespace xx::MySql {
 /******************************************************************************************************************/
 
 namespace xx::MySql {
-    inline std::string Escape(std::string const &in) noexcept {
+    inline std::string Escape(std::string const &in) {
         std::string s;
-        s.resize(in.size() * 2);
+        s.resize(in.size() * 2 + 1);
         auto &&n = mysql_escape_string((char *) s.data(), (char *) in.data(), (unsigned long) in.size());
         s.resize(n);
         return s;
@@ -265,6 +292,10 @@ namespace xx::MySql {
         return std::string(data[colIdx], lengths[colIdx]);
     }
 
+    inline Data Reader::ReadData(int const &colIdx) const {
+        return Data(data[colIdx], lengths[colIdx]);
+    }
+
     template<typename T>
     inline void Reader::Read(int const &colIdx, T &outVal) const {
         // 前置检查
@@ -296,10 +327,7 @@ namespace xx::MySql {
             } else {
                 outVal = ReadDouble(colIdx);
             }
-        }
-            // more?
-
-        else if constexpr (std::is_same_v<T, std::string>) {
+        } else if constexpr (std::is_same_v<T, std::string>) {
             outVal.assign(data[colIdx], lengths[colIdx]);
         } else if constexpr (std::is_same_v<T, std::optional<std::string>>) {
             if (IsDBNull(colIdx)) {
@@ -307,9 +335,19 @@ namespace xx::MySql {
             } else {
                 outVal = std::string(data[colIdx], lengths[colIdx]);
             }
+        } else if constexpr (std::is_same_v<T, Data>) {
+            outVal.Clear();
+            outVal.WriteBuf(data[colIdx], lengths[colIdx]);
+        } else if constexpr (std::is_same_v<T, std::optional<std::string>>) {
+            if (IsDBNull(colIdx)) {
+                outVal.reset();
+            } else {
+                outVal = Data(data[colIdx], lengths[colIdx]);
+            }
         } else {
             info.conn.Throw(__LINE__, xx::ToString("unhandled value type: ", typeid(T)));
         }
+        // more?
     }
 
     template<typename T>

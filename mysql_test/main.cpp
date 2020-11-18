@@ -4,7 +4,7 @@
 // 得先用脚本建库
 
 struct Test {
-    std::string sqlHost = "192.168.1.74";
+    std::string sqlHost = "10.0.0.13";
     int sqlPort = 3306;
     std::string sqlUsername = "root";
     std::string sqlPassword = "1";
@@ -19,18 +19,19 @@ struct Test {
                 conn.Open(sqlHost, sqlPort, sqlUsername, sqlPassword, sqlDBName);
             }
             {
-                xx::CoutN(2, " cleanup");
+                xx::CoutN('\n', 2, " cleanup");
                 // 粗暴清除数据
                 conn.Execute(R"(
 set foreign_key_checks = 0;
 truncate table `acc_log`;
 truncate table `acc`;
+truncate table `dd`;
 set foreign_key_checks = 1;
 )");
                 conn.ClearResult();
             }
             {
-                xx::CoutN(3, " insert");
+                xx::CoutN('\n', 3, " insert");
                 // 模拟账号创建, 输出受影响行数
                 auto &&affectedRows = conn.ExecuteNonQuery(R"(
 insert into `acc` (`id`, `money`)
@@ -44,26 +45,26 @@ values
             int64_t tar_acc_id = 2;
             int64_t tar_add_money = 100;
             {
-                xx::CoutN(4, " call sp");
+                xx::CoutN('\n', 4, " call sp");
                 // 调用存储过程加钱   rtv：0 成功   -1 参数不正确   -2 找不到acc_id   -3 日志插入失败
                 auto &&rtv = conn.ExecuteScalar<int>("CALL `sp_acc_add_money`(", tar_acc_id, ", ", tar_add_money, ", ",
                                                      xx::NowEpoch10m(), ", @rtv); SELECT @rtv;");
                 if (rtv) throw std::logic_error(xx::ToString("call sp: `sp_acc_add_money` return value : ", rtv));
             }
             {
-                xx::CoutN(5, " show one row");
+                xx::CoutN('\n', 5, " show one row");
                 conn.Execute("select `id`, `money` from `acc` where `id` = ", tar_acc_id);
                 int64_t id, money;
                 conn.FetchTo(id, money);
                 xx::CoutN("id, money = ", id, ", ", money);
             }
             {
-                xx::CoutN(6, " show id list");
+                xx::CoutN('\n', 6, " show id list");
                 auto &&results = conn.ExecuteList<int64_t>("select `id` from `acc`");
                 xx::CoutN(results);
             }
             {
-                xx::CoutN(7, " fill to struct");
+                xx::CoutN('\n', 7, " fill to struct");
                 conn.Execute(
                         "select `id`, `money` from `acc`; select `acc_id`, `money_before`, `money_add`, `money_after`, `create_time` from `acc_log`;");
                 struct Acc {
@@ -95,15 +96,23 @@ values
                 }
             }
             {
-                xx::CoutN(8, " direct show all");
+                xx::CoutN('\n', 8, " direct show all");
                 auto &&results = conn.ExecuteResults("select * from `acc`; select * from `acc_log`;");
                 xx::CoutN(results);
             }
             {
-                xx::CoutN(9, " test tuple");
+                xx::CoutN('\n', 9, " test tuple");
                 std::tuple<int, std::string> t;
                 conn.ExecuteTo("select 1, 'asdf'", t);
                 xx::CoutN(t);
+            }
+            {
+                xx::CoutN('\n', 10, " test blob");
+                auto r = conn.ExecuteNonQuery("insert into `dd` (`id`, `data`) values (1, '", xx::MySql::EscapeWrapper("abcde", 5) ,"')");
+                xx::CoutN("insert blob affected rows = ", r);
+                xx::Data d;
+                conn.ExecuteTo("select `data` from `dd` where `id` = 1", d);
+                xx::CoutN("d = ", d);
             }
         }
         catch (std::exception const &e) {
