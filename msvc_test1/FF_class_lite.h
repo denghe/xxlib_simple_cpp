@@ -3,7 +3,7 @@
 #include "FF_class_lite.h.inc"  // user create it for extend include files
 namespace FF {
 	struct PkgGenMd5 {
-		inline static const ::std::string value = "#*MD5<bf5fff7ad245bb6ccdfd12f350e3a48d>*#";
+		inline static const ::std::string value = "#*MD5<303749fb82d659efe855e9482d5c3c8e>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(::xx::ObjManager& om);
@@ -53,9 +53,9 @@ namespace FF {
     // 坐标
     struct Point {
         XX_GENCODE_STRUCT_H(Point)
+#include "FF_Point.inc"
         float x = 0.0f;
         float y = 0.0f;
-#include "FF_Point.inc"
     };
     // 锁定点
     struct LockPoint {
@@ -66,10 +66,10 @@ namespace FF {
     // 碰撞圆
     struct CDCircle {
         XX_GENCODE_STRUCT_H(CDCircle)
+#include "FF_CDCircle.inc"
         float x = 0.0f;
         float y = 0.0f;
         float r = 0.0f;
-#include "FF_CDCircle.inc"
     };
     // 时间点--碰撞圆集合
     struct TimePoint_CDCircles {
@@ -102,13 +102,13 @@ namespace FF {
     // 移动路线 -- 点
     struct PathwayPoint {
         XX_GENCODE_STRUCT_H(PathwayPoint)
+#include "FF_PathwayPoint.inc"
         // 坐标
         ::FF::Point pos;
         // 角度
         float a = 0.0f;
         // 距离
         float d = 0.0f;
-#include "FF_PathwayPoint.inc"
     };
     // 针对 atlas/spine, c3b, frames 等动画文件, 附加 移动 & 碰撞 & 锁定 等数据
     struct Action_AnimExt {
@@ -144,13 +144,13 @@ namespace FF {
     // 曲线途经点
     struct CurvePoint {
         XX_GENCODE_STRUCT_H(CurvePoint)
+#include "FF_CurvePoint.inc"
         float x = 0.0f;
         float y = 0.0f;
         // 张力
         float tension = 0.0f;
         // 切片数
         int32_t numSegments = 0;
-#include "FF_CurvePoint.inc"
     };
     // 精灵帧动画--动作( 兼容 spine, c3b, frames )
     struct Action_Frames {
@@ -180,21 +180,22 @@ namespace FF {
     };
     struct Bullet : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Bullet, ::xx::ObjBase)
+#include "FF_Bullet.inc"
         int32_t id = 0;
         int64_t coin = 0;
-#include "FF_Bullet.inc"
     };
     // 移动路线
     struct Pathway : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Pathway, ::xx::ObjBase)
+#include "FF_Pathway.inc"
         // 是否闭合( 是 则 最后一个点 的下一个指向 第一个点 )
         bool isLoop = false;
         // 点集合
         ::std::vector<::FF::PathwayPoint> points;
-#include "FF_Pathway.inc"
     };
     struct Fish : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Fish, ::xx::ObjBase)
+#include "FF_Fish.inc"
         ::FF::Point pos;
         float angle = 0.0f;
         float scaleX = 1.0f;
@@ -223,25 +224,25 @@ namespace FF {
         ::std::vector<::xx::Shared<::FF::Fish>> children;
         ::FF::Point offset;
         ::FF::File_AnimExt file;
-#include "FF_Fish.inc"
     };
     struct Stuff : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Stuff, ::xx::ObjBase)
+#include "FF_Stuff.inc"
         int32_t id = 0;
         int32_t typeId = 0;
         ::FF::Point pos;
         double effectiveTime = 0;
-#include "FF_Stuff.inc"
     };
     struct Cannon : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Cannon, ::xx::ObjBase)
+#include "FF_Cannon.inc"
         int32_t id = 0;
         int32_t typeId = 0;
         ::std::vector<::xx::Shared<::FF::Bullet>> bullets;
-#include "FF_Cannon.inc"
     };
     struct Player : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Player, ::xx::ObjBase)
+#include "FF_Player.inc"
         int32_t id = 0;
         ::std::string nickname;
         int64_t coin = 0;
@@ -253,21 +254,20 @@ namespace FF {
         ::std::vector<::xx::Shared<::FF::Cannon>> cannons;
         ::std::vector<::xx::Shared<::FF::Stuff>> stuffs;
         ::xx::Weak<::FF::Fish> aimFish;
-#include "FF_Player.inc"
     };
     struct SimpleBullet : ::FF::Bullet {
         XX_GENCODE_OBJECT_H(SimpleBullet, ::FF::Bullet)
+#include "FF_SimpleBullet.inc"
         int32_t angle = 0;
         ::FF::Point pos;
-#include "FF_SimpleBullet.inc"
     };
     struct Root : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Root, ::xx::ObjBase)
+#include "FF_Root.inc"
         float dtPool = 0.0f;
         int32_t frame = 0;
         ::std::vector<::xx::Shared<::FF::Player>> players;
         ::std::vector<::xx::Shared<::FF::Fish>> fishs;
-#include "FF_Root.inc"
     };
     struct Foo : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Foo, ::xx::ObjBase)

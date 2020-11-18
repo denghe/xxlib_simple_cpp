@@ -160,11 +160,18 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
         XX_GENCODE_OBJECT_H(" + c.Name + @", " + btn + @")");
         }
 
-        sb.GenH_Struct_Fields(c, o);
 
         if (c._Has<TemplateLibrary.Include>()) {
             sb.Append(@"
 #include """ + c._GetTypeDecl_Lua(templateName) + @".inc""");
+            createEmptyFiles.Add(c._GetTypeDecl_Lua(templateName) + ".inc");
+        }
+
+        sb.GenH_Struct_Fields(c, o);
+
+        if (c._Has<TemplateLibrary.Include_>()) {
+            sb.Append(@"
+#include """ + c._GetTypeDecl_Lua(templateName) + @"_.inc""");
             createEmptyFiles.Add(c._GetTypeDecl_Lua(templateName) + ".inc");
         }
 

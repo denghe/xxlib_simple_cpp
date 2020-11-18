@@ -86,10 +86,17 @@ namespace TemplateLibrary {
     }
 
     /// <summary>
-    /// 标记一个类需要抠洞在声明和实现部分分别嵌入 namespace_classname.h , .hpp ( cpp only )
+    /// 标记一个类需要抠洞在声明部分嵌入 模板名_类名.inc ( 在成员前面 )
     /// </summary>
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct)]
     public class Include : System.Attribute {
+    }
+
+    /// <summary>
+    /// 标记一个类需要抠洞在声明部分嵌入 模板名_类名_.inc ( 在成员后面 )
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct)]
+    public class Include_ : System.Attribute {
     }
 
     /// <summary>
