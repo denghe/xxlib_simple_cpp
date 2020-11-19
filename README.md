@@ -244,7 +244,7 @@ sudo apt install mariadb-server
 
 sudo mysql_secure_installation
 
-vim /etc/mysql/mariadb.conf.d/50-server.cnf
+sudo vim /etc/mysql/mariadb.conf.d/50-server.cnf
 bind-address = 0.0.0.0
 
 systemctl restart mariadb
@@ -254,5 +254,11 @@ netstat -ant | grep 3306
 sudo mariadb
 GRANT ALL ON *.* to 'root'@'%.%.%.%' IDENTIFIED BY 'password' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
+```
+windows 客户端要连接，可下载 mariadb c connector 来用, 并在 vs 项目中配置包含路径和引用：  
+```
+头包含路径：C:\Program Files\MariaDB\MariaDB Connector C 64-bit\include
+库包含路径：C:\Program Files\MariaDB\MariaDB Connector C 64-bit\include
+库包含名称：libmariadb.lib
 ```
 

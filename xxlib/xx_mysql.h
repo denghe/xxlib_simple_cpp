@@ -452,7 +452,7 @@ namespace xx::MySql {
         if (!ctx) {
             Throw(__LINE__, "connection is closed.");
         }
-        if (mysql_real_query(ctx, sql.c_str(), sql.size())) {
+        if (mysql_real_query(ctx, sql.c_str(), (unsigned long)sql.size())) {
             Throw((int) mysql_errno(ctx), mysql_error(ctx));
         }
     }

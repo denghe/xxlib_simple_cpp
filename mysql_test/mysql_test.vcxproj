@@ -13,7 +13,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{8ab8ab63-6ee0-4401-be4b-47a687dabdc1}</ProjectGuid>
+    <ProjectGuid>{8ab8ab63-6ee0-4401-be4b-47a687dabdc2}</ProjectGuid>
     <RootNamespace>msvctest1</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -57,7 +57,7 @@
       <PreprocessorDefinitions>MAKE_LIB;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)xxlib;$(SolutionDir)asio\asio\include;$(SolutionDir)lua-5.4.x\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)xxlib;$(SolutionDir)asio\asio\include;$(SolutionDir)lua-5.4.x\src;C:\Program Files\MariaDB\MariaDB Connector C 64-bit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>
       </AdditionalOptions>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -65,6 +65,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Program Files\MariaDB\MariaDB Connector C 64-bit\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libmariadb.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -76,7 +78,7 @@
       <PreprocessorDefinitions>MAKE_LIB;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)xxlib;$(SolutionDir)asio\asio\include;$(SolutionDir)lua-5.4.x\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)xxlib;$(SolutionDir)asio\asio\include;$(SolutionDir)lua-5.4.x\src;C:\Program Files\MariaDB\MariaDB Connector C 64-bit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>
       </AdditionalOptions>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -86,11 +88,15 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Program Files\MariaDB\MariaDB Connector C 64-bit\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libmariadb.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\lua-5.4.x\src\onelua.cpp" />
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="create_db.sql" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -4,7 +4,7 @@
 // 得先用脚本建库
 
 struct Test {
-    std::string sqlHost = "10.0.0.13";
+    std::string sqlHost = "192.168.1.135";
     int sqlPort = 3306;
     std::string sqlUsername = "root";
     std::string sqlPassword = "1";

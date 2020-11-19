@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <vector>
-#if defined(__clang__) || defined(_MSC_VER)
+#if defined(__clang__)
 #include <experimental/coroutine>
 #else
 #include <coroutine>
@@ -12,7 +12,7 @@
 #define CoReturn co_return
 
 namespace xx {
-#if defined(__clang__) || defined(_MSC_VER)
+#if defined(__clang__)
     using namespace std::experimental;
 #else
     using namespace std;

@@ -13,9 +13,17 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "tools_codegen_src", "tools_
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "tools_codegen_lib", "tools_codegen_lib\tools_codegen_lib.csproj", "{042EC320-3F2D-477D-8E71-A44D9A2D060A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mysql_test", "mysql_test\mysql_test.vcxproj", "{8AB8AB63-6EE0-4401-BE4B-47A687DABDC2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8C5853F1-5B6A-4EAF-BF13-90B0EF7388DB}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		xxlib\xxlib.vcxitems*{8ab8ab63-6ee0-4401-be4b-47a687dabdc1}*SharedItemsImports = 4
+		xxlib\xxlib.vcxitems*{8ab8ab63-6ee0-4401-be4b-47a687dabdc2}*SharedItemsImports = 4
 		xxlib\xxlib.vcxitems*{8ab8ab63-6ee0-4401-be4b-47a687dabdcc}*SharedItemsImports = 4
 		xxlib\xxlib.vcxitems*{f454f86d-b5bc-4412-a9c4-5ae1632f0b4e}*SharedItemsImports = 9
 	EndGlobalSection
@@ -58,6 +66,12 @@ Global
 		{042EC320-3F2D-477D-8E71-A44D9A2D060A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{042EC320-3F2D-477D-8E71-A44D9A2D060A}.Release|x64.ActiveCfg = Release|Any CPU
 		{042EC320-3F2D-477D-8E71-A44D9A2D060A}.Release|x64.Build.0 = Release|Any CPU
+		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC2}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC2}.Debug|x64.ActiveCfg = Debug|x64
+		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC2}.Debug|x64.Build.0 = Debug|x64
+		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC2}.Release|Any CPU.ActiveCfg = Release|x64
+		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC2}.Release|x64.ActiveCfg = Release|x64
+		{8AB8AB63-6EE0-4401-BE4B-47A687DABDC2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
