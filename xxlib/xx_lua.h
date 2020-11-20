@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // todo: 适配 Shared, Weak
 
@@ -36,7 +36,7 @@ namespace xx::Lua {
 	}
 
 	// for easy push
-	struct Nil {
+	struct NilType {
 	};
 
 	// 如果是 luajit 就啥都不用做了
@@ -126,7 +126,7 @@ namespace xx::Lua {
 
 	// 适配 nil 写入
 	template<>
-	struct PushToFuncs<Nil, void> {
+	struct PushToFuncs<NilType, void> {
 		static inline int Push(lua_State* const& L, bool const& in) {
 			CheckStack(L, 1);
 			lua_pushnil(L);
@@ -682,13 +682,6 @@ namespace xx::Lua {
 		if (top != n) Error(L, "AssertTop( ", std::to_string(n), " ) failed! current top = ", std::to_string(top), std::forward<Args>(args)...);
 	}
 
-	void DoString(lua_State* const& L, char const* const& code) {
-		if (LUA_OK != luaL_loadstring(L, code)) {
-			lua_error(L);
-		};
-		lua_call(L, 0, 0);
-	}
-
 	template<typename T>
 	void LoadFile(lua_State* const& L, T&& fileName) {
 		int rtv = 0;
@@ -785,6 +778,14 @@ namespace xx::Lua {
 		Call(L, std::forward<Args>(args)...);
 	}
 
+    template<typename...Args>
+    void DoString(lua_State* const& L, char const* const& code, Args &&...args) {
+        if (LUA_OK != luaL_loadstring(L, code)) {
+            lua_error(L);
+        }
+        Call(L, std::forward<Args>(args)...);
+    }
+
 	// 触发 lua 垃圾回收
 	inline void GC(lua_State* const& L) {
 		luaL_loadstring(L, "collectgarbage(\"collect\")");
@@ -855,7 +856,7 @@ namespace xx::Lua {
 				C* p = nullptr;
 				PushToFuncs<C, void>::ToPtr(L, 1, p);
 				auto&& self = ToPointer(*p);
-				if (!self) Error(L, "args[1] is nullptr?");
+				if (!self) Error(L, std::string("args[1] is nullptr?"));
 				auto&& f = *(F*)lua_touserdata(L, lua_upvalueindex(1));
 				FuncA_t<F> tuple;
 				To(L, 2, tuple);
@@ -915,29 +916,29 @@ namespace xx::Lua {
 
 
 	enum class LuaTypes : uint8_t {
-		Nil, True, False, Integer, Double, String, Table, TableEnd      // todo: 将常见 int double 的 0 值  string 的 0 长 也提为类型
+		NilType, True, False, Integer, Double, String, Table, TableEnd      // todo: 将常见 int double 的 0 值  string 的 0 长 也提为类型
 	};
 
 	// L 栈顶的数据写入 d   (不支持 table 循环引用, 注意 lua5.1 不支持 int64, 整数需在 int32 范围内)
 	inline void WriteTo(lua_State* const& in, xx::Data& d) {
 		switch (auto t = lua_type(in, -1)) {
 		case LUA_TNIL:
-			d.WriteFixed(LuaTypes::Nil);
+			d.WriteFixed(LuaTypes::NilType);
 			return;
 		case LUA_TBOOLEAN:
 			d.WriteFixed(lua_toboolean(in, -1) ? LuaTypes::True : LuaTypes::False);
 			return;
 		case LUA_TNUMBER: {
 #if LUA_VERSION_NUM == 501
-			auto d = (double)lua_tonumber(in, -1);
-			auto i = (int64_t)d;
-			if ((double)i == d) {
+			auto n = (double)lua_tonumber(in, -1);
+			auto i = (int64_t)n;
+			if ((double)i == n) {
 				d.WriteFixed(LuaTypes::Integer);
 				d.WriteVarIntger(i);
 			}
 			else {
 				d.WriteFixed(LuaTypes::Double);
-				d.WriteFixed(d);
+				d.WriteFixed(n);
 			}
 #else
 			if (lua_isinteger(in, -1)) {
@@ -984,7 +985,7 @@ namespace xx::Lua {
 			return;
 		}
 		default:
-			d.WriteFixed(LuaTypes::Nil);
+			d.WriteFixed(LuaTypes::NilType);
 			return;
 		}
 	}
@@ -995,7 +996,7 @@ namespace xx::Lua {
 		LuaTypes lt;
 		if (int r = d.ReadFixed(lt)) return r;
 		switch (lt) {
-		case LuaTypes::Nil:
+		case LuaTypes::NilType:
 			Lua::CheckStack(out, 1);
 			lua_pushnil(out);
 			return 0;

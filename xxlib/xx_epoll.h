@@ -1143,7 +1143,7 @@ namespace xx::Epoll {
         // 取当前时间
         auto lastTicks = xx::NowEpoch10m();
         // 更新一下逻辑可能用到的时间戳
-        nowMS = xx::NowSteadyEpochMS();
+        nowMS = xx::NowSteadyEpochMilliseconds();
         // 开始循环
         while (running) {
             // 计算上个循环到现在经历的时长, 并累加到 pool
@@ -1159,7 +1159,7 @@ namespace xx::Epoll {
                 // 本次 Wait 不等待.
                 waitMS = 0;
                 // 更新一下逻辑可能用到的时间戳
-                nowMS = xx::NowSteadyEpochMS();
+                nowMS = xx::NowSteadyEpochMilliseconds();
                 // 驱动 timer
                 UpdateTimeoutWheel();
                 // 帧逻辑调用一次
