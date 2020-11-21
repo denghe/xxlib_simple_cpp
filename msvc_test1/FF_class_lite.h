@@ -3,33 +3,36 @@
 #include "FF_class_lite.h.inc"  // user create it for extend include files
 namespace FF {
 	struct PkgGenMd5 {
-		inline static const ::std::string value = "#*MD5<303749fb82d659efe855e9482d5c3c8e>*#";
+		inline static const ::std::string value = "#*MD5<7435faf16c7e1bbb9c23caf683501259>*#";
     };
 	struct PkgGenTypes {
         static void RegisterTo(::xx::ObjManager& om);
     };
 
     struct Point;
+    struct TimePoint_Speed;
+    struct TimePoint_Anim;
+    struct Bullet;
+    struct PathwayPoint;
+    struct Action;
+    struct Pathway;
     struct LockPoint;
     struct CDCircle;
+    struct File_Actions;
     struct TimePoint_CDCircles;
-    struct Bullet;
-    struct TimePoint_LockPoints;
-    struct TimePoint_Speed;
-    struct PathwayPoint;
-    struct Action_AnimExt;
-    struct Pathway;
-    struct File_AnimExt;
-    struct Fish;
-    struct Stuff;
     struct Cannon;
+    struct Stuff;
     struct TimePoint_Frame;
-    struct Player;
+    struct Fish;
+    struct TimePoint_LockPoints;
+    struct Anim;
+    struct FrameAnim;
     struct CurvePoint;
     struct SimpleBullet;
-    struct Action_Frames;
+    struct Player;
     struct Root;
     struct Foo;
+    struct File_Anims;
     struct File_Frames;
     struct Node;
     struct File_pathway;
@@ -38,11 +41,11 @@ namespace FF {
 namespace xx {
     template<> struct TypeId<::FF::Bullet> { static const uint16_t value = 103; };
     template<> struct TypeId<::FF::Pathway> { static const uint16_t value = 66; };
-    template<> struct TypeId<::FF::Fish> { static const uint16_t value = 100; };
-    template<> struct TypeId<::FF::Stuff> { static const uint16_t value = 104; };
     template<> struct TypeId<::FF::Cannon> { static const uint16_t value = 102; };
-    template<> struct TypeId<::FF::Player> { static const uint16_t value = 101; };
+    template<> struct TypeId<::FF::Stuff> { static const uint16_t value = 104; };
+    template<> struct TypeId<::FF::Fish> { static const uint16_t value = 100; };
     template<> struct TypeId<::FF::SimpleBullet> { static const uint16_t value = 300; };
+    template<> struct TypeId<::FF::Player> { static const uint16_t value = 101; };
     template<> struct TypeId<::FF::Root> { static const uint16_t value = 105; };
     template<> struct TypeId<::FF::Foo> { static const uint16_t value = 1; };
     template<> struct TypeId<::FF::Node> { static const uint16_t value = 2; };
@@ -56,6 +59,45 @@ namespace FF {
 #include "FF_Point.inc"
         float x = 0.0f;
         float y = 0.0f;
+    };
+    // 时间点--移动速度
+    struct TimePoint_Speed {
+        XX_GENCODE_STRUCT_H(TimePoint_Speed)
+        // 起始时间( 秒 )
+        float time = 0.0f;
+        // 每秒移动距离(米)
+        float speed = 0.0f;
+    };
+    // 时间点--动画切换( 下标值域为负可用于表达事件 )
+    struct TimePoint_Anim {
+        XX_GENCODE_STRUCT_H(TimePoint_Anim)
+        // 起始时间( 秒 )
+        float time = 0.0f;
+        // 切换到指定动画的下标
+        int32_t animIndex = 0;
+    };
+    // 移动路线 -- 点
+    struct PathwayPoint {
+        XX_GENCODE_STRUCT_H(PathwayPoint)
+#include "FF_PathwayPoint.inc"
+        // 坐标
+        ::FF::Point pos;
+        // 角度
+        float a = 0.0f;
+        // 距离
+        float d = 0.0f;
+    };
+    // 针对 atlas/spine, c3b, frames 等动画文件, 附加 移动 & 动画切换 等数据
+    struct Action {
+        XX_GENCODE_STRUCT_H(Action)
+        // 动作名
+        ::std::string name;
+        // 总时长( 秒 )
+        float totalSeconds = 0.0f;
+        // 时间点--移动速度 集合
+        ::std::vector<::FF::TimePoint_Anim> anims;
+        // 时间点--移动速度 集合
+        ::std::vector<::FF::TimePoint_Speed> speeds;
     };
     // 锁定点
     struct LockPoint {
@@ -71,6 +113,14 @@ namespace FF {
         float y = 0.0f;
         float r = 0.0f;
     };
+    // 动作配置 存盘文件 *.acts
+    struct File_Actions {
+        XX_GENCODE_STRUCT_H(File_Actions)
+        // 存储 动画配置 文件名. 反序列化后用于填充 anims 部分的内容
+        ::std::string animsFileName;
+        // 动作集合
+        ::std::vector<::FF::Action> actions;
+    };
     // 时间点--碰撞圆集合
     struct TimePoint_CDCircles {
         XX_GENCODE_STRUCT_H(TimePoint_CDCircles)
@@ -80,6 +130,14 @@ namespace FF {
         ::FF::CDCircle maxCDCircle;
         // 具体碰撞圆列表，用于碰撞检测遍历细判
         ::std::vector<::FF::CDCircle> cdCircles;
+    };
+    // 时间点--帧
+    struct TimePoint_Frame {
+        XX_GENCODE_STRUCT_H(TimePoint_Frame)
+        // 起始时间( 秒 )
+        float time = 0.0f;
+        // 帧名
+        ::std::string picName;
     };
     // 时间点--锁定点线
     struct TimePoint_LockPoints {
@@ -91,29 +149,10 @@ namespace FF {
         // 锁定线
         ::std::vector<::FF::LockPoint> lockPoints;
     };
-    // 时间点--移动速度
-    struct TimePoint_Speed {
-        XX_GENCODE_STRUCT_H(TimePoint_Speed)
-        // 起始时间( 秒 )
-        float time = 0.0f;
-        // 每秒移动距离(米)
-        float speed = 0.0f;
-    };
-    // 移动路线 -- 点
-    struct PathwayPoint {
-        XX_GENCODE_STRUCT_H(PathwayPoint)
-#include "FF_PathwayPoint.inc"
-        // 坐标
-        ::FF::Point pos;
-        // 角度
-        float a = 0.0f;
-        // 距离
-        float d = 0.0f;
-    };
-    // 针对 atlas/spine, c3b, frames 等动画文件, 附加 移动 & 碰撞 & 锁定 等数据
-    struct Action_AnimExt {
-        XX_GENCODE_STRUCT_H(Action_AnimExt)
-        // 动作名
+    // 针对  等动画文件, 附加 碰撞 & 锁定 等数据
+    struct Anim {
+        XX_GENCODE_STRUCT_H(Anim)
+        // 动画名
         ::std::string name;
         // 总时长( 秒 )
         float totalSeconds = 0.0f;
@@ -121,25 +160,16 @@ namespace FF {
         ::std::vector<::FF::TimePoint_LockPoints> lps;
         // 时间点--碰撞圆 集合
         ::std::vector<::FF::TimePoint_CDCircles> cds;
-        // 时间点--移动速度 集合
-        ::std::vector<::FF::TimePoint_Speed> ss;
     };
-    // 针对动画的扩展信息 存盘文件( *.frames.ext, *.atlas.ext, *.c3b.ext 
-    struct File_AnimExt {
-        XX_GENCODE_STRUCT_H(File_AnimExt)
-        // 动作集合
-        ::std::vector<::FF::Action_AnimExt> actions;
-        float shadowX = 0.0f;
-        float shadowY = 0.0f;
-        float shadowScale = 0.0f;
-    };
-    // 时间点--精灵帧
-    struct TimePoint_Frame {
-        XX_GENCODE_STRUCT_H(TimePoint_Frame)
-        // 起始时间( 秒 )
-        float time = 0.0f;
-        // 精灵帧名称
-        ::std::string picName;
+    // 帧动画
+    struct FrameAnim {
+        XX_GENCODE_STRUCT_H(FrameAnim)
+        // 动画名
+        ::std::string name;
+        // 总时长( 秒 )
+        float totalSeconds = 0.0f;
+        // 时间点--帧 集合
+        ::std::vector<::FF::TimePoint_Frame> frames;
     };
     // 曲线途经点
     struct CurvePoint {
@@ -152,21 +182,22 @@ namespace FF {
         // 切片数
         int32_t numSegments = 0;
     };
-    // 精灵帧动画--动作( 兼容 spine, c3b, frames )
-    struct Action_Frames {
-        XX_GENCODE_STRUCT_H(Action_Frames)
-        // 动作名
-        ::std::string name;
-        // 总时长( 秒 )
-        float totalSeconds = 0.0f;
-        // 时间点--精灵帧 集合
-        ::std::vector<::FF::TimePoint_Frame> frames;
+    // 动画配置 存盘文件 *.anims
+    struct File_Anims {
+        XX_GENCODE_STRUCT_H(File_Anims)
+        // 指向原始资源文件名( atlas/spine, c3b, frames )
+        ::std::string resFileName;
+        // 动画集合
+        ::std::vector<::FF::Anim> anims;
+        float shadowX = 0.0f;
+        float shadowY = 0.0f;
+        float shadowScale = 0.0f;
     };
-    // 精灵帧动画 存盘文件
+    // 帧动画 存盘文件 .frames
     struct File_Frames {
         XX_GENCODE_STRUCT_H(File_Frames)
-        // 动作集合
-        ::std::vector<::FF::Action_Frames> actions;
+        // 帧动画集合
+        ::std::vector<::FF::FrameAnim> frameAnims;
         // 图位于哪些 plist
         ::std::vector<::std::string> plists;
     };
@@ -192,6 +223,21 @@ namespace FF {
         bool isLoop = false;
         // 点集合
         ::std::vector<::FF::PathwayPoint> points;
+    };
+    struct Cannon : ::xx::ObjBase {
+        XX_GENCODE_OBJECT_H(Cannon, ::xx::ObjBase)
+#include "FF_Cannon.inc"
+        int32_t id = 0;
+        int32_t typeId = 0;
+        ::std::vector<::xx::Shared<::FF::Bullet>> bullets;
+    };
+    struct Stuff : ::xx::ObjBase {
+        XX_GENCODE_OBJECT_H(Stuff, ::xx::ObjBase)
+#include "FF_Stuff.inc"
+        int32_t id = 0;
+        int32_t typeId = 0;
+        ::FF::Point pos;
+        double effectiveTime = 0;
     };
     struct Fish : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Fish, ::xx::ObjBase)
@@ -223,22 +269,13 @@ namespace FF {
         ::xx::Shared<::FF::Pathway> pathway;
         ::std::vector<::xx::Shared<::FF::Fish>> children;
         ::FF::Point offset;
-        ::FF::File_AnimExt file;
+        ::FF::File_Actions file;
     };
-    struct Stuff : ::xx::ObjBase {
-        XX_GENCODE_OBJECT_H(Stuff, ::xx::ObjBase)
-#include "FF_Stuff.inc"
-        int32_t id = 0;
-        int32_t typeId = 0;
+    struct SimpleBullet : ::FF::Bullet {
+        XX_GENCODE_OBJECT_H(SimpleBullet, ::FF::Bullet)
+#include "FF_SimpleBullet.inc"
+        int32_t angle = 0;
         ::FF::Point pos;
-        double effectiveTime = 0;
-    };
-    struct Cannon : ::xx::ObjBase {
-        XX_GENCODE_OBJECT_H(Cannon, ::xx::ObjBase)
-#include "FF_Cannon.inc"
-        int32_t id = 0;
-        int32_t typeId = 0;
-        ::std::vector<::xx::Shared<::FF::Bullet>> bullets;
     };
     struct Player : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Player, ::xx::ObjBase)
@@ -254,12 +291,6 @@ namespace FF {
         ::std::vector<::xx::Shared<::FF::Cannon>> cannons;
         ::std::vector<::xx::Shared<::FF::Stuff>> stuffs;
         ::xx::Weak<::FF::Fish> aimFish;
-    };
-    struct SimpleBullet : ::FF::Bullet {
-        XX_GENCODE_OBJECT_H(SimpleBullet, ::FF::Bullet)
-#include "FF_SimpleBullet.inc"
-        int32_t angle = 0;
-        ::FF::Point pos;
     };
     struct Root : ::xx::ObjBase {
         XX_GENCODE_OBJECT_H(Root, ::xx::ObjBase)
@@ -284,17 +315,20 @@ namespace FF {
 }
 namespace xx {
 	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::Point)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::TimePoint_Speed)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::TimePoint_Anim)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::PathwayPoint)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::Action)
 	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::LockPoint)
 	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::CDCircle)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::File_Actions)
 	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::TimePoint_CDCircles)
-	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::TimePoint_LockPoints)
-	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::TimePoint_Speed)
-	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::PathwayPoint)
-	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::Action_AnimExt)
-	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::File_AnimExt)
 	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::TimePoint_Frame)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::TimePoint_LockPoints)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::Anim)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::FrameAnim)
 	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::CurvePoint)
-	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::Action_Frames)
+	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::File_Anims)
 	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::File_Frames)
 	XX_GENCODE_STRUCT_TEMPLATE_H(::FF::File_pathway)
 }

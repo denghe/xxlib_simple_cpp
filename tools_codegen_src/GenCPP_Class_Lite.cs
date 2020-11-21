@@ -749,7 +749,7 @@ namespace " + c.Namespace.Replace(".", "::") + @" {");
 #include """ + templateName + @"_class_lite.h""
 #include ""ajson.hpp""");
         foreach (var c in cs) {
-            if (!c._IsUserStruct() || c._HasClassMember()) continue;
+            if (c._HasClassMember()) continue;
             sb.Append(@"
 AJSON(" + templateName + "::" + c.Name);
             GenH_AJSON(sb, c);

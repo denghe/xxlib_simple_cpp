@@ -267,12 +267,13 @@ public static class TypeHelpers {
     /// 递归判断如果有任意成员或泛型是 class 类型也跳过
     /// </summary>
     public static bool _HasClassMember(this Type t) {
+        if (t._IsExternal() && t.IsValueType) return false;
         if (t._IsUserClass()) return true;
         if (t._IsUserStruct()) {
             foreach (var m in t._GetFields()) {
                 if (m.FieldType._HasClassMember()) return true;
             }
-            return true;
+            return false;
         }
         if (t.IsGenericType) {
             foreach (var ct in t.GenericTypeArguments) {

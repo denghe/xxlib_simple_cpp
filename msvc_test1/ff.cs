@@ -267,7 +267,7 @@ class Fish {
     Shared<Pathway> pathway;
     List<Shared<Fish>> children;
     Point offset;
-    File_Action file;
+    File_Actions file;
 }
 
 [Include, TypeId(101)]
