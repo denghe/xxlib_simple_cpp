@@ -92,6 +92,17 @@ int main() {
 
 	xx::Lua::SetGlobal(L, "CreateFoo", [] { return xx::MakeShared<FF::Foo>(); });
 
+	xx::Lua::SetGlobal(L, "IntArrayTest", [](std::vector<int> const& ints) {
+		for (auto&& i : ints) {
+			std::cout << i << std::endl;
+		}
+	});
+
+	xx::Lua::DoString(L, R"(
+IntArrayTest({ [1] = 12, [2] = 34 })
+)");
+
+
 	xx::Lua::DoString(L, R"(
 
 local n = CreateNode()

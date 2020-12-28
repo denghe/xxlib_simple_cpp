@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // todo: 适配 Shared, Weak
 
@@ -624,24 +624,22 @@ namespace xx::Lua {
 		}
 
 		static inline void To(lua_State* const& L, int const& idx, U& out) {
-			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", xx::TypeName_v<U>);
+			if (!lua_istable(L, idx)) Error(L, "error! args[", std::to_string(idx), "] is not table:", std::string(xx::TypeName_v<U>));
 			out.clear();
-			int top = lua_gettop(L);
-			Lua::CheckStack(L, 1);
-			lua_pushnil(L);                                             // ... t(idx), ..., nil
-			size_t i = 1;                   // for verify key
-			while (lua_next(L, idx) != 0) {                             // ... t(idx), ..., k, v
-				size_t k = 0;
-				::xx::Lua::To(L, top + 1, k);
-				if (k != i) {
-					lua_pop(L, 2);                                      // ... t(idx), ...
-					return;
-				}
+			int top = lua_gettop(L) + 1;
+			Lua::CheckStack(L, 2);
+			lua_len(L, idx);											// ... t(idx), ..., len
+			lua_Integer len = 0;
+			::xx::Lua::To(L, top, len);
+			lua_pop(L, 1);												// ... t(idx), ...
+			out.reserve(len);
+			for (lua_Integer i = 1; i <= len; i++) {
+				lua_rawgeti(L, idx, i);									// ... t(idx), ..., val
+				if (lua_isnil(L, top)) Error(L, "Lua Table To Vector failed! key = ", std::to_string(i), ", value == nil");
 				T v;
-				::xx::Lua::To(L, top + 2, v);
+				::xx::Lua::To(L, top, v);
+				lua_pop(L, 1);											// ... t(idx), ...
 				out.emplace_back(std::move(v));
-				lua_pop(L, 1);                                         // ... t(idx), ..., k
-				++i;
 			}
 		}
 	};
