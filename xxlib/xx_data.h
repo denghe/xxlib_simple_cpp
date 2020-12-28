@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "xx_typehelpers.h"
 #include "xx_math.h"
-#include <cstring>
 
 namespace xx {
 
