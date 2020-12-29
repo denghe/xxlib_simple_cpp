@@ -628,11 +628,7 @@ namespace xx::Lua {
 			out.clear();
 			int top = lua_gettop(L) + 1;
 			Lua::CheckStack(L, 2);
-			lua_len(L, idx);											// ... t(idx), ..., len
-			lua_Integer len = 0;
-			::xx::Lua::To(L, top, len);
-			lua_pop(L, 1);												// ... t(idx), ...
-			out.reserve(len);
+			out.reserve(32);
 			for (lua_Integer i = 1; i <= len; i++) {
 				lua_rawgeti(L, idx, i);									// ... t(idx), ..., val
 				if (lua_isnil(L, top)) Error(L, "Lua Table To Vector failed! key = ", std::to_string(i), ", value == nil");
