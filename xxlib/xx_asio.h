@@ -8,6 +8,7 @@
 #include <queue>
 #include "xx_looper.h"
 #include "xx_data.h"
+#include "xx_ptr.h"
 #include "ikcp.h"
 
 // todo: 去掉 try 啥的
@@ -181,7 +182,7 @@ namespace xx::Asio {
 		Data recv;
 
 		// 已接收完整的数据队列( 从 recv 复制创建. 帧逻辑代码可 pop 出去处理 )
-		std::deque<std::shared_ptr<Data>> recvs;
+		std::deque<Shared<Data>> recvs;
 
 		// 初始化 sokcet
 		explicit KcpPeer(Client* const& c, asio::ip::udp::endpoint const& ep, uint32_t const& shakeSerial)
@@ -189,7 +190,7 @@ namespace xx::Asio {
 			, socket(c->ioc, asio::ip::udp::endpoint(ep.protocol(), 0))
 			, ep(ep)
 			, shakeSerial(shakeSerial) {
-		    socket.non_blocking(true);
+			socket.non_blocking(true);
 			recv.Reserve(1024 * 256);
 		}
 
@@ -200,13 +201,13 @@ namespace xx::Asio {
 
 		// every frame call it
 		inline void Recv() {
-            if (closed) return;
-            asio::error_code e;
-            asio::ip::udp::endpoint p;
-            if (auto recvLen = socket.receive_from(asio::buffer(recvBuf), p, 0, e)) {
-                RecvHandler(e, recvLen);
-            }
-        }
+			if (closed) return;
+			asio::error_code e;
+			asio::ip::udp::endpoint p;
+			if (auto recvLen = socket.receive_from(asio::buffer(recvBuf), p, 0, e)) {
+				RecvHandler(e, recvLen);
+			}
+		}
 
 		// udp 接收回调。kcp input 或 握手
 		inline void RecvHandler(asio::error_code const& e, size_t recvLen) {
@@ -232,7 +233,10 @@ namespace xx::Asio {
 
 					// 从 kcp 提取数据. 追加填充到 recv 后面区域. 返回填充长度. <= 0 则下次再说
 					auto&& len = ikcp_recv(kcp, recv.buf + recv.len, (int)(recv.cap - recv.len));
-					if (len <= 0) return;
+					if (len <= 0) {
+						//                        std::cout << "ikcp_recv:-1" << std::endl;
+						return;
+					}
 					recv.len += len;
 
 					// 开始切包放 recvs
@@ -255,7 +259,7 @@ namespace xx::Asio {
 						if (buf + totalLen > end) break;
 
 						// 复制包到 recvs
-						recvs.emplace_back(Make<Data>(buf, totalLen));
+						recvs.emplace_back(MakeShared<Data>(buf, totalLen));
 
 						// 跳到下一个包的开头
 						buf += totalLen;
@@ -280,9 +284,9 @@ namespace xx::Asio {
 					(void)ikcp_nodelay(kcp, 1, 10, 2, 1);
 					kcp->rx_minrto = 10;
 					kcp->stream = 1;
-					ikcp_setmtu(kcp, 470);    // 该参数或许能提速, 因为小包优先
+					//					ikcp_setmtu(kcp, 60 * 1024);    // 该参数或许能提速, 因为小包优先
 
-					// 给 kcp 绑定 output 功能函数
+										// 给 kcp 绑定 output 功能函数
 					ikcp_setoutput(kcp, [](const char* buf, int len, ikcpcb* _, void* user) -> int {
 						return (int)((KcpPeer*)user)->socket.send_to(asio::buffer(buf, len), ((KcpPeer*)user)->ep);
 						});
@@ -373,9 +377,14 @@ namespace xx::Asio {
 	{
 		// 设置握手回调: 不停的发送握手包
 		shakeTimer.onTimeout = [this](auto t) {
-            for (auto&& p : dialPeers) {
-                p->socket.send_to(asio::buffer(&p->shakeSerial, sizeof(p->shakeSerial)), p->ep);
-            }
+			for (auto&& p : dialPeers) {
+				try {
+					p->socket.send_to(asio::buffer(&p->shakeSerial, sizeof(p->shakeSerial)), p->ep);
+				}
+				catch (...) {
+
+				}
+			}
 			t->SetTimeout(0.2);
 		};
 
@@ -386,22 +395,22 @@ namespace xx::Asio {
 	}
 
 	inline bool Client::PeerAlive() {
-        return peer && !peer->closed;
+		return peer && !peer->closed;
 	}
 
-    inline int Client::RunOnce(double const& elapsedSeconds) {
-        ioc.poll();
-        if (Busy()) {
-            for (auto &&dp : dialPeers) {
-                dp->Recv();
-            }
-        }
-        if (PeerAlive()) {
-            peer->Recv();
-        }
-        secondsPool += elapsedSeconds;
-        auto rtv = this->BaseType::RunOnce();
-        ioc.poll();
-        return rtv;
-    }
+	inline int Client::RunOnce(double const& elapsedSeconds) {
+		ioc.poll();
+		if (Busy()) {
+			for (auto&& dp : dialPeers) {
+				dp->Recv();
+			}
+		}
+		if (PeerAlive()) {
+			peer->Recv();
+		}
+		secondsPool += elapsedSeconds;
+		auto rtv = this->BaseType::RunOnce();
+		ioc.poll();
+		return rtv;
+	}
 }
