@@ -32,7 +32,7 @@ namespace xx::Lua {
 
 	// for Shared<ObjBase>
 	template<typename T>
-	struct MetaFuncs<T, std::enable_if_t<xx::IsXxShared_v<T> && std::is_same_v<typename T::ElementType, ObjBase>>> {
+	struct MetaFuncs<T, std::enable_if_t<xx::IsXxShared_v<T>&& std::is_same_v<typename T::ElementType, ObjBase>>> {
 		inline static std::string name = std::string(TypeName_v<T>);
 		static inline void Fill(lua_State* const& L) {
 			xx::ObjManager* om = nullptr;
@@ -45,7 +45,7 @@ namespace xx::Lua {
 
 	// for Shared<FF::Foo> 或 FF::Foo*
 	template<typename T>
-	struct MetaFuncs<T, std::enable_if_t<xx::IsXxShared_v<T> && std::is_same_v<typename T::ElementType, FF::Foo>
+	struct MetaFuncs<T, std::enable_if_t<xx::IsXxShared_v<T>&& std::is_same_v<typename T::ElementType, FF::Foo>
 		|| std::is_pointer_v<T> && std::is_same_v<FF::Foo*, std::decay_t<T>>>> {
 		inline static std::string name = std::string(TypeName_v<T>);
 		static inline void Fill(lua_State* const& L) {
@@ -82,26 +82,65 @@ namespace xx::Lua {
 }
 
 int main() {
-	xx::ObjManager om;
-	FF::PkgGenTypes::RegisterTo(om);
 
 	xx::Lua::State L;
-	xx::Lua::SetGlobal(L, "om", &om);	// 为一些函数执行提供上下文. 藏注册表里去似乎更好?
+	xx::Lua::DoString(L, R"(
+function tprint (tbl, indent)
+  if not indent then indent = 0 end
+  for k, v in pairs(tbl) do
+    formatting = string.rep("  ", indent) .. k .. ": "
+    if type(v) == "table" then
+      print(formatting)
+      tprint(v, indent+1)
+    elseif type(v) == 'boolean' then
+      print(formatting .. tostring(v))      
+    else
+      print(formatting .. v)
+    end
+  end
+end
+)");
 
-	xx::Lua::SetGlobal(L, "CreateNode", [] { return xx::MakeShared<FF::Node>(); });
 
-	xx::Lua::SetGlobal(L, "CreateFoo", [] { return xx::MakeShared<FF::Foo>(); });
-
+	std::cout << "------------------------------------------------" << std::endl;
 	xx::Lua::SetGlobal(L, "IntArrayTest", [](std::vector<int> const& ints) {
 		for (auto&& i : ints) {
 			std::cout << i << std::endl;
 		}
-	});
+		});
 
 	xx::Lua::DoString(L, R"(
 IntArrayTest({ [1] = 12, [2] = 34 })
 )");
 
+
+
+	std::cout << "------------------------------------------------" << std::endl;
+	xx::Lua::DoString(L, R"(
+FFF = function(t, m, b)
+	tprint(t)
+	tprint(m)
+	print(b)
+end
+)");
+	std::function<void(std::vector<int> const&, std::unordered_map<std::string, int> const&, bool const&)> OnPushVectorInt;
+	xx::Lua::GetGlobal(L, "FFF", OnPushVectorInt);
+	OnPushVectorInt({ 12,34,56 }, { {"ab", 12}, {"cd", 34} }, true);
+
+
+
+
+
+	std::cout << "------------------------------------------------" << std::endl;
+
+	xx::ObjManager om;
+	FF::PkgGenTypes::RegisterTo(om);
+
+	xx::Lua::SetGlobal(L, "om", &om);	// 为一些函数执行提供上下文. 藏注册表里去似乎更好?
+
+	xx::Lua::SetGlobal(L, "CreateNode", [] { return xx::MakeShared<FF::Node>(); });
+
+	xx::Lua::SetGlobal(L, "CreateFoo", [] { return xx::MakeShared<FF::Foo>(); });
 
 	xx::Lua::DoString(L, R"(
 
@@ -125,20 +164,7 @@ print(foo:GetRnd():NextDouble())
 print(foo:RndNextDouble())
 
 
-function tprint (tbl, indent)
-  if not indent then indent = 0 end
-  for k, v in pairs(tbl) do
-    formatting = string.rep("  ", indent) .. k .. ": "
-    if type(v) == "table" then
-      print(formatting)
-      tprint(v, indent+1)
-    elseif type(v) == 'boolean' then
-      print(formatting .. tostring(v))      
-    else
-      print(formatting .. v)
-    end
-  end
-end
+
 
 t = {
 	[1] = "asdf",
