@@ -85,17 +85,7 @@ namespace TemplateLibrary {
     public class External : System.Attribute {
     }
 
-    /// <summary>
-    /// 针对最外层级的 List, Data, string 做最大长度保护限制
-    /// 如果是类似 List List... 多层需要限制的情况, 就写多个 Limit, 有几层写几个
-    /// </summary>
-    [System.AttributeUsage(System.AttributeTargets.Field | System.AttributeTargets.ReturnValue, AllowMultiple = true)]
-    public class Limit : System.Attribute {
-        public Limit(int value) {
-            this.value = value;
-        }
-        public int value;
-    }
+
 
     /// <summary>
     /// C++ only
@@ -124,4 +114,17 @@ namespace TemplateLibrary {
     /// </summary>
     [System.AttributeUsage(System.AttributeTargets.Class)]
     public class Struct : System.Attribute { }
+
+
+    /// <summary>
+    /// 针对最外层级的 List, Data, string 做最大长度保护限制
+    /// 如果是类似 List List... 多层需要限制的情况, 就写多个 Limit, 有几层写几个
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Field | System.AttributeTargets.ReturnValue, AllowMultiple = true)]
+    public class Limit : System.Attribute {
+        public Limit(int value) {
+            this.value = value;
+        }
+        public int value;
+    }
 }

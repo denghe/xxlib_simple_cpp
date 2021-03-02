@@ -8,7 +8,26 @@ using System.Runtime.Loader;
 using System.Linq;
 using System.Collections.Generic;
 
+public class Cfg {
+    public List<string> refs { get; set; }
+    public string name { get; set; }
+    public List<string> files { get; set; }
+    public string outdir_cs { get; set; }
+    public string outdir_lua { get; set; }
+    public string outdir_cpp { get; set; }
+}
+
 public static class Program {
+
+    public static T DeSerialize<T>(string json) {
+        T obj = Activator.CreateInstance<T>();
+        using (MemoryStream ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json))) {
+            System.Runtime.Serialization.Json.DataContractJsonSerializer serializer = new System.Runtime.Serialization.Json.DataContractJsonSerializer(obj.GetType());
+            return (T)serializer.ReadObject(ms);
+        }
+    }
+
+
     public static Assembly CreateAssembly(IEnumerable<string> fileNames) {
         var dllPath = RuntimeEnvironment.GetRuntimeDirectory();
 
@@ -45,6 +64,13 @@ public static class Program {
     }
 
     public static void Main(string[] args) {
+
+        //var cfg = DeSerialize<Cfg>(File.ReadAllText(args[0]));
+
+        //// todo
+
+        //return;
+
         if (args.Length < 3) {
             TipsAndExit(@"
 *.cs -> codes 生成器使用提示：
@@ -103,3 +129,49 @@ public static class Program {
         //else Console.ReadLine();
     }
 }
+
+
+/*
+ 
+ 
+ 
+
+
+.\shareds 目录下文件列表：gen_cfg.json abc.cs def.cs
+{
+	"refs":[]
+	"name":"Shared"								// 多用于生成物文件前缀
+	"files":[".\abc.cs", ".\def.cs"],			// 合并编译 asm 的文件列表( 其路径相对于 gen_cfg.json 所在目录 或填写绝对路径 )
+	"outdir_cs":"..\out\cs\"					// 对应语言的生成物 输出目录( 缺失 或 留空 表示不生成 )
+	"outdir_lua":"..\out\lua\"					//
+	"outdir_cpp":"..\out\cpp\"					//
+}
+
+.\projs\p1 目录下文件列表：gen_cfg.json efg.cs hhhh.cs
+{
+	"refs":["..\..\shareds\gen_cfg.json"],		// 依赖项目配置。其 types 走 External 规则( 其路径相对于 gen_cfg.json 所在目录 或填写绝对路径 )
+	"name":"P1",
+	"files":[".\efg.cs", ".\hhhh.cs"],
+	"outdir_cs":"..\..\..\out\cs\"
+	"outdir_lua":"..\..\..\out\lua\"
+	"outdir_cpp":"..\..\..\out\cpp\"
+}
+
+.\projs\p2 目录下文件列表：gen_cfg.json ffffff.cs
+{
+	"refs":["..\..\shareds\gen_cfg.json", "..\p1\gen_cfg.json"],	// 多个则先合并 types 再 ...
+	"name":"P2",
+	"files":[".\ffffff.cs"],
+	"outdir_cs":"..\..\..\out\cs\"
+	"outdir_lua":"..\..\..\out\lua\"
+	"outdir_cpp":"..\..\..\out\cpp\"
+}
+
+..\tools_codegen_src\bin\Debug\net5.0\tools_codegen_src.exe .\projs\p1\gen_cfg.json
+..\tools_codegen_src\bin\Debug\net5.0\tools_codegen_src.exe .\projs\p2\gen_cfg.json
+
+
+ 
+ 
+ 
+ */
