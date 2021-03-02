@@ -52,19 +52,23 @@ namespace TemplateLibrary {
 
 
     /// <summary>
+    /// 用来做类型到 typeId 的固定映射生成
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct)]
+    public class TypeId : System.Attribute {
+        public TypeId(ushort value) {
+            this.value = value;
+        }
+        public ushort value;
+    }
+
+    /// <summary>
     /// 标记一个类能简单向下兼容( 不可修改 顺序 & 数据类型 & 默认值, 变量名可改, 不可删除，只能在最后追加, 且须避免老 Weak 引用到追加成员. 老 Shared 引用到新增类 也是无法识别的 )
     /// 两种情况：读不完，读不够
     /// </summary>
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct)]
-    public class Compatible : System.Attribute { 
+    public class Compatible : System.Attribute {
     }
-
-    /// <summary>
-    /// 标记一个 class 生成时走 struct 规则( 值类型继承 ), 以突破 c# 写模板的限制
-    /// </summary>
-    [System.AttributeUsage(System.AttributeTargets.Class)]
-    public class Struct : System.Attribute { }
-
 
     /// <summary>
     /// 备注。可用于类/枚举/函数 及其 成员
@@ -73,7 +77,6 @@ namespace TemplateLibrary {
         public Desc(string v) { value = v; }
         public string value;
     }
-
 
     /// <summary>
     /// 外部扩展。命名空间根据类所在实际命名空间获取，去除根模板名。参数如果传 false 则表示该类不支持序列化，无法用于收发
@@ -95,6 +98,7 @@ namespace TemplateLibrary {
     }
 
     /// <summary>
+    /// C++ only
     /// 标记一个类需要抠洞在声明部分嵌入 模板名_类名.inc ( 在成员前面 )
     /// </summary>
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct)]
@@ -102,21 +106,22 @@ namespace TemplateLibrary {
     }
 
     /// <summary>
+    /// C++ only
     /// 标记一个类需要抠洞在声明部分嵌入 模板名_类名_.inc ( 在成员后面 )
     /// </summary>
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct)]
     public class Include_ : System.Attribute {
     }
 
-    /// <summary>
-    /// 用来做类型到 typeId 的固定映射生成
-    /// </summary>
-    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Struct)]
-    public class TypeId : System.Attribute {
-        public TypeId(ushort value) {
-            this.value = value;
-        }
-        public ushort value;
-    }
 
+
+    /****************************************************************************************/
+    // 下面的东西用不用看心情
+
+    /// <summary>
+    /// C# only
+    /// 标记一个 class 生成时走 struct 规则( 值类型继承 ), 以突破 c# 写模板的限制
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Class)]
+    public class Struct : System.Attribute { }
 }
